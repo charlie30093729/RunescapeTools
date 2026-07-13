@@ -1,0 +1,362 @@
+# RuneScape Price Checker — Application Requirements
+
+| Field | Value |
+| --- | --- |
+| Document version | 1.0 |
+| Application | RuneScape Price Checker / GE Ledger |
+| Status | MVP baseline |
+| Date | 13 July 2026 |
+| Target platform | Local .NET 8 Blazor Server application |
+
+## 1. Purpose
+
+This document defines the functional, data, integration, quality, and acceptance requirements for RuneScape Price Checker, presented in the user interface as **GE Ledger**.
+
+The application provides a focused personal workspace for Old School RuneScape Grand Exchange information. It intentionally limits general market noise by displaying favourite items and items required by registered money-making methods. It also supplies a reusable calculation model for GP per hour and future experience-per-hour or cost-per-hour features.
+
+## 2. Product goals
+
+The application shall:
+
+1. Let a user maintain a small list of favourite Grand Exchange items.
+2. Show current prices and seven days of hourly history without operating a continuous data collector.
+3. Calculate GP per hour from explicit item inputs and outputs using current market prices.
+4. Make money-making methods modular so that adding or removing a method does not require navigation or calculator rewrites.
+5. Keep the domain calculation logic independent from the Blazor user interface.
+6. Remain suitable for expansion into XP-per-hour and skill cost calculations.
+
+## 3. Stakeholders and users
+
+### 3.1 Primary user
+
+The primary user is an Old School RuneScape player running the application locally to monitor selected items and estimate the profitability of personal money-making methods.
+
+### 3.2 Maintainer
+
+The maintainer adds or adjusts item mappings, money-making definitions, calculation rules, UI features, and external API compatibility.
+
+### 3.3 External service owner
+
+The OSRS Wiki real-time price API is an external dependency. The application must identify itself appropriately and avoid unnecessary requests.
+
+## 4. Scope
+
+### 4.1 MVP scope
+
+- Local Blazor Server web interface.
+- Dashboard, Favourites, and Money Makers navigation areas.
+- JSON-backed favourite persistence.
+- OSRS Wiki item mapping, latest-price, and time-series integration.
+- Seven-day hourly history graphs.
+- Shared item-flow GP-per-hour calculator.
+- Automatic discovery of concrete money-making method classes.
+- Vyrewatch Sentinels as the first registered method.
+- Startup warming and in-memory API caching.
+- Graceful handling of temporary market-data failures.
+
+### 4.2 Out of scope for the MVP
+
+- User accounts, authentication, or role management.
+- Cloud-hosted favourite synchronization.
+- Automated trading or interaction with a RuneScape account.
+- A continuously running historical-price ingestion service.
+- Price alerts or push notifications.
+- Editing money-making method definitions through the UI.
+- Formal investment, trading, or profit guarantees.
+- Completed skill XP/hour or cost/hour calculators.
+- Mobile-native applications.
+
+## 5. Definitions and business terms
+
+| Term | Definition |
+| --- | --- |
+| Favourite | A Grand Exchange item explicitly selected by the user for display and history retrieval. |
+| Instant buy | The latest high price reported by the Wiki price API. |
+| Instant sell | The latest low price reported by the Wiki price API. |
+| Midpoint | The average of the latest high and low prices. If only one side is available, that value is used. |
+| Item flow | An item quantity consumed as an input or produced as an output. |
+| Per action | A quantity multiplied by the method's configured actions per hour. |
+| Per hour | A quantity already expressed as an hourly amount. |
+| GE tax | The configured percentage deducted from taxable output value. |
+| Weekly history | Price points from the latest seven-day window using one-hour API data. |
+
+## 6. Functional requirements
+
+### 6.1 Application shell and navigation
+
+| ID | Requirement |
+| --- | --- |
+| FR-NAV-001 | The application shall provide navigation to Dashboard, Favourites, and Money Makers views. |
+| FR-NAV-002 | The active navigation destination shall be visually identifiable. |
+| FR-NAV-003 | The layout shall retain usable navigation on desktop and narrow displays. |
+| FR-NAV-004 | The application shall identify the market-data source in the interface. |
+
+### 6.2 Dashboard
+
+| ID | Requirement |
+| --- | --- |
+| FR-DASH-001 | The dashboard shall display the number of favourite items. |
+| FR-DASH-002 | The dashboard shall display the number of registered money-making methods. |
+| FR-DASH-003 | The dashboard shall display the seven-day history-window summary. |
+| FR-DASH-004 | The dashboard shall show the current midpoint for each favourite when live prices are available. |
+| FR-DASH-005 | The dashboard shall provide direct navigation to favourite history and money-making calculators. |
+| FR-DASH-006 | A live-price failure shall not prevent the user's stored favourites from being shown as safe. |
+
+### 6.3 Favourite management
+
+| ID | Requirement |
+| --- | --- |
+| FR-FAV-001 | The user shall be able to search Grand Exchange item mappings by a partial, case-insensitive item name. |
+| FR-FAV-002 | Search shall begin only after at least two non-whitespace characters are supplied. |
+| FR-FAV-003 | Search results shall prioritize names that begin with the search term. |
+| FR-FAV-004 | Items already present in the favourite list shall not be offered as add candidates. |
+| FR-FAV-005 | The user shall be able to add a search result to favourites. |
+| FR-FAV-006 | Duplicate favourite item IDs shall not be persisted. |
+| FR-FAV-007 | The user shall be able to remove a favourite independently from selecting it. |
+| FR-FAV-008 | The favourite list shall remain sorted by item name, ignoring case. |
+| FR-FAV-009 | Adding an item shall select it and load its current price and weekly history. |
+| FR-FAV-010 | Removing the selected item shall select the first remaining favourite when one exists. |
+| FR-FAV-011 | Favourite selection and removal controls shall have distinct accessible names and keyboard actions. |
+
+### 6.4 Market prices and history
+
+| ID | Requirement |
+| --- | --- |
+| FR-MKT-001 | The application shall retrieve the OSRS Wiki item mapping for item search and display metadata. |
+| FR-MKT-002 | The application shall retrieve the latest high, low, and timestamp values for priced items. |
+| FR-MKT-003 | The application shall calculate a midpoint from available high and low values. |
+| FR-MKT-004 | Requests for current prices shall return only the item IDs required by the calling view or method. |
+| FR-HIST-001 | The application shall request one-hour time-series data for a selected favourite. |
+| FR-HIST-002 | The application shall restrict the displayed history to points within the latest seven days. |
+| FR-HIST-003 | The history view shall display the weekly percentage change when at least two valid midpoint values exist. |
+| FR-HIST-004 | The history view shall display current midpoint, instant-buy price, instant-sell price, point count, and tracked volume. |
+| FR-HIST-005 | The application shall render a graph only when at least two valid midpoint points exist. |
+| FR-HIST-006 | Graph points shall expose local timestamp and GP value details. |
+| FR-HIST-007 | The application shall warm latest prices and weekly history for persisted favourites during startup. |
+
+### 6.5 Money-making calculations
+
+| ID | Requirement |
+| --- | --- |
+| FR-CALC-001 | Every money-making method shall define a slug, name, description, actions per hour, account count, tax rate, and item flows. |
+| FR-CALC-002 | Each item flow shall identify the item ID, display name, quantity, direction, quantity basis, and tax applicability. |
+| FR-CALC-003 | A per-action quantity shall be multiplied by the configured actions per hour. |
+| FR-CALC-004 | A per-hour quantity shall be used without action-rate multiplication. |
+| FR-CALC-005 | Input cost shall equal the sum of hourly input quantity multiplied by midpoint price. |
+| FR-CALC-006 | Gross revenue shall equal the sum of hourly output quantity multiplied by midpoint price. |
+| FR-CALC-007 | GE tax shall apply only to taxable output value. |
+| FR-CALC-008 | Profit per account shall equal gross revenue minus output tax and input cost. |
+| FR-CALC-009 | Total profit shall equal profit per account multiplied by the configured account count. |
+| FR-CALC-010 | A missing item price shall be visibly reported and shall contribute zero GP to the estimate. |
+| FR-CALC-011 | The calculation view shall display a line-by-line ledger for every input and output. |
+| FR-CALC-012 | The calculation model shall support optional experience rewards without requiring a GP formula rewrite. |
+
+### 6.6 Method modularity
+
+| ID | Requirement |
+| --- | --- |
+| FR-MOD-001 | A money-making method shall implement the `IMoneyMakingMethod` contract in the Core project. |
+| FR-MOD-002 | Concrete method implementations shall be discovered and registered automatically at application startup. |
+| FR-MOD-003 | Adding or removing a method class shall automatically update the available method list after rebuild and restart. |
+| FR-MOD-004 | Domain calculations shall not depend on Blazor components or infrastructure-specific API types. |
+
+### 6.7 Persistence and error handling
+
+| ID | Requirement |
+| --- | --- |
+| FR-DATA-001 | Favourites shall persist locally in a JSON file under the configured data directory. |
+| FR-DATA-002 | Favourite writes shall replace the target file atomically through a temporary file. |
+| FR-DATA-003 | Concurrent favourite operations in one application process shall be serialized. |
+| FR-ERR-001 | Item search, latest-price, history, and calculator failures shall produce user-readable messages. |
+| FR-ERR-002 | Temporary API failures shall not delete or overwrite stored favourites. |
+| FR-ERR-003 | HTTP 429 and server-error responses shall be retried up to three attempts with a delay. |
+| FR-ERR-004 | Application shutdown cancellation shall not be logged as a startup-warming failure. |
+
+## 7. Business rules
+
+| ID | Rule |
+| --- | --- |
+| BR-001 | Midpoint = `(high + low) / 2` when both values exist. |
+| BR-002 | When only one market side exists, midpoint equals the available value. |
+| BR-003 | When neither market side exists, the item is treated as missing a price. |
+| BR-004 | Weekly change = `(last midpoint - first midpoint) / first midpoint × 100`; it is omitted when fewer than two values exist or the first value is zero. |
+| BR-005 | Tracked volume is the sum of high-side and low-side volume across displayed history points. |
+| BR-006 | The MVP Vyrewatch method uses 102 actions per hour, five accounts, and a 2% output tax. |
+| BR-007 | The MVP prices calculations using the current high/low midpoint, so results are estimates rather than guaranteed realized profit. |
+
+## 8. External interface requirements
+
+### 8.1 OSRS Wiki real-time price API
+
+The application depends on these logical operations under the OSRS endpoint:
+
+| Operation | Purpose |
+| --- | --- |
+| `mapping` | Searchable item IDs and metadata. |
+| `latest` | Current high, low, and update timestamps. |
+| `timeseries?id={itemId}&timestep=1h` | Hourly price and volume history for a selected item. |
+
+Requirements:
+
+- Requests shall accept JSON responses.
+- Requests shall include an identifiable `User-Agent` configured through application settings.
+- The HTTP client timeout shall be finite; the MVP target is 20 seconds.
+- API schema changes shall be handled as integration failures rather than silently producing incorrect calculations.
+- The application shall not require Wiki credentials or store third-party secrets.
+
+### 8.2 Browser interface
+
+- The interface shall support current Chromium-based browsers used with a local Blazor Server application.
+- Interactive controls shall operate through the Blazor Server connection.
+- Graphs shall be rendered without requiring a third-party client charting package.
+
+## 9. Data requirements
+
+### 9.1 Favourite item
+
+| Field | Type | Constraint |
+| --- | --- | --- |
+| Item ID | Integer | Positive and unique within favourites. |
+| Name | String | Required display name. |
+| Added at | Date/time with offset | Stored in UTC when added by the application. |
+
+### 9.2 Market data
+
+- Item mappings contain item ID, name, examine text, membership flag, optional buy limit, and icon name.
+- Latest prices contain optional high and low values and their optional update times.
+- History points contain timestamp, optional average high and low, and high/low volumes.
+
+### 9.3 Money-making method data
+
+- Method slugs shall be stable and unique.
+- Required item IDs shall be derived from distinct item flows.
+- Monetary calculation values shall use decimal arithmetic after API integer prices are read.
+- Experience rewards shall identify the skill and experience per action.
+
+### 9.4 Local and generated data
+
+- `data/favourites.json` is application data and may be versioned as an initial seed for the MVP.
+- ASP.NET data-protection keys are runtime-generated local state and shall be excluded from Git.
+- Build outputs and IDE-specific state shall be excluded from Git.
+
+## 10. Caching and request-efficiency requirements
+
+| ID | Requirement |
+| --- | --- |
+| NFR-CACHE-001 | Latest-price data shall be cached for approximately one minute. |
+| NFR-CACHE-002 | Item mapping data shall be cached for approximately twelve hours. |
+| NFR-CACHE-003 | Weekly history shall be cached per item for approximately fifteen minutes. |
+| NFR-CACHE-004 | Concurrent cache refreshes of the same category shall be serialized within the application process. |
+| NFR-CACHE-005 | Startup warming shall use bounded parallelism; the MVP maximum is three history requests at once. |
+
+## 11. Non-functional requirements
+
+### 11.1 Performance
+
+| ID | Requirement |
+| --- | --- |
+| NFR-PERF-001 | Navigation using cached data should update without a full browser reload. |
+| NFR-PERF-002 | Search shall return no more than a small bounded result set; the MVP limit is eight items. |
+| NFR-PERF-003 | The UI shall remain responsive while API requests are in progress and shall display loading states where appropriate. |
+
+### 11.2 Reliability
+
+| ID | Requirement |
+| --- | --- |
+| NFR-REL-001 | Failure of the external price service shall not prevent application startup. |
+| NFR-REL-002 | Failure of startup history warming shall be logged as a warning and shall not terminate the application. |
+| NFR-REL-003 | Local favourite writes shall avoid leaving a partially written target file. |
+
+### 11.3 Security and privacy
+
+| ID | Requirement |
+| --- | --- |
+| NFR-SEC-001 | The application shall not collect RuneScape credentials. |
+| NFR-SEC-002 | Runtime data-protection keys shall not be committed to source control. |
+| NFR-SEC-003 | No API secrets shall be embedded in source code or documentation. |
+| NFR-SEC-004 | User-controlled values shall be rendered through normal Razor encoding. |
+| NFR-SEC-005 | The application is intended for trusted local use unless a future deployment adds an explicit authentication and security design. |
+
+### 11.4 Accessibility and usability
+
+| ID | Requirement |
+| --- | --- |
+| NFR-A11Y-001 | Primary navigation and interactive actions shall be keyboard operable. |
+| NFR-A11Y-002 | Remove actions shall expose an item-specific accessible name. |
+| NFR-A11Y-003 | The price graph shall expose an accessible image label and point details. |
+| NFR-A11Y-004 | Positive, negative, input, and output meaning shall not rely solely on position. |
+| NFR-A11Y-005 | Focus indicators shall be visible for favourite selection and removal controls. |
+
+### 11.5 Maintainability and testability
+
+| ID | Requirement |
+| --- | --- |
+| NFR-MAINT-001 | Domain models and calculations shall remain in the Core project. |
+| NFR-MAINT-002 | External HTTP and JSON persistence shall remain behind interfaces or infrastructure services. |
+| NFR-MAINT-003 | UI components shall consume services and domain results rather than reproduce calculation rules. |
+| NFR-TEST-001 | The regression harness shall cover generic item-flow arithmetic, the legacy Vyrewatch formula, distinct required item IDs, and midpoint fallback behavior. |
+| NFR-TEST-002 | A release candidate shall build with zero compiler errors. |
+
+### 11.6 Compatibility
+
+| ID | Requirement |
+| --- | --- |
+| NFR-COMP-001 | Projects shall target .NET 8. |
+| NFR-COMP-002 | Local development shall be supported on Windows with PowerShell and the .NET SDK. |
+| NFR-COMP-003 | The layout shall avoid page-level horizontal overflow at supported desktop widths. |
+| NFR-COMP-004 | Tables may use contained horizontal scrolling when their readable minimum width exceeds the available viewport. |
+
+## 12. Configuration requirements
+
+| Setting | Purpose | Default behavior |
+| --- | --- | --- |
+| `OsrsWiki:UserAgent` | Identifies the application and maintainer to the Wiki API. | Uses the configured application value. |
+| `DataDirectory` | Selects the local persistence directory. | `data` under the web content root. |
+| `Logging:LogLevel` | Controls application and framework logging. | Information for the app and warning for ASP.NET Core. |
+
+The maintainer shall replace placeholder contact information before public distribution or hosted deployment.
+
+## 13. MVP acceptance criteria
+
+The MVP is accepted when all of the following are true:
+
+1. The solution builds successfully with no compiler errors.
+2. The calculation regression harness passes all included checks.
+3. The dashboard loads persisted favourites and live midpoint prices when the Wiki service is available.
+4. The user can search for an item, add it, select it, see weekly history, and remove it.
+5. Favourite changes persist across application restarts.
+6. Weekly history contains only the latest seven-day window and renders at least two valid points when data is available.
+7. The Vyrewatch method displays live-priced inputs, outputs, tax, per-account profit, and total five-account profit.
+8. Adding another `IMoneyMakingMethod` implementation makes it available without a manual navigation registration.
+9. Market-service failures display understandable fallback messages without deleting favourites.
+10. The main desktop page and calculator panel do not create uncontrolled horizontal page overflow.
+11. Runtime data-protection keys and build outputs remain ignored by Git.
+
+## 14. Risks and dependencies
+
+| Risk or dependency | Impact | Mitigation |
+| --- | --- | --- |
+| Wiki API outage or throttling | Current prices, search, or history may be unavailable. | Cache responses, retry limited transient failures, and show fallback messages. |
+| API schema or endpoint changes | Parsing can fail or data can become incomplete. | Keep integration isolated in `OsrsWikiPriceClient` and validate failures visibly. |
+| Thinly traded items | Midpoint and history may be sparse or misleading. | Show unavailable states and require two valid points for a graph. |
+| Current midpoint differs from realized trade price | GP/hour is an estimate. | Label the pricing rule and expose input/output line values. |
+| JSON storage is local and single-instance | No cloud synchronization and limited multi-process coordination. | Keep the MVP local; introduce a database only when broader concurrency is required. |
+| Game mechanics or tax rules change | Method estimates become inaccurate. | Keep quantities and tax rates explicit in method definitions and regression tests. |
+
+## 15. Future requirements candidates
+
+- Skill XP/hour and cost/hour calculators using the existing experience reward model.
+- UI-driven method creation and parameter overrides.
+- Price and profit alerts.
+- Optional historical persistence beyond the Wiki API window.
+- Import/export of favourites and method definitions.
+- Database-backed local storage.
+- Authentication and deployment hardening for hosted use.
+- Automated unit, integration, accessibility, and browser test projects in CI.
+
+## 16. Requirements governance
+
+- Requirement IDs shall remain stable after publication.
+- Changed behavior shall update this document and its affected acceptance criteria in the same pull request or commit.
+- New features shall declare whether they extend MVP scope or a future release.
+- Business-rule changes affecting profitability shall include regression coverage before release.

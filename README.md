@@ -12,6 +12,10 @@ RuneScape Price Checker (shown as **GE Ledger** in the UI) is a local Blazor app
 
 The Wiki API already provides recent time-series data, so the app can render weekly graphs when it starts. It does not need a continuously running website or its own historical-price collector for this view.
 
+## Documentation
+
+- [Application requirements](APPLICATION_REQUIREMENTS.md)
+
 ## Run locally
 
 Requirements: the .NET 8 SDK or newer.
