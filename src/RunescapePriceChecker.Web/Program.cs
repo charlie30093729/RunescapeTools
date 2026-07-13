@@ -1,11 +1,9 @@
-using RunescapePriceChecker.Core.Favourites;
-using RunescapePriceChecker.Core.Market;
-using RunescapePriceChecker.Core.MoneyMaking;
-using RunescapePriceChecker.Core.MoneyMaking.Methods;
 using RunescapePriceChecker.Web.Components;
-using RunescapePriceChecker.Web.Infrastructure;
 using RunescapePriceChecker.Web.Services;
 using Microsoft.AspNetCore.DataProtection;
+using RunescapePriceChecker.Application.Market;
+using RunescapePriceChecker.Infrastructure.Configuration;
+using RunescapePriceChecker.Infrastructure.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Logging.ClearProviders();
@@ -17,28 +15,19 @@ builder.Services.AddRazorComponents()
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(builder.Environment.ContentRootPath, "data", "keys")));
 
-builder.Services.AddHttpClient<IOsrsPriceClient, OsrsWikiPriceClient>((services, client) =>
-{
-    var configuration = services.GetRequiredService<IConfiguration>();
-    client.BaseAddress = new Uri("https://prices.runescape.wiki/api/v1/osrs/");
-    client.Timeout = TimeSpan.FromSeconds(20);
-    client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
-    client.DefaultRequestHeaders.UserAgent.ParseAdd(
-        configuration["OsrsWiki:UserAgent"]
-        ?? "RunescapePriceChecker/0.1 (contact: Discord bottleo)");
-});
-
-builder.Services.AddSingleton<IFavouriteStore, JsonFavouriteStore>();
-builder.Services.AddSingleton<MarketDataService>();
-builder.Services.AddSingleton<MoneyMakingCalculator>();
-builder.Services.AddHostedService<FavouriteHistoryWarmupService>();
-
-var moneyMakingMethodTypes = typeof(VyrewatchMethod).Assembly
-    .GetTypes()
-    .Where(type => !type.IsAbstract && !type.IsInterface && typeof(IMoneyMakingMethod).IsAssignableFrom(type));
-
-foreach (var methodType in moneyMakingMethodTypes)
-    builder.Services.AddSingleton(typeof(IMoneyMakingMethod), methodType);
+var dataDirectory = builder.Configuration["DataDirectory"] ?? "data";
+builder.Services.AddRuneScapePriceCheckerServices(
+    new OsrsWikiOptions
+    {
+        UserAgent = builder.Configuration["OsrsWiki:UserAgent"]
+                    ?? "RunescapePriceChecker/0.1 (contact: Discord bottleo)"
+    },
+    new FavouriteStoreOptions
+    {
+        FilePath = Path.Combine(builder.Environment.ContentRootPath, dataDirectory, "favourites.json")
+    },
+    new MarketDataOptions());
+builder.Services.AddHostedService<FavouriteHistoryWarmupHostedService>();
 
 var app = builder.Build();
 

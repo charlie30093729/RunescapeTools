@@ -2,13 +2,16 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\RunescapePriceChecker.Application\RunescapePriceChecker.Application.csproj" />
     <ProjectReference Include="..\..\src\RunescapePriceChecker.Core\RunescapePriceChecker.Core.csproj" />
+    <ProjectReference Include="..\..\src\RunescapePriceChecker.Infrastructure\RunescapePriceChecker.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\RunescapePriceChecker.Wpf\RunescapePriceChecker.Wpf.csproj" />
   </ItemGroup>
 
 </Project>
