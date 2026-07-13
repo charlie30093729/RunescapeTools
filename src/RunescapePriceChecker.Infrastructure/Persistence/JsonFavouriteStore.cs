@@ -1,9 +1,10 @@
 using System.Text.Json;
 using RunescapePriceChecker.Core.Favourites;
+using RunescapePriceChecker.Infrastructure.Configuration;
 
-namespace RunescapePriceChecker.Web.Infrastructure;
+namespace RunescapePriceChecker.Infrastructure.Persistence;
 
-public sealed class JsonFavouriteStore : IFavouriteStore
+public sealed class JsonFavouriteStore(FavouriteStoreOptions options) : IFavouriteStore
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -11,13 +12,7 @@ public sealed class JsonFavouriteStore : IFavouriteStore
     };
 
     private readonly SemaphoreSlim gate = new(1, 1);
-    private readonly string filePath;
-
-    public JsonFavouriteStore(IHostEnvironment environment, IConfiguration configuration)
-    {
-        var dataDirectory = configuration["DataDirectory"] ?? "data";
-        filePath = Path.GetFullPath(Path.Combine(environment.ContentRootPath, dataDirectory, "favourites.json"));
-    }
+    private readonly string filePath = Path.GetFullPath(options.FilePath);
 
     public async Task<IReadOnlyList<FavouriteItem>> GetAllAsync(CancellationToken cancellationToken = default)
     {
@@ -36,6 +31,7 @@ public sealed class JsonFavouriteStore : IFavouriteStore
 
     public async Task AddAsync(FavouriteItem favourite, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(favourite);
         await gate.WaitAsync(cancellationToken);
         try
         {
@@ -70,7 +66,12 @@ public sealed class JsonFavouriteStore : IFavouriteStore
     private async Task<List<FavouriteItem>> LoadUnsafeAsync(CancellationToken cancellationToken)
     {
         if (!File.Exists(filePath))
-            return [];
+        {
+            var seed = DeserializeSeed();
+            if (seed.Count > 0)
+                await SaveUnsafeAsync(seed, cancellationToken);
+            return seed;
+        }
 
         await using var stream = File.OpenRead(filePath);
         return await JsonSerializer.DeserializeAsync<List<FavouriteItem>>(
@@ -80,13 +81,29 @@ public sealed class JsonFavouriteStore : IFavouriteStore
                ?? [];
     }
 
+    private List<FavouriteItem> DeserializeSeed()
+    {
+        if (string.IsNullOrWhiteSpace(options.SeedJson))
+            return [];
+
+        try
+        {
+            return JsonSerializer.Deserialize<List<FavouriteItem>>(options.SeedJson, JsonOptions) ?? [];
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
+
     private async Task SaveUnsafeAsync(List<FavouriteItem> favourites, CancellationToken cancellationToken)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
+        var sorted = favourites.OrderBy(item => item.Name, StringComparer.OrdinalIgnoreCase).ToArray();
         var temporaryPath = filePath + ".tmp";
         await using (var stream = File.Create(temporaryPath))
         {
-            await JsonSerializer.SerializeAsync(stream, favourites, JsonOptions, cancellationToken);
+            await JsonSerializer.SerializeAsync(stream, sorted, JsonOptions, cancellationToken);
         }
 
         File.Move(temporaryPath, filePath, true);

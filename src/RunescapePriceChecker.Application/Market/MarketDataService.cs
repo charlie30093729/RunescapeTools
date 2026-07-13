@@ -1,35 +1,40 @@
+using System.Collections.Concurrent;
 using RunescapePriceChecker.Core.Market;
 
-namespace RunescapePriceChecker.Web.Services;
+namespace RunescapePriceChecker.Application.Market;
 
-public sealed class MarketDataService(IOsrsPriceClient client)
+public sealed class MarketDataService(
+    IOsrsPriceClient client,
+    MarketDataOptions options,
+    TimeProvider? timeProvider = null) : IMarketDataService
 {
-    private static readonly TimeSpan LatestCacheDuration = TimeSpan.FromMinutes(1);
-    private static readonly TimeSpan MappingCacheDuration = TimeSpan.FromHours(12);
-    private static readonly TimeSpan HistoryCacheDuration = TimeSpan.FromMinutes(15);
-
+    private readonly TimeProvider clock = timeProvider ?? TimeProvider.System;
     private readonly SemaphoreSlim latestGate = new(1, 1);
     private readonly SemaphoreSlim mappingGate = new(1, 1);
-    private readonly SemaphoreSlim historyGate = new(1, 1);
+    private readonly ConcurrentDictionary<int, SemaphoreSlim> historyGates = new();
+    private readonly ConcurrentDictionary<int, HistoryCacheEntry> weeklyHistory = new();
     private IReadOnlyDictionary<int, ItemPrice>? latest;
     private DateTimeOffset latestFetchedAt;
     private IReadOnlyList<ItemMapping>? mapping;
     private DateTimeOffset mappingFetchedAt;
-    private readonly Dictionary<int, (DateTimeOffset FetchedAt, IReadOnlyList<PricePoint> Points)> weeklyHistory = [];
 
     public async Task<IReadOnlyDictionary<int, ItemPrice>> GetLatestForAsync(
         IEnumerable<int> itemIds,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(itemIds);
         var wantedIds = itemIds.Distinct().ToArray();
+        if (wantedIds.Length == 0)
+            return new Dictionary<int, ItemPrice>();
 
         await latestGate.WaitAsync(cancellationToken);
         try
         {
-            if (latest is null || DateTimeOffset.UtcNow - latestFetchedAt > LatestCacheDuration)
+            var now = clock.GetUtcNow();
+            if (latest is null || now - latestFetchedAt > options.LatestCacheDuration)
             {
                 latest = await client.GetLatestAsync(cancellationToken);
-                latestFetchedAt = DateTimeOffset.UtcNow;
+                latestFetchedAt = now;
             }
 
             return wantedIds
@@ -47,7 +52,7 @@ public sealed class MarketDataService(IOsrsPriceClient client)
         int take = 8,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(query) || query.Trim().Length < 2)
+        if (string.IsNullOrWhiteSpace(query) || query.Trim().Length < 2 || take <= 0)
             return [];
 
         var items = await GetMappingAsync(cancellationToken);
@@ -56,7 +61,7 @@ public sealed class MarketDataService(IOsrsPriceClient client)
             .Where(item => item.Name.Contains(term, StringComparison.OrdinalIgnoreCase))
             .OrderBy(item => item.Name.StartsWith(term, StringComparison.OrdinalIgnoreCase) ? 0 : 1)
             .ThenBy(item => item.Name.Length)
-            .ThenBy(item => item.Name)
+            .ThenBy(item => item.Name, StringComparer.OrdinalIgnoreCase)
             .Take(take)
             .ToArray();
     }
@@ -65,15 +70,24 @@ public sealed class MarketDataService(IOsrsPriceClient client)
         int itemId,
         CancellationToken cancellationToken = default)
     {
-        await historyGate.WaitAsync(cancellationToken);
+        if (itemId <= 0)
+            throw new ArgumentOutOfRangeException(nameof(itemId));
+
+        var gate = historyGates.GetOrAdd(itemId, _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(cancellationToken);
         try
         {
+            var now = clock.GetUtcNow();
             if (!weeklyHistory.TryGetValue(itemId, out var cached)
-                || DateTimeOffset.UtcNow - cached.FetchedAt > HistoryCacheDuration)
+                || now - cached.FetchedAt > options.HistoryCacheDuration)
             {
                 var points = await client.GetTimeSeriesAsync(itemId, PriceTimeStep.OneHour, cancellationToken);
-                var cutoff = DateTimeOffset.UtcNow.AddDays(-7);
-                cached = (DateTimeOffset.UtcNow, points.Where(point => point.Timestamp >= cutoff).ToArray());
+                var cutoff = now - options.HistoryWindow;
+                cached = new HistoryCacheEntry(
+                    now,
+                    points.Where(point => point.Timestamp >= cutoff)
+                        .OrderBy(point => point.Timestamp)
+                        .ToArray());
                 weeklyHistory[itemId] = cached;
             }
 
@@ -81,7 +95,7 @@ public sealed class MarketDataService(IOsrsPriceClient client)
         }
         finally
         {
-            historyGate.Release();
+            gate.Release();
         }
     }
 
@@ -90,10 +104,11 @@ public sealed class MarketDataService(IOsrsPriceClient client)
         await mappingGate.WaitAsync(cancellationToken);
         try
         {
-            if (mapping is null || DateTimeOffset.UtcNow - mappingFetchedAt > MappingCacheDuration)
+            var now = clock.GetUtcNow();
+            if (mapping is null || now - mappingFetchedAt > options.MappingCacheDuration)
             {
                 mapping = await client.GetMappingAsync(cancellationToken);
-                mappingFetchedAt = DateTimeOffset.UtcNow;
+                mappingFetchedAt = now;
             }
 
             return mapping;
@@ -103,4 +118,8 @@ public sealed class MarketDataService(IOsrsPriceClient client)
             mappingGate.Release();
         }
     }
+
+    private sealed record HistoryCacheEntry(
+        DateTimeOffset FetchedAt,
+        IReadOnlyList<PricePoint> Points);
 }

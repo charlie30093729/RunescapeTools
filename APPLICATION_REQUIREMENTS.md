@@ -2,11 +2,11 @@
 
 | Field | Value |
 | --- | --- |
-| Document version | 1.0 |
+| Document version | 1.1 |
 | Application | RuneScape Price Checker / GE Ledger |
-| Status | MVP baseline |
+| Status | WPF MVP baseline |
 | Date | 13 July 2026 |
-| Target platform | Local .NET 8 Blazor Server application |
+| Target platform | Windows 10 2004+ x64; .NET 8 WPF desktop application |
 
 ## 1. Purpose
 
@@ -22,7 +22,7 @@ The application shall:
 2. Show current prices and seven days of hourly history without operating a continuous data collector.
 3. Calculate GP per hour from explicit item inputs and outputs using current market prices.
 4. Make money-making methods modular so that adding or removing a method does not require navigation or calculator rewrites.
-5. Keep the domain calculation logic independent from the Blazor user interface.
+5. Keep application, infrastructure, persistence, and calculation logic independent from both front ends.
 6. Remain suitable for expansion into XP-per-hour and skill cost calculations.
 
 ## 3. Stakeholders and users
@@ -43,7 +43,8 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 
 ### 4.1 MVP scope
 
-- Local Blazor Server web interface.
+- Native WPF executable as the primary front end.
+- Generic Host-based dependency injection, configuration, and logging.
 - Dashboard, Favourites, and Money Makers navigation areas.
 - JSON-backed favourite persistence.
 - OSRS Wiki item mapping, latest-price, and time-series integration.
@@ -53,6 +54,8 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 - Vyrewatch Sentinels as the first registered method.
 - Startup warming and in-memory API caching.
 - Graceful handling of temporary market-data failures.
+- Self-contained, single-file `win-x64` distribution.
+- A parked Razor/Blazor front end that remains buildable but receives no new UI work.
 
 ### 4.2 Out of scope for the MVP
 
@@ -88,7 +91,7 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | --- | --- |
 | FR-NAV-001 | The application shall provide navigation to Dashboard, Favourites, and Money Makers views. |
 | FR-NAV-002 | The active navigation destination shall be visually identifiable. |
-| FR-NAV-003 | The layout shall retain usable navigation on desktop and narrow displays. |
+| FR-NAV-003 | The WPF layout shall remain usable at the 1100 × 720 minimum window size, using contained scrolling where necessary. |
 | FR-NAV-004 | The application shall identify the market-data source in the interface. |
 
 ### 6.2 Dashboard
@@ -158,7 +161,7 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | FR-MOD-001 | A money-making method shall implement the `IMoneyMakingMethod` contract in the Core project. |
 | FR-MOD-002 | Concrete method implementations shall be discovered and registered automatically at application startup. |
 | FR-MOD-003 | Adding or removing a method class shall automatically update the available method list after rebuild and restart. |
-| FR-MOD-004 | Domain calculations shall not depend on Blazor components or infrastructure-specific API types. |
+| FR-MOD-004 | Domain calculations shall not depend on WPF, Razor components, or infrastructure-specific API types. |
 
 ### 6.7 Persistence and error handling
 
@@ -167,6 +170,9 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | FR-DATA-001 | Favourites shall persist locally in a JSON file under the configured data directory. |
 | FR-DATA-002 | Favourite writes shall replace the target file atomically through a temporary file. |
 | FR-DATA-003 | Concurrent favourite operations in one application process shall be serialized. |
+| FR-DATA-004 | The desktop host shall allow only one running application instance per Windows user session. |
+| FR-DATA-005 | On first launch only, the desktop host shall seed favourites from its embedded snapshot when no desktop file exists. |
+| FR-DATA-006 | The first-run seed shall never replace an existing desktop favourites file. |
 | FR-ERR-001 | Item search, latest-price, history, and calculator failures shall produce user-readable messages. |
 | FR-ERR-002 | Temporary API failures shall not delete or overwrite stored favourites. |
 | FR-ERR-003 | HTTP 429 and server-error responses shall be retried up to three attempts with a delay. |
@@ -204,11 +210,13 @@ Requirements:
 - API schema changes shall be handled as integration failures rather than silently producing incorrect calculations.
 - The application shall not require Wiki credentials or store third-party secrets.
 
-### 8.2 Browser interface
+### 8.2 Desktop interface
 
-- The interface shall support current Chromium-based browsers used with a local Blazor Server application.
-- Interactive controls shall operate through the Blazor Server connection.
-- Graphs shall be rendered without requiring a third-party client charting package.
+- The active interface shall be a native WPF application targeting `net8.0-windows10.0.19041.0`.
+- The default window shall be approximately 1280 × 800 with a 1100 × 720 minimum.
+- Feature behavior shall reside in CommunityToolkit.Mvvm view-models; code-behind shall be limited to initialization and application lifetime.
+- Weekly history shall be rendered with LiveCharts2 WPF, with tooltip timestamps converted to local time.
+- The Razor application shall remain in the solution as a buildable, parked front end and shall consume the same shared services.
 
 ## 9. Data requirements
 
@@ -235,8 +243,11 @@ Requirements:
 
 ### 9.4 Local and generated data
 
-- `data/favourites.json` is application data and may be versioned as an initial seed for the MVP.
-- ASP.NET data-protection keys are runtime-generated local state and shall be excluded from Git.
+- Mutable desktop state shall be stored under `%LocalAppData%\RuneScapePriceChecker`.
+- Desktop favourites shall be stored at `%LocalAppData%\RuneScapePriceChecker\data\favourites.json`.
+- The WPF assembly shall embed the versioned MVP favourites snapshot as first-run seed data, including the current Scythe favourite.
+- The parked Web host may retain its own `data/favourites.json`; it shall not share mutable state with WPF.
+- ASP.NET data-protection keys are runtime-generated Web state and shall be excluded from Git.
 - Build outputs and IDE-specific state shall be excluded from Git.
 
 ## 10. Caching and request-efficiency requirements
@@ -255,7 +266,7 @@ Requirements:
 
 | ID | Requirement |
 | --- | --- |
-| NFR-PERF-001 | Navigation using cached data should update without a full browser reload. |
+| NFR-PERF-001 | Desktop navigation using cached data should update without recreating the application host. |
 | NFR-PERF-002 | Search shall return no more than a small bounded result set; the MVP limit is eight items. |
 | NFR-PERF-003 | The UI shall remain responsive while API requests are in progress and shall display loading states where appropriate. |
 
@@ -274,7 +285,7 @@ Requirements:
 | NFR-SEC-001 | The application shall not collect RuneScape credentials. |
 | NFR-SEC-002 | Runtime data-protection keys shall not be committed to source control. |
 | NFR-SEC-003 | No API secrets shall be embedded in source code or documentation. |
-| NFR-SEC-004 | User-controlled values shall be rendered through normal Razor encoding. |
+| NFR-SEC-004 | User-controlled values shall be rendered through normal WPF data binding or Razor encoding without being interpreted as markup. |
 | NFR-SEC-005 | The application is intended for trusted local use unless a future deployment adds an explicit authentication and security design. |
 
 ### 11.4 Accessibility and usability
@@ -283,7 +294,7 @@ Requirements:
 | --- | --- |
 | NFR-A11Y-001 | Primary navigation and interactive actions shall be keyboard operable. |
 | NFR-A11Y-002 | Remove actions shall expose an item-specific accessible name. |
-| NFR-A11Y-003 | The price graph shall expose an accessible image label and point details. |
+| NFR-A11Y-003 | The price graph shall expose point values through keyboard/mouse tooltips and accompanying textual quote metrics. |
 | NFR-A11Y-004 | Positive, negative, input, and output meaning shall not rely solely on position. |
 | NFR-A11Y-005 | Focus indicators shall be visible for favourite selection and removal controls. |
 
@@ -292,27 +303,40 @@ Requirements:
 | ID | Requirement |
 | --- | --- |
 | NFR-MAINT-001 | Domain models and calculations shall remain in the Core project. |
-| NFR-MAINT-002 | External HTTP and JSON persistence shall remain behind interfaces or infrastructure services. |
-| NFR-MAINT-003 | UI components shall consume services and domain results rather than reproduce calculation rules. |
-| NFR-TEST-001 | The regression harness shall cover generic item-flow arithmetic, the legacy Vyrewatch formula, distinct required item IDs, and midpoint fallback behavior. |
+| NFR-MAINT-002 | Market behavior and use cases shall remain in the Application project; external HTTP and JSON persistence shall remain in Infrastructure. |
+| NFR-MAINT-003 | WPF view-models and Razor components shall consume shared services and domain results rather than reproduce calculation rules. |
+| NFR-MAINT-004 | Shared dependency registration shall configure HTTP, persistence, caches, calculator, and discovered methods for either host. |
+| NFR-TEST-001 | The regression harness shall cover calculation rules, caching, history filtering, search ordering, retries, warmup, JSON persistence, and WPF view-model behavior. |
 | NFR-TEST-002 | A release candidate shall build with zero compiler errors. |
 
 ### 11.6 Compatibility
 
 | ID | Requirement |
 | --- | --- |
-| NFR-COMP-001 | Projects shall target .NET 8. |
-| NFR-COMP-002 | Local development shall be supported on Windows with PowerShell and the .NET SDK. |
+| NFR-COMP-001 | Shared and Web projects shall target .NET 8; WPF and its view-model tests shall target `net8.0-windows10.0.19041.0`. |
+| NFR-COMP-002 | The supported desktop platform shall initially be Windows 10 version 2004 or newer on x64. |
 | NFR-COMP-003 | The layout shall avoid page-level horizontal overflow at supported desktop widths. |
 | NFR-COMP-004 | Tables may use contained horizontal scrolling when their readable minimum width exceeds the available viewport. |
+| NFR-COMP-005 | The release executable shall be self-contained and shall not require the .NET Desktop Runtime on the target machine. |
 
 ## 12. Configuration requirements
 
 | Setting | Purpose | Default behavior |
 | --- | --- | --- |
-| `OsrsWiki:UserAgent` | Identifies the application and maintainer to the Wiki API. | Uses the configured application value. |
-| `DataDirectory` | Selects the local persistence directory. | `data` under the web content root. |
-| `Logging:LogLevel` | Controls application and framework logging. | Information for the app and warning for ASP.NET Core. |
+| `OsrsWikiOptions.BaseAddress` | Selects the OSRS Wiki price API root. | `https://prices.runescape.wiki/api/v1/osrs/`. |
+| `OsrsWikiOptions.UserAgent` | Identifies the application and maintainer to the Wiki API. | Uses the configured application value. |
+| `OsrsWikiOptions.Timeout` | Limits an individual HTTP request. | 20 seconds. |
+| `OsrsWikiOptions.MaxRetryAttempts` | Limits transient 429/server-error attempts. | Three attempts. |
+| `FavouriteStoreOptions.FilePath` | Selects the host-specific JSON file. | WPF uses the LocalAppData path; Web uses its content-root data directory. |
+| `FavouriteStoreOptions.SeedJson` | Supplies optional first-run seed content. | WPF passes the embedded snapshot; Web passes no seed. |
+| `MarketDataOptions` | Controls latest, mapping, history, window, and warmup cache behavior. | Shared defaults. |
+
+### 12.1 Release packaging
+
+- The WPF publish profile shall target `win-x64` with `SelfContained=true` and `PublishSingleFile=true`.
+- Native libraries shall be included for self-extraction, symbols shall be embedded, and trimming shall remain disabled.
+- The release artifact shall be named `RuneScapePriceChecker.exe` and shall include the GE monogram application icon.
+- The supported release command is `dotnet publish src\RunescapePriceChecker.Wpf\RunescapePriceChecker.Wpf.csproj -c Release -r win-x64 -p:PublishProfile=win-x64`.
 
 The maintainer shall replace placeholder contact information before public distribution or hosted deployment.
 
@@ -329,8 +353,12 @@ The MVP is accepted when all of the following are true:
 7. The Vyrewatch method displays live-priced inputs, outputs, tax, per-account profit, and total five-account profit.
 8. Adding another `IMoneyMakingMethod` implementation makes it available without a manual navigation registration.
 9. Market-service failures display understandable fallback messages without deleting favourites.
-10. The main desktop page and calculator panel do not create uncontrolled horizontal page overflow.
-11. Runtime data-protection keys and build outputs remain ignored by Git.
+10. The WPF views remain usable at 1100 × 720 without uncontrolled page-level overflow.
+11. A second desktop instance exits cleanly without opening a competing favourites store.
+12. First launch creates the LocalAppData favourites file from the embedded snapshot; later launches do not replace it.
+13. The `win-x64` Release publish produces a self-contained single-file `RuneScapePriceChecker.exe` with trimming disabled.
+14. The parked Razor project continues to compile as part of the complete solution.
+15. Runtime data-protection keys and build outputs remain ignored by Git.
 
 ## 14. Risks and dependencies
 
@@ -340,7 +368,8 @@ The MVP is accepted when all of the following are true:
 | API schema or endpoint changes | Parsing can fail or data can become incomplete. | Keep integration isolated in `OsrsWikiPriceClient` and validate failures visibly. |
 | Thinly traded items | Midpoint and history may be sparse or misleading. | Show unavailable states and require two valid points for a graph. |
 | Current midpoint differs from realized trade price | GP/hour is an estimate. | Label the pricing rule and expose input/output line values. |
-| JSON storage is local and single-instance | No cloud synchronization and limited multi-process coordination. | Keep the MVP local; introduce a database only when broader concurrency is required. |
+| JSON storage is local and single-instance | No cloud synchronization and limited multi-process coordination. | Enforce one WPF process per user session; introduce a database only when broader concurrency is required. |
+| WPF, reflection-based discovery, LiveCharts2, and SkiaSharp are trimming-sensitive | A trimmed release may fail at runtime. | Keep `PublishTrimmed=false` until a separately tested trimming design exists. |
 | Game mechanics or tax rules change | Method estimates become inaccurate. | Keep quantities and tax rates explicit in method definitions and regression tests. |
 
 ## 15. Future requirements candidates

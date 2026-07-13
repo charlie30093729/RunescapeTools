@@ -1,11 +1,15 @@
 using System.Net;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using RunescapePriceChecker.Core.Market;
+using RunescapePriceChecker.Infrastructure.Configuration;
 
-namespace RunescapePriceChecker.Web.Infrastructure;
+namespace RunescapePriceChecker.Infrastructure.Market;
 
-public sealed class OsrsWikiPriceClient(HttpClient httpClient, ILogger<OsrsWikiPriceClient> logger)
-    : IOsrsPriceClient
+public sealed class OsrsWikiPriceClient(
+    HttpClient httpClient,
+    OsrsWikiOptions options,
+    ILogger<OsrsWikiPriceClient> logger) : IOsrsPriceClient
 {
     public async Task<IReadOnlyList<ItemMapping>> GetMappingAsync(CancellationToken cancellationToken = default)
     {
@@ -85,7 +89,8 @@ public sealed class OsrsWikiPriceClient(HttpClient httpClient, ILogger<OsrsWikiP
 
     private async Task<JsonDocument> GetJsonAsync(string path, CancellationToken cancellationToken)
     {
-        for (var attempt = 1; attempt <= 3; attempt++)
+        var attempts = Math.Max(1, options.MaxRetryAttempts);
+        for (var attempt = 1; attempt <= attempts; attempt++)
         {
             using var response = await httpClient.GetAsync(path, cancellationToken);
             if (response.IsSuccessStatusCode)
@@ -94,8 +99,8 @@ public sealed class OsrsWikiPriceClient(HttpClient httpClient, ILogger<OsrsWikiP
                 return await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
             }
 
-            if (attempt < 3 && (response.StatusCode == HttpStatusCode.TooManyRequests
-                                || (int)response.StatusCode >= 500))
+            if (attempt < attempts && (response.StatusCode == HttpStatusCode.TooManyRequests
+                                       || (int)response.StatusCode >= 500))
             {
                 var delay = response.Headers.RetryAfter?.Delta ?? TimeSpan.FromMilliseconds(500 * attempt);
                 logger.LogWarning(
@@ -114,7 +119,7 @@ public sealed class OsrsWikiPriceClient(HttpClient httpClient, ILogger<OsrsWikiP
                 response.StatusCode);
         }
 
-        throw new HttpRequestException("OSRS Wiki price request failed after three attempts.");
+        throw new HttpRequestException($"OSRS Wiki price request failed after {attempts} attempts.");
     }
 
     private static string GetString(JsonElement element, string name) =>
