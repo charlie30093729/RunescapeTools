@@ -1,0 +1,130 @@
+@page "/"
+@inject IFavouriteStore FavouriteStore
+@inject MarketDataService MarketData
+@inject IEnumerable<IMoneyMakingMethod> MoneyMakingMethods
+
+<PageTitle>Dashboard · GE Ledger</PageTitle>
+
+<section class="page-heading dashboard-heading">
+    <div>
+        <span class="section-kicker">Overview</span>
+        <h1>Your market, minus the noise.</h1>
+        <p>Only favourites and items used by your calculators are brought into view.</p>
+    </div>
+    <a class="primary-action" href="/favourites">Manage favourites <span>→</span></a>
+</section>
+
+@if (_loading)
+{
+    <div class="loading-panel"><span class="spinner"></span> Preparing your workspace…</div>
+}
+else
+{
+    <section class="summary-grid">
+        <article class="summary-card accent-card">
+            <span class="summary-label">Focus list</span>
+            <strong>@_favourites.Count</strong>
+            <span>favourite items</span>
+        </article>
+        <article class="summary-card">
+            <span class="summary-label">Calculators</span>
+            <strong>@_methodCount</strong>
+            <span>modular money makers</span>
+        </article>
+        <article class="summary-card">
+            <span class="summary-label">History window</span>
+            <strong>7d</strong>
+            <span>hourly market points</span>
+        </article>
+    </section>
+
+    <section class="dashboard-grid">
+        <article class="panel focus-panel">
+            <div class="panel-heading">
+                <div>
+                    <span class="section-kicker">Quick glance</span>
+                    <h2>Favourite prices</h2>
+                </div>
+                <a class="text-link" href="/favourites">Open history →</a>
+            </div>
+
+            @if (_error is not null)
+            {
+                <div class="inline-notice warning">@_error</div>
+            }
+            else if (_favourites.Count == 0)
+            {
+                <div class="empty-state compact">
+                    <strong>No favourites yet</strong>
+                    <span>Add an item to begin collecting its weekly view.</span>
+                </div>
+            }
+            else
+            {
+                <div class="price-list">
+                    @foreach (var favourite in _favourites)
+                    {
+                        var price = _prices.GetValueOrDefault(favourite.ItemId);
+                        <a class="price-row" href="/favourites">
+                            <span class="item-monogram">@Monogram(favourite.Name)</span>
+                            <span class="price-row-name">
+                                <strong>@favourite.Name</strong>
+                                <small>Item @favourite.ItemId</small>
+                            </span>
+                            <span class="price-row-value">
+                                <strong>@FormatGp(price?.MidPrice)</strong>
+                                <small>mid price</small>
+                            </span>
+                        </a>
+                    }
+                </div>
+            }
+        </article>
+
+        <article class="panel architecture-panel">
+            <span class="section-kicker">Built to extend</span>
+            <h2>One calculation language</h2>
+            <p>Every method describes what it consumes and what it produces. The shared engine prices those flows, applies tax, and calculates GP per hour.</p>
+            <div class="flow-strip" aria-label="Money making calculation flow">
+                <span>Inputs / hr</span>
+                <i>−</i>
+                <span>Output tax</span>
+                <i>+</i>
+                <span>Sales / hr</span>
+            </div>
+            <a class="secondary-action" href="/money-makers">View calculators</a>
+        </article>
+    </section>
+}
+
+@code {
+    private IReadOnlyList<FavouriteItem> _favourites = [];
+    private IReadOnlyDictionary<int, ItemPrice> _prices = new Dictionary<int, ItemPrice>();
+    private int _methodCount;
+    private bool _loading = true;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _methodCount = MoneyMakingMethods.Count();
+        _favourites = await FavouriteStore.GetAllAsync();
+
+        try
+        {
+            _prices = await MarketData.GetLatestForAsync(_favourites.Select(item => item.ItemId));
+        }
+        catch (Exception)
+        {
+            _error = "Live prices are temporarily unavailable. Your favourites are still safe.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private static string Monogram(string name) =>
+        string.Concat(name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(part => part[0])).ToUpperInvariant();
+
+    private static string FormatGp(decimal? value) => value.HasValue ? $"{value.Value:N0} gp" : "Unavailable";
+}

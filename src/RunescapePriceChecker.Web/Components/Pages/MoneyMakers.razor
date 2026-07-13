@@ -1,0 +1,159 @@
+@page "/money-makers"
+@inject IEnumerable<IMoneyMakingMethod> MoneyMakingMethods
+@inject MoneyMakingCalculator Calculator
+@inject MarketDataService MarketData
+
+<PageTitle>Money makers · GE Ledger</PageTitle>
+
+<section class="page-heading">
+    <div>
+        <span class="section-kicker">Activity calculators</span>
+        <h1>Money makers</h1>
+        <p>Every method runs through the same item-in, item-out GP/hour engine.</p>
+    </div>
+    <div class="history-badge">
+        <span>Pricing rule</span>
+        <strong>High / low midpoint</strong>
+    </div>
+</section>
+
+<section class="methods-workspace">
+    <aside class="method-list">
+        <span class="section-kicker list-kicker">Available methods</span>
+        @foreach (var method in _methods)
+        {
+            <button type="button"
+                    class="method-selector @(method.Definition.Slug == _selected?.Definition.Slug ? "selected" : string.Empty)"
+                    @onclick="() => SelectMethodAsync(method)">
+                <span class="method-index">@((_methods.IndexOf(method) + 1).ToString("00"))</span>
+                <span>
+                    <strong>@method.Definition.Name</strong>
+                    <small>@method.Definition.ActionsPerHour.ToString("N0") actions / hour</small>
+                </span>
+                <i>›</i>
+            </button>
+        }
+        <div class="method-list-note">
+            <strong>Modular by design</strong>
+            <span>Add or remove one method class; discovery and navigation are automatic.</span>
+        </div>
+    </aside>
+
+    <article class="panel method-detail">
+        @if (_selected is null)
+        {
+            <div class="empty-state tall"><strong>No calculators registered</strong></div>
+        }
+        else if (_loading)
+        {
+            <div class="loading-panel tall"><span class="spinner"></span> Pricing every item flow…</div>
+        }
+        else if (_error is not null)
+        {
+            <div class="inline-notice warning">@_error</div>
+        }
+        else if (_result is not null)
+        {
+            <div class="method-heading">
+                <div>
+                    <span class="section-kicker">@_result.Method.ActionsPerHour.ToString("N0") actions / hour · @_result.Method.Accounts accounts</span>
+                    <h2>@_result.Method.Name</h2>
+                    <p>@_result.Method.Description</p>
+                </div>
+                <span class="method-status">Live calculation</span>
+            </div>
+
+            <div class="profit-hero">
+                <div>
+                    <span>Estimated profit / hour</span>
+                    <strong class="@(_result.ProfitAllAccounts >= 0 ? "positive" : "negative")">@FormatGp(_result.ProfitAllAccounts)</strong>
+                    <small>across @_result.Method.Accounts accounts</small>
+                </div>
+                <div class="profit-breakdown">
+                    <div><span>Gross sales</span><strong>@FormatGp(_result.GrossRevenuePerAccount)</strong></div>
+                    <div><span>GE tax</span><strong>− @FormatGp(_result.TaxPerAccount)</strong></div>
+                    <div><span>Supplies</span><strong>− @FormatGp(_result.InputCostPerAccount)</strong></div>
+                    <div><span>Per account</span><strong>@FormatGp(_result.ProfitPerAccount)</strong></div>
+                </div>
+            </div>
+
+            @if (_result.HasMissingPrices)
+            {
+                <div class="inline-notice warning">One or more items have no current trade price and contribute 0 gp to this estimate.</div>
+            }
+
+            <div class="flow-table-wrap">
+                <div class="panel-heading table-heading">
+                    <div>
+                        <span class="section-kicker">Calculation ledger</span>
+                        <h3>Hourly item flows</h3>
+                    </div>
+                    <span class="tax-note">2% GE tax applies to outputs</span>
+                </div>
+                <div class="flow-table">
+                    <div class="flow-table-row header-row">
+                        <span>Item</span><span>Flow</span><span>Qty / hr</span><span>Unit price</span><span>Hourly value</span>
+                    </div>
+                    @foreach (var line in _result.Lines.OrderBy(line => line.Item.Direction))
+                    {
+                        <div class="flow-table-row">
+                            <span class="flow-item"><i class="flow-dot @(line.Item.Direction == ItemFlowDirection.Output ? "output" : "input")"></i><strong>@line.Item.Name</strong><small>Item @line.Item.ItemId</small></span>
+                            <span><span class="flow-tag @(line.Item.Direction == ItemFlowDirection.Output ? "output" : "input")">@line.Item.Direction</span></span>
+                            <span>@FormatQuantity(line.QuantityPerHour)</span>
+                            <span>@FormatGp(line.UnitPrice)</span>
+                            <span class="flow-value">@(line.Item.Direction == ItemFlowDirection.Input ? "− " : "+ ")@FormatGp(line.GrossValuePerHour)</span>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </article>
+</section>
+
+@code {
+    private List<IMoneyMakingMethod> _methods = [];
+    private IMoneyMakingMethod? _selected;
+    private MoneyMakingResult? _result;
+    private bool _loading;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _methods = MoneyMakingMethods.OrderBy(method => method.Definition.Name).ToList();
+        _selected = _methods.FirstOrDefault();
+        if (_selected is not null)
+            await SelectMethodAsync(_selected);
+    }
+
+    private async Task SelectMethodAsync(IMoneyMakingMethod method)
+    {
+        _selected = method;
+        _loading = true;
+        _error = null;
+        _result = null;
+        try
+        {
+            var prices = await MarketData.GetLatestForAsync(method.Definition.RequiredItemIds);
+            _result = Calculator.Calculate(method.Definition, prices);
+        }
+        catch (Exception)
+        {
+            _error = "The method could not be priced because the Wiki market service is unavailable.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private static string FormatGp(decimal? value) => value.HasValue ? $"{value.Value:N0} gp" : "Unavailable";
+
+    private static string FormatQuantity(decimal value)
+    {
+        if (value.CompareTo(1m) == -1)
+            return value.ToString("0.###");
+        if (value.CompareTo(100m) == -1)
+            return value.ToString("0.##");
+        return value.ToString("N0");
+    }
+}

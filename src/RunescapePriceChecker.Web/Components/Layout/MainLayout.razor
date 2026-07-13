@@ -1,0 +1,60 @@
+@inherits LayoutComponentBase
+
+<div class="app-shell">
+    <aside class="sidebar">
+        <a class="brand" href="/">
+            <span class="brand-mark" aria-hidden="true">GE</span>
+            <span>
+                <strong>GE Ledger</strong>
+                <small>Old School market tools</small>
+            </span>
+        </a>
+
+        <nav class="primary-nav" aria-label="Primary navigation">
+            <NavLink href="/" Match="NavLinkMatch.All">
+                <span class="nav-glyph">01</span>
+                <span>Dashboard</span>
+            </NavLink>
+            <NavLink href="/favourites">
+                <span class="nav-glyph">02</span>
+                <span>Favourites</span>
+            </NavLink>
+            <NavLink href="/money-makers">
+                <span class="nav-glyph">03</span>
+                <span>Money makers</span>
+            </NavLink>
+        </nav>
+
+        <div class="sidebar-spacer"></div>
+
+        <div class="data-source-card">
+            <span class="status-dot"></span>
+            <div>
+                <strong>Wiki market data</strong>
+                <span>RuneLite trade feed</span>
+            </div>
+        </div>
+    </aside>
+
+    <main class="main-column">
+        <header class="topbar">
+            <div>
+                <span class="eyebrow">Personal market workspace</span>
+            </div>
+            <div class="topbar-meta">
+                <span class="live-pill"><span></span> Live prices</span>
+                <span>@DateTime.Now.ToString("ddd, d MMM")</span>
+            </div>
+        </header>
+
+        <div class="page-frame">
+            @Body
+        </div>
+    </main>
+</div>
+
+<div id="blazor-error-ui">
+    GE Ledger hit an unexpected error.
+    <a href="" class="reload">Reload the app</a>
+    <a class="dismiss">×</a>
+</div>

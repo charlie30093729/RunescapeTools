@@ -1,0 +1,268 @@
+@page "/favourites"
+@inject IFavouriteStore FavouriteStore
+@inject MarketDataService MarketData
+
+<PageTitle>Favourites · GE Ledger</PageTitle>
+
+<section class="page-heading">
+    <div>
+        <span class="section-kicker">Market watch</span>
+        <h1>Favourites</h1>
+        <p>Your chosen items, with seven days of hourly trade data on demand.</p>
+    </div>
+    <div class="history-badge">
+        <span>History source</span>
+        <strong>1-hour averages</strong>
+    </div>
+</section>
+
+<section class="favourites-workspace">
+    <article class="panel chart-panel">
+        @if (_selected is null)
+        {
+            <div class="empty-state tall">
+                <span class="empty-icon">＋</span>
+                <strong>Build a focused watch list</strong>
+                <span>Search in the favourites panel to add your first item.</span>
+            </div>
+        }
+        else
+        {
+            var selectedPrice = _latest.GetValueOrDefault(_selected.ItemId);
+            <div class="selected-item-heading">
+                <div class="selected-title">
+                    <span class="item-monogram large">@Monogram(_selected.Name)</span>
+                    <div>
+                        <span class="section-kicker">Item @_selected.ItemId</span>
+                        <h2>@_selected.Name</h2>
+                    </div>
+                </div>
+                <div class="selected-price">
+                    <span>Current midpoint</span>
+                    <strong>@FormatGp(selectedPrice?.MidPrice)</strong>
+                    @if (WeeklyChange() is { } change)
+                    {
+                        <small class="@(change >= 0 ? "positive" : "negative")">
+                            @(change >= 0 ? "+" : string.Empty)@change.ToString("N1")% this week
+                        </small>
+                    }
+                </div>
+            </div>
+
+            <div class="quote-strip">
+                <div><span>Instant buy</span><strong>@FormatGp(selectedPrice?.High)</strong></div>
+                <div><span>Instant sell</span><strong>@FormatGp(selectedPrice?.Low)</strong></div>
+                <div><span>Weekly points</span><strong>@_history.Count</strong></div>
+                <div><span>Tracked volume</span><strong>@CompactVolume()</strong></div>
+            </div>
+
+            @if (_loadingHistory)
+            {
+                <div class="chart-loading"><span class="spinner"></span> Loading the weekly curve…</div>
+            }
+            else if (_error is not null)
+            {
+                <div class="inline-notice warning">@_error</div>
+            }
+            else
+            {
+                <PriceChart Points="_history" />
+            }
+        }
+    </article>
+
+    <aside class="panel favourites-panel">
+        <div class="favourites-panel-heading">
+            <div>
+                <span class="section-kicker">Watch list</span>
+                <h2>@_favourites.Count favourites</h2>
+            </div>
+        </div>
+
+        <div class="item-search">
+            <label for="item-search">Add an item</label>
+            <div class="search-input-wrap">
+                <span aria-hidden="true">⌕</span>
+                <input id="item-search"
+                       type="search"
+                       value="@_query"
+                       @oninput="SearchChanged"
+                       placeholder="Search Grand Exchange items…"
+                       autocomplete="off" />
+            </div>
+
+            @if (_suggestions.Count > 0)
+            {
+                <div class="search-results">
+                    @foreach (var item in _suggestions)
+                    {
+                        <button type="button" @onclick="() => AddFavouriteAsync(item)">
+                            <span class="item-monogram small">@Monogram(item.Name)</span>
+                            <span><strong>@item.Name</strong><small>Item @item.Id</small></span>
+                            <i>＋</i>
+                        </button>
+                    }
+                </div>
+            }
+        </div>
+
+        <div class="favourite-list">
+            @foreach (var favourite in _favourites)
+            {
+                var quote = _latest.GetValueOrDefault(favourite.ItemId);
+                <div class="favourite-card @(favourite.ItemId == _selected?.ItemId ? "selected" : string.Empty)">
+                    <button type="button"
+                            class="favourite-select"
+                            @onclick="() => SelectFavouriteAsync(favourite)">
+                        <span class="item-monogram">@Monogram(favourite.Name)</span>
+                        <span class="favourite-card-name">
+                            <strong>@favourite.Name</strong>
+                            <small>@FormatGp(quote?.MidPrice)</small>
+                        </span>
+                        <span class="favourite-chevron">›</span>
+                    </button>
+                    <button type="button"
+                            class="remove-favourite"
+                            title="Remove @favourite.Name from favourites"
+                            aria-label="Remove @favourite.Name from favourites"
+                            @onclick="() => RemoveFavouriteAsync(favourite.ItemId)">×</button>
+                </div>
+            }
+        </div>
+    </aside>
+</section>
+
+@code {
+    private IReadOnlyList<FavouriteItem> _favourites = [];
+    private IReadOnlyDictionary<int, ItemPrice> _latest = new Dictionary<int, ItemPrice>();
+    private IReadOnlyList<PricePoint> _history = [];
+    private IReadOnlyList<ItemMapping> _suggestions = [];
+    private FavouriteItem? _selected;
+    private string _query = string.Empty;
+    private bool _loadingHistory;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _favourites = await FavouriteStore.GetAllAsync();
+        _selected = _favourites.FirstOrDefault();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        var latestTask = LoadLatestAsync();
+        var historyTask = _selected is null
+            ? Task.CompletedTask
+            : SelectFavouriteAsync(_selected);
+        await Task.WhenAll(latestTask, historyTask);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ReloadFavouritesAsync()
+    {
+        _favourites = await FavouriteStore.GetAllAsync();
+        await LoadLatestAsync();
+    }
+
+    private async Task LoadLatestAsync()
+    {
+        try
+        {
+            _latest = await MarketData.GetLatestForAsync(_favourites.Select(item => item.ItemId));
+        }
+        catch (Exception)
+        {
+            _error = "The live price service is unavailable right now. Try again in a moment.";
+        }
+    }
+
+    private async Task SelectFavouriteAsync(FavouriteItem favourite)
+    {
+        _selected = favourite;
+        _loadingHistory = true;
+        _error = null;
+        _history = [];
+        try
+        {
+            _history = await MarketData.GetWeeklyHistoryAsync(favourite.ItemId);
+        }
+        catch (Exception)
+        {
+            _error = "Weekly history could not be loaded from the Wiki price service.";
+        }
+        finally
+        {
+            _loadingHistory = false;
+        }
+    }
+
+    private async Task SearchChanged(ChangeEventArgs eventArgs)
+    {
+        _query = eventArgs.Value?.ToString() ?? string.Empty;
+        try
+        {
+            _suggestions = (await MarketData.SearchItemsAsync(_query))
+                .Where(item => _favourites.All(favourite => favourite.ItemId != item.Id))
+                .ToArray();
+        }
+        catch (Exception)
+        {
+            _suggestions = [];
+            _error = "Item search is temporarily unavailable.";
+        }
+    }
+
+    private async Task AddFavouriteAsync(ItemMapping item)
+    {
+        var favourite = new FavouriteItem(item.Id, item.Name, DateTimeOffset.UtcNow);
+        await FavouriteStore.AddAsync(favourite);
+        _query = string.Empty;
+        _suggestions = [];
+        await ReloadFavouritesAsync();
+        await SelectFavouriteAsync(favourite);
+    }
+
+    private async Task RemoveFavouriteAsync(int itemId)
+    {
+        await FavouriteStore.RemoveAsync(itemId);
+        var removedSelected = _selected?.ItemId == itemId;
+        await ReloadFavouritesAsync();
+
+        if (removedSelected)
+        {
+            _selected = _favourites.FirstOrDefault();
+            _history = [];
+            if (_selected is not null)
+                await SelectFavouriteAsync(_selected);
+        }
+    }
+
+    private decimal? WeeklyChange()
+    {
+        var values = _history.Where(point => point.MidPrice.HasValue).Select(point => point.MidPrice!.Value).ToArray();
+        return values.Length < 2 || values[0] == 0
+            ? null
+            : (values[^1] - values[0]) / values[0] * 100m;
+    }
+
+    private string CompactVolume()
+    {
+        var volume = _history.Sum(point => point.HighVolume + point.LowVolume);
+        return volume switch
+        {
+            >= 1_000_000_000 => $"{volume / 1_000_000_000d:0.#}b",
+            >= 1_000_000 => $"{volume / 1_000_000d:0.#}m",
+            >= 1_000 => $"{volume / 1_000d:0.#}k",
+            _ => volume.ToString("N0")
+        };
+    }
+
+    private static string Monogram(string name) =>
+        string.Concat(name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(part => part[0])).ToUpperInvariant();
+
+    private static string FormatGp(decimal? value) => value.HasValue ? $"{value.Value:N0} gp" : "Unavailable";
+    private static string FormatGp(long? value) => value.HasValue ? $"{value.Value:N0} gp" : "Unavailable";
+}

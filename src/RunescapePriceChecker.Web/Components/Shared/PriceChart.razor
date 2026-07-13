@@ -1,0 +1,134 @@
+@using System.Globalization
+
+<div class="chart-shell">
+    @if (_chartPoints.Count < 2)
+    {
+        <div class="chart-empty">
+            <span class="chart-empty-mark">↗</span>
+            <strong>Not enough trades to draw this week</strong>
+            <span>The API has not returned at least two hourly price points for this item.</span>
+        </div>
+    }
+    else
+    {
+        <svg class="price-chart" viewBox="0 0 900 360" role="img" aria-label="Seven day item price graph">
+            <defs>
+                <linearGradient id="chartArea" x1="0" x2="0" y1="0" y2="1">
+                    <stop offset="0%" stop-color="#d7a95b" stop-opacity="0.22" />
+                    <stop offset="100%" stop-color="#d7a95b" stop-opacity="0" />
+                </linearGradient>
+            </defs>
+
+            @foreach (var gridLine in _gridLines)
+            {
+                <line class="chart-grid" x1="76" x2="876" y1="@Svg(gridLine.Y)" y2="@Svg(gridLine.Y)" />
+                @((MarkupString)$"<text class=\"chart-y-label\" x=\"64\" y=\"{Svg(gridLine.Y + 4)}\" text-anchor=\"end\">{gridLine.Label}</text>")
+            }
+
+            <polygon class="chart-area" points="@_areaPoints" />
+            <polyline class="chart-line" points="@_polylinePoints" />
+
+            @foreach (var point in _chartPoints.Where((_, index) => index % 12 == 0 || index == _chartPoints.Count - 1))
+            {
+                <circle class="chart-dot" cx="@Svg(point.X)" cy="@Svg(point.Y)" r="3.4">
+                    <title>@point.Timestamp.ToLocalTime().ToString("ddd d MMM, h:mm tt") · @point.Price.ToString("N0") gp</title>
+                </circle>
+            }
+
+            @foreach (var label in _xLabels)
+            {
+                @((MarkupString)$"<text class=\"chart-x-label\" x=\"{Svg(label.X)}\" y=\"340\" text-anchor=\"middle\">{label.Label}</text>")
+            }
+        </svg>
+    }
+</div>
+
+@code {
+    private const double Width = 900;
+    private const double Height = 360;
+    private const double Left = 76;
+    private const double Right = 24;
+    private const double Top = 24;
+    private const double Bottom = 46;
+
+    [Parameter]
+    public IReadOnlyList<PricePoint> Points { get; set; } = [];
+
+    private readonly List<ChartPoint> _chartPoints = [];
+    private readonly List<GridLine> _gridLines = [];
+    private readonly List<XLabel> _xLabels = [];
+    private string _polylinePoints = string.Empty;
+    private string _areaPoints = string.Empty;
+
+    protected override void OnParametersSet()
+    {
+        _chartPoints.Clear();
+        _gridLines.Clear();
+        _xLabels.Clear();
+
+        var source = Points
+            .Where(point => point.MidPrice.HasValue)
+            .OrderBy(point => point.Timestamp)
+            .Select(point => (point.Timestamp, Price: point.MidPrice!.Value))
+            .ToArray();
+
+        if (source.Length < 2)
+            return;
+
+        var minimum = source.Min(point => point.Price);
+        var maximum = source.Max(point => point.Price);
+        var rawRange = maximum - minimum;
+        var padding = rawRange == 0 ? Math.Max(1m, maximum * 0.02m) : rawRange * 0.1m;
+        var lower = minimum - padding;
+        var upper = maximum + padding;
+        var range = upper - lower;
+        var plotWidth = Width - Left - Right;
+        var plotHeight = Height - Top - Bottom;
+        var firstTime = source[0].Timestamp;
+        var timeRange = Math.Max(1, (source[^1].Timestamp - firstTime).TotalSeconds);
+
+        foreach (var point in source)
+        {
+            var xRatio = (point.Timestamp - firstTime).TotalSeconds / timeRange;
+            var yRatio = (double)((point.Price - lower) / range);
+            _chartPoints.Add(new ChartPoint(
+                Left + xRatio * plotWidth,
+                Top + (1 - yRatio) * plotHeight,
+                point.Price,
+                point.Timestamp));
+        }
+
+        for (var index = 0; index < 5; index++)
+        {
+            var ratio = index / 4d;
+            var y = Top + ratio * plotHeight;
+            var value = upper - (decimal)ratio * range;
+            _gridLines.Add(new GridLine(y, CompactNumber(value)));
+        }
+
+        for (var index = 0; index < 5; index++)
+        {
+            var ratio = index / 4d;
+            var timestamp = firstTime.AddSeconds(timeRange * ratio).ToLocalTime();
+            _xLabels.Add(new XLabel(Left + ratio * plotWidth, timestamp.ToString("ddd h tt")));
+        }
+
+        _polylinePoints = string.Join(' ', _chartPoints.Select(point => $"{Svg(point.X)},{Svg(point.Y)}"));
+        var baseline = Top + plotHeight;
+        _areaPoints = $"{Svg(_chartPoints[0].X)},{Svg(baseline)} {_polylinePoints} {Svg(_chartPoints[^1].X)},{Svg(baseline)}";
+    }
+
+    private static string Svg(double value) => value.ToString("0.##", CultureInfo.InvariantCulture);
+
+    private static string CompactNumber(decimal value) => Math.Abs(value) switch
+    {
+        >= 1_000_000_000m => $"{value / 1_000_000_000m:0.#}b",
+        >= 1_000_000m => $"{value / 1_000_000m:0.#}m",
+        >= 1_000m => $"{value / 1_000m:0.#}k",
+        _ => $"{value:0}"
+    };
+
+    private sealed record ChartPoint(double X, double Y, decimal Price, DateTimeOffset Timestamp);
+    private sealed record GridLine(double Y, string Label);
+    private sealed record XLabel(double X, string Label);
+}
