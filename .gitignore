@@ -16,3 +16,6 @@ src/RunescapePriceChecker.Web/data/keys/
 # Operating-system files
 .DS_Store
 Thumbs.db
+
+#exe
+/RuneScapePriceChecker.exe
