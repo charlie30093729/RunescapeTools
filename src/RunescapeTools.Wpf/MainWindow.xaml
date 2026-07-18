@@ -10,6 +10,9 @@
         <DataTemplate DataType="{x:Type vm:DashboardViewModel}">
             <views:DashboardView />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ProfileViewModel}">
+            <views:ProfileView />
+        </DataTemplate>
         <DataTemplate DataType="{x:Type vm:FavouritesViewModel}">
             <views:FavouritesView />
         </DataTemplate>
@@ -76,6 +79,14 @@
 
                 <StackPanel Grid.Row="2">
                     <TextBlock Text="WORKSPACE" Foreground="#778078" FontSize="10" FontWeight="Bold" Margin="16,0,0,8" />
+                    <Button Command="{Binding NavigateCommand}" CommandParameter="Profile" AutomationProperties.Name="Profile">
+                        <StackPanel Orientation="Horizontal"><TextBlock Text="◎" FontSize="18" Width="30" /><TextBlock Text="Profile" VerticalAlignment="Center" /></StackPanel>
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource NavButton}">
+                                <Style.Triggers><DataTrigger Binding="{Binding IsProfileSelected}" Value="True"><Setter Property="Background" Value="#394334" /><Setter Property="Foreground" Value="White" /></DataTrigger></Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
                     <Button Command="{Binding NavigateCommand}" CommandParameter="Dashboard" AutomationProperties.Name="Dashboard">
                         <StackPanel Orientation="Horizontal"><TextBlock Text="⌂" FontSize="18" Width="30" /><TextBlock Text="Dashboard" VerticalAlignment="Center" /></StackPanel>
                         <Button.Style>

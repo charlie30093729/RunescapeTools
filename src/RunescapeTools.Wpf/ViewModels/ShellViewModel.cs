@@ -12,6 +12,7 @@ public partial class ShellViewModel : ObservableObject
     private IPageViewModel? currentPage;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsProfileSelected))]
     [NotifyPropertyChangedFor(nameof(IsDashboardSelected))]
     [NotifyPropertyChangedFor(nameof(IsFavouritesSelected))]
     [NotifyPropertyChangedFor(nameof(IsMoneyMakersSelected))]
@@ -21,12 +22,14 @@ public partial class ShellViewModel : ObservableObject
     private bool isNavigating;
 
     public ShellViewModel(
+        ProfileViewModel profile,
         DashboardViewModel dashboard,
         FavouritesViewModel favourites,
         MoneyMakersViewModel moneyMakers)
     {
         pages = new Dictionary<PageKind, IPageViewModel>
         {
+            [PageKind.Profile] = profile,
             [PageKind.Dashboard] = dashboard,
             [PageKind.Favourites] = favourites,
             [PageKind.MoneyMakers] = moneyMakers
@@ -35,6 +38,7 @@ public partial class ShellViewModel : ObservableObject
         CurrentPage = dashboard;
     }
 
+    public bool IsProfileSelected => CurrentPageKind == PageKind.Profile;
     public bool IsDashboardSelected => CurrentPageKind == PageKind.Dashboard;
     public bool IsFavouritesSelected => CurrentPageKind == PageKind.Favourites;
     public bool IsMoneyMakersSelected => CurrentPageKind == PageKind.MoneyMakers;

@@ -7,6 +7,7 @@ The WPF executable is the active front end. The original Razor/Blazor applicatio
 ## Current features
 
 - Dashboard summary with saved favourites, current midpoint prices, registered calculators, and history coverage.
+- Shared Profile Dashboard with normal-account OSRS Hiscores lookup, all 24 current skills (including Sailing), refresh, and last-profile restore.
 - Debounced Grand Exchange item search with add, select, and remove favourite actions.
 - Seven days of hourly Wiki price history rendered with LiveCharts2, including local-time tooltips, weekly change, and volume.
 - Automatically discovered money-making methods with live repricing and a complete input/output ledger.
@@ -18,9 +19,9 @@ The WPF executable is the active front end. The original Razor/Blazor applicatio
 
 | Project | Responsibility |
 | --- | --- |
-| `RunescapeTools.Core` | Domain records, contracts, calculation rules, and money-making definitions. |
-| `RunescapeTools.Application` | Market caching/search/history behavior and favourite-history warmup. |
-| `RunescapeTools.Infrastructure` | Wiki HTTP client, JSON persistence, configuration, and shared DI registration. |
+| `RunescapeTools.Core` | Domain records, API contracts, profile models, calculation rules, and money-making definitions. |
+| `RunescapeTools.Application` | Market behavior, defensive hiscore parsing, current-profile state, and favourite-history warmup. |
+| `RunescapeTools.Infrastructure` | Wiki and Hiscores HTTP clients, JSON persistence, configuration, and shared DI registration. |
 | `RunescapeTools.Wpf` | Active Windows front end, Generic Host composition, MVVM view-models, and LiveCharts UI. |
 | `RunescapeTools.Web` | Parked Razor front end; retained and kept buildable. |
 | `RunescapeTools.Tests` | Calculator, service, persistence, retry, and view-model regression harness. |
@@ -38,6 +39,14 @@ Desktop favourites are stored at:
 ```text
 %LocalAppData%\RunescapeTools\data\favourites.json
 ```
+
+The last successfully loaded RSN is stored separately at:
+
+```text
+%LocalAppData%\RunescapeTools\data\profile.json
+```
+
+The first Profile visit creates this preference with `bottleo` when no saved RSN exists. A new RSN is persisted only after its complete hiscore response has been fetched and parsed successfully.
 
 On first launch after the rename, the app first copies an existing legacy favourites file when available. Otherwise, it seeds this file from the embedded MVP snapshot. Existing desktop data is never replaced. The current seed includes Blood shard, Tanzanite fang, and Scythe of vitur (uncharged).
 
