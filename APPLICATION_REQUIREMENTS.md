@@ -137,7 +137,23 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | FR-HIST-006 | Graph points shall expose local timestamp and GP value details. |
 | FR-HIST-007 | The application shall warm latest prices and weekly history for persisted favourites during startup. |
 
-### 6.5 Money-making calculations
+### 6.5 Profile dashboard and shared profile state
+
+| ID | Requirement |
+| --- | --- |
+| FR-PRO-001 | `Profile` shall be the first desktop navigation item without replacing Dashboard as the startup page. |
+| FR-PRO-002 | The profile page shall accept a trimmed RSN through its input, load button, or Enter key. |
+| FR-PRO-003 | The first profile visit shall persist and load `bottleo` when no selected RSN exists. |
+| FR-PRO-004 | Only a successfully fetched and parsed RSN shall replace the selected profile or its persisted preference. |
+| FR-PRO-005 | The current profile shall be exposed through an injectable application-level `ICurrentProfileContext`. |
+| FR-PRO-006 | Profile changes and same-RSN refreshes shall publish a `ProfileChanged` notification. |
+| FR-PRO-007 | The desktop profile context shall have one application-wide singleton lifetime. |
+| FR-PRO-008 | The profile page shall show Overall rank, total level, total experience, retrieval time, and all current skills. |
+| FR-PRO-009 | Each skill shall show its API-defined name, level, experience, and rank in the shared canonical order. |
+| FR-PRO-010 | Loading shall be asynchronous and cancellable, and duplicate requests shall be disabled while one is active. |
+| FR-PRO-011 | Account-not-found, timeout, network, and malformed-response failures shall be distinguishable and shall retain valid state. |
+
+### 6.6 Money-making calculations
 
 | ID | Requirement |
 | --- | --- |
@@ -154,7 +170,7 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | FR-CALC-011 | The calculation view shall display a line-by-line ledger for every input and output. |
 | FR-CALC-012 | The calculation model shall support optional experience rewards without requiring a GP formula rewrite. |
 
-### 6.6 Method modularity
+### 6.7 Method modularity
 
 | ID | Requirement |
 | --- | --- |
@@ -163,7 +179,7 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | FR-MOD-003 | Adding or removing a method class shall automatically update the available method list after rebuild and restart. |
 | FR-MOD-004 | Domain calculations shall not depend on WPF, Razor components, or infrastructure-specific API types. |
 
-### 6.7 Persistence and error handling
+### 6.8 Persistence and error handling
 
 | ID | Requirement |
 | --- | --- |
@@ -174,6 +190,7 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | FR-DATA-005 | On first launch only, the desktop host shall seed favourites from its embedded snapshot when no desktop file exists. |
 | FR-DATA-006 | The first-run seed shall never replace an existing desktop favourites file. |
 | FR-DATA-007 | When the renamed desktop data file does not yet exist, the host shall preserve an existing legacy favourites file by copying it to the new LocalAppData location before applying the seed. |
+| FR-DATA-008 | The selected RSN shall persist atomically in `%LocalAppData%\RunescapeTools\data\profile.json`. |
 | FR-ERR-001 | Item search, latest-price, history, and calculator failures shall produce user-readable messages. |
 | FR-ERR-002 | Temporary API failures shall not delete or overwrite stored favourites. |
 | FR-ERR-003 | HTTP 429 and server-error responses shall be retried up to three attempts with a delay. |
@@ -211,7 +228,18 @@ Requirements:
 - API schema changes shall be handled as integration failures rather than silently producing incorrect calculations.
 - The application shall not require Wiki credentials or store third-party secrets.
 
-### 8.2 Desktop interface
+### 8.2 Old School Hiscores API
+
+- Normal accounts shall use `https://secure.runescape.com/m=hiscore_oldschool/index_lite.ws?player=X`.
+- The RSN query value shall be URL-encoded.
+- The response shall be parsed as headerless CSV with `rank,level,experience` for Overall and skill rows.
+- The canonical shared mapping shall preserve the documented API order: Overall, Attack, Defence, Strength, Hitpoints, Ranged, Prayer, Magic, Cooking, Woodcutting, Fletching, Fishing, Firemaking, Crafting, Smithing, Mining, Herblore, Agility, Thieving, Slayer, Farming, Runecraft, Hunter, Construction, and Sailing.
+- Activity rows following the complete skill block shall not be misinterpreted as skills.
+- Missing, empty, incomplete, or malformed skill rows shall fail parsing rather than produce zero-level data.
+- HTTP 404 shall be treated as account not found; other HTTP, timeout, and parsing failures shall remain integration errors.
+- Requests shall use a finite timeout and the existing identifiable `RunescapeTools/0.1 (contact: Discord bottleo)` User-Agent.
+
+### 8.3 Desktop interface
 
 - The active interface shall be a native WPF application targeting `net8.0-windows10.0.19041.0`.
 - The default window shall be approximately 1280 × 800 with a 1100 × 720 minimum.

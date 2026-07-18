@@ -3,13 +3,16 @@ using System.Text;
 using Microsoft.Extensions.Logging.Abstractions;
 using RunescapeTools.Application.Favourites;
 using RunescapeTools.Application.Market;
+using RunescapeTools.Application.Profiles;
 using RunescapeTools.Core.Favourites;
 using RunescapeTools.Core.Market;
 using RunescapeTools.Core.MoneyMaking;
 using RunescapeTools.Core.MoneyMaking.Methods;
+using RunescapeTools.Core.Profiles;
 using RunescapeTools.Infrastructure.Configuration;
 using RunescapeTools.Infrastructure.Market;
 using RunescapeTools.Infrastructure.Persistence;
+using RunescapeTools.Infrastructure.Profiles;
 using RunescapeTools.Wpf.ViewModels;
 
 var tests = new (string Name, Func<Task> Run)[]
@@ -25,9 +28,15 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Wiki client retries transient responses", WikiClientRetries),
     ("JSON store seeds, sorts, and prevents duplicates", JsonStoreSeedsSortsAndDeduplicates),
     ("JSON store never overwrites existing state", JsonStoreDoesNotOverwrite),
+    ("hiscore parser maps every current OSRS skill in API order", HiscoreParserMapsSkills),
+    ("hiscore parser rejects incomplete and malformed skill rows", HiscoreParserRejectsInvalidResponses),
+    ("hiscore client URL-encodes RSNs and distinguishes missing accounts", HiscoreClientProtocol),
+    ("profile preference seeds bottleo and persists successful selections", ProfilePreferencePersistence),
+    ("profile context preserves valid state on failure and publishes refreshes", ProfileContextStateFlow),
     ("dashboard view-model loads and reports failures", DashboardViewModelStates),
     ("favourites view-model searches, adds, selects, and removes", FavouritesViewModelFlow),
     ("money-maker view-model reprices the complete ledger", MoneyMakerViewModelFlow),
+    ("profile view-model loads defaults and keeps valid data on errors", ProfileViewModelFlow),
     ("shell navigation loads the requested page", ShellNavigation)
 };
 
@@ -250,6 +259,139 @@ static async Task JsonStoreDoesNotOverwrite()
     }
 }
 
+static Task HiscoreParserMapsSkills()
+{
+    var now = new DateTimeOffset(2026, 7, 18, 10, 30, 0, TimeSpan.Zero);
+    var parser = new HiscoreParser(new TestTimeProvider(now));
+
+    var profile = parser.Parse("  bottleo  ", HiscoreResponse());
+
+    Equal("bottleo", profile.Rsn, "trimmed RSN");
+    Equal(123, profile.OverallRank, "overall rank");
+    Equal(2_376, profile.TotalLevel, "total level");
+    Equal(4_567_890_123L, profile.TotalExperience, "long total experience");
+    Equal(24, profile.Skills.Count, "current skill count");
+    Equal("Attack", profile.Skills[0].Name, "first skill");
+    Equal("Hitpoints", profile.Skills[3].Name, "API constitution alias");
+    Equal("Runecraft", profile.Skills[20].Name, "API runecrafting alias");
+    Equal("Sailing", profile.Skills[^1].Name, "latest skill");
+    Equal(now, profile.RetrievedAtUtc, "retrieval time");
+    return Task.CompletedTask;
+}
+
+static async Task HiscoreParserRejectsInvalidResponses()
+{
+    var parser = new HiscoreParser(TimeProvider.System);
+    await ThrowsAsync<HiscoreParseException>(
+        () => Task.FromResult(parser.Parse("bottleo", string.Join('\n', HiscoreResponse().Split('\n').Take(24)))),
+        "incomplete response");
+
+    var rows = HiscoreResponse().Split('\n');
+    rows[5] = "not-a-rank,99,13034431";
+    await ThrowsAsync<HiscoreParseException>(
+        () => Task.FromResult(parser.Parse("bottleo", string.Join('\n', rows))),
+        "malformed response");
+}
+
+static async Task HiscoreClientProtocol()
+{
+    var successHandler = new SequenceHandler(new HttpResponseMessage(HttpStatusCode.OK)
+    {
+        Content = new StringContent(HiscoreResponse(), Encoding.UTF8, "text/plain")
+    });
+    using var successHttp = new HttpClient(successHandler)
+    {
+        BaseAddress = new Uri("https://secure.runescape.com/m=hiscore_oldschool/")
+    };
+    var client = new OsrsHiscoreClient(successHttp);
+
+    await client.GetRawHiscoresAsync("  Name With Space  ");
+
+    True(
+        successHandler.LastRequestUri?.AbsoluteUri.EndsWith("index_lite.ws?player=Name%20With%20Space", StringComparison.Ordinal) == true,
+        "URL-encoded standard endpoint");
+
+    var missingHandler = new SequenceHandler(new HttpResponseMessage(HttpStatusCode.NotFound));
+    using var missingHttp = new HttpClient(missingHandler) { BaseAddress = successHttp.BaseAddress };
+    await ThrowsAsync<PlayerNotFoundException>(
+        () => new OsrsHiscoreClient(missingHttp).GetRawHiscoresAsync("Missing Player"),
+        "not-found response");
+}
+
+static async Task ProfilePreferencePersistence()
+{
+    var directory = CreateTempDirectory();
+    try
+    {
+        var path = Path.Combine(directory, "profile.json");
+        var store = new JsonProfilePreferenceStore(new ProfilePreferenceOptions
+        {
+            FilePath = path,
+            DefaultRsn = "bottleo"
+        });
+
+        Equal("bottleo", await store.GetSelectedRsnAsync(), "first-run default");
+        True(File.Exists(path), "profile preference file exists");
+
+        await store.SetSelectedRsnAsync("  Zezima  ");
+        var reopened = new JsonProfilePreferenceStore(new ProfilePreferenceOptions
+        {
+            FilePath = path,
+            DefaultRsn = "bottleo"
+        });
+        Equal("Zezima", await reopened.GetSelectedRsnAsync(), "persisted selected RSN");
+        True(!File.Exists(path + ".tmp"), "atomic profile temporary file replaced");
+    }
+    finally
+    {
+        Directory.Delete(directory, true);
+    }
+}
+
+static async Task ProfileContextStateFlow()
+{
+    var client = new FakeHiscoreClient();
+    var preference = new MemoryProfilePreferenceStore("bottleo");
+    var context = new CurrentProfileContext(
+        client,
+        new HiscoreParser(new TestTimeProvider(new DateTimeOffset(2026, 7, 18, 0, 0, 0, TimeSpan.Zero))),
+        preference);
+    var changes = 0;
+    context.ProfileChanged += (_, _) => changes++;
+
+    await context.LoadSelectedProfileAsync();
+    Equal("bottleo", context.CurrentRsn ?? string.Empty, "loaded saved profile");
+    Equal(1, changes, "initial notification");
+
+    client.Handler = (rsn, _) => throw new PlayerNotFoundException(rsn);
+    await ThrowsAsync<PlayerNotFoundException>(
+        () => context.LoadProfileAsync("missing"),
+        "failed selection");
+    Equal("bottleo", context.CurrentRsn ?? string.Empty, "valid profile retained");
+    Equal("bottleo", preference.SelectedRsn, "failed RSN not persisted");
+    Equal(1, changes, "failed load does not notify");
+
+    client.Handler = async (_, cancellationToken) =>
+    {
+        await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+        return HiscoreResponse();
+    };
+    using (var cancellation = new CancellationTokenSource())
+    {
+        cancellation.Cancel();
+        await ThrowsAsync<OperationCanceledException>(
+            () => context.LoadProfileAsync("cancelled", cancellation.Token),
+            "cancelled profile request");
+    }
+    Equal("bottleo", context.CurrentRsn ?? string.Empty, "cancellation retains profile");
+    Equal(1, changes, "cancellation does not notify");
+
+    client.Handler = (_, _) => Task.FromResult(HiscoreResponse(98));
+    await context.RefreshAsync();
+    Equal(2, changes, "refresh notification");
+    Equal(98, context.CurrentProfile?.Skills[0].Level ?? 0, "refreshed profile data");
+}
+
 static async Task DashboardViewModelStates()
 {
     var store = new MemoryFavouriteStore(new FavouriteItem(1, "Rune bar", DateTimeOffset.UtcNow));
@@ -306,6 +448,31 @@ static async Task MoneyMakerViewModelFlow()
     True(!viewModel.HasMissingPrices, "complete pricing state");
 }
 
+static async Task ProfileViewModelFlow()
+{
+    var client = new FakeHiscoreClient();
+    var preference = new MemoryProfilePreferenceStore("bottleo");
+    var context = new CurrentProfileContext(client, new HiscoreParser(TimeProvider.System), preference);
+    var viewModel = new ProfileViewModel(context);
+
+    await viewModel.LoadAsync();
+    Equal("bottleo", viewModel.ProfileRsn, "default profile RSN");
+    Equal(24, viewModel.Skills.Count, "displayed skill count");
+
+    client.Handler = (rsn, _) => throw new PlayerNotFoundException(rsn);
+    viewModel.SearchRsn = "does not exist";
+    await viewModel.SearchCommand.ExecuteAsync(null);
+    Equal("bottleo", viewModel.ProfileRsn, "failed search retains profile");
+    True(!string.IsNullOrWhiteSpace(viewModel.ErrorMessage), "failed search error");
+
+    client.Handler = (_, _) => Task.FromResult(HiscoreResponse(75));
+    viewModel.SearchRsn = "  New Player  ";
+    await viewModel.SearchCommand.ExecuteAsync(null);
+    Equal("New Player", viewModel.ProfileRsn, "successful searched profile");
+    Equal("New Player", preference.SelectedRsn, "successful search persisted");
+    Equal("75", viewModel.Skills[0].Level, "updated skill level");
+}
+
 static async Task ShellNavigation()
 {
     var store = new MemoryFavouriteStore();
@@ -313,13 +480,43 @@ static async Task ShellNavigation()
     var dashboard = new DashboardViewModel(store, market, [new VyrewatchMethod()]);
     var favourites = new FavouritesViewModel(store, market, TimeProvider.System);
     var money = new MoneyMakersViewModel([new VyrewatchMethod()], new MoneyMakingCalculator(), market);
-    var shell = new ShellViewModel(dashboard, favourites, money);
+    var profileContext = new CurrentProfileContext(
+        new FakeHiscoreClient(),
+        new HiscoreParser(TimeProvider.System),
+        new MemoryProfilePreferenceStore("bottleo"));
+    var profile = new ProfileViewModel(profileContext);
+    var shell = new ShellViewModel(profile, dashboard, favourites, money);
 
     await shell.InitializeAsync();
+    Equal(PageKind.Dashboard, shell.CurrentPageKind, "startup page remains dashboard");
     await shell.NavigateCommand.ExecuteAsync("Favourites");
 
     Equal(PageKind.Favourites, shell.CurrentPageKind, "selected page");
     True(ReferenceEquals(favourites, shell.CurrentPage), "active page instance");
+}
+
+static string HiscoreResponse(int skillLevel = 99)
+{
+    var rows = new List<string> { "123,2376,4567890123" };
+    rows.AddRange(Enumerable.Range(0, OsrsHiscoreSkillOrder.Skills.Count)
+        .Select(index => $"{1_000 + index},{skillLevel},{13_034_431L + index}"));
+    rows.Add("-1,-1"); // Activity rows may use rank,score and are intentionally ignored.
+    return string.Join('\n', rows);
+}
+
+static async Task ThrowsAsync<TException>(Func<Task> action, string label)
+    where TException : Exception
+{
+    try
+    {
+        await action();
+    }
+    catch (TException)
+    {
+        return;
+    }
+
+    throw new InvalidOperationException($"{label}: expected {typeof(TException).Name}");
 }
 
 static MarketDataService CreateMarketService(FakePriceClient client, DateTimeOffset? now = null) => new(
@@ -394,6 +591,37 @@ sealed class FakePriceClient : IOsrsPriceClient
     }
 }
 
+sealed class FakeHiscoreClient : IHiscoreClient
+{
+    public Func<string, CancellationToken, Task<string>> Handler { get; set; }
+        = (_, _) => Task.FromResult(CreateResponse());
+
+    public Task<string> GetRawHiscoresAsync(string rsn, CancellationToken cancellationToken = default) =>
+        Handler(rsn, cancellationToken);
+
+    private static string CreateResponse()
+    {
+        var rows = new List<string> { "123,2376,4567890123" };
+        rows.AddRange(Enumerable.Range(0, OsrsHiscoreSkillOrder.Skills.Count)
+            .Select(index => $"{1_000 + index},99,{13_034_431L + index}"));
+        return string.Join('\n', rows);
+    }
+}
+
+sealed class MemoryProfilePreferenceStore(string selectedRsn) : IProfilePreferenceStore
+{
+    public string SelectedRsn { get; private set; } = selectedRsn;
+
+    public Task<string> GetSelectedRsnAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult(SelectedRsn);
+
+    public Task SetSelectedRsnAsync(string rsn, CancellationToken cancellationToken = default)
+    {
+        SelectedRsn = rsn.Trim();
+        return Task.CompletedTask;
+    }
+}
+
 sealed class MemoryFavouriteStore(params FavouriteItem[] initial) : IFavouriteStore
 {
     private readonly List<FavouriteItem> items = [.. initial];
@@ -446,10 +674,12 @@ sealed class SequenceHandler(params HttpResponseMessage[] responses) : HttpMessa
 {
     private readonly Queue<HttpResponseMessage> responses = new(responses);
     public int Calls { get; private set; }
+    public Uri? LastRequestUri { get; private set; }
 
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         Calls++;
+        LastRequestUri = request.RequestUri;
         return Task.FromResult(responses.Dequeue());
     }
 }

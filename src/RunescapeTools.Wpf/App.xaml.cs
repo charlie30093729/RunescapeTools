@@ -7,8 +7,10 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using RunescapeTools.Application.Favourites;
 using RunescapeTools.Application.Market;
+using RunescapeTools.Application.Profiles;
 using RunescapeTools.Infrastructure.Configuration;
 using RunescapeTools.Infrastructure.DependencyInjection;
+using RunescapeTools.Infrastructure.Persistence;
 using RunescapeTools.Wpf.ViewModels;
 
 namespace RunescapeTools.Wpf;
@@ -101,6 +103,15 @@ public partial class App : System.Windows.Application
             },
             new MarketDataOptions());
 
+        builder.Services.AddSingleton(new ProfilePreferenceOptions
+        {
+            FilePath = Path.Combine(localData, "data", "profile.json"),
+            DefaultRsn = "bottleo"
+        });
+        builder.Services.AddSingleton<IProfilePreferenceStore, JsonProfilePreferenceStore>();
+        builder.Services.AddSingleton<ICurrentProfileContext, CurrentProfileContext>();
+
+        builder.Services.AddSingleton<ProfileViewModel>();
         builder.Services.AddSingleton<DashboardViewModel>();
         builder.Services.AddSingleton<FavouritesViewModel>();
         builder.Services.AddSingleton<MoneyMakersViewModel>();
