@@ -10,7 +10,7 @@
 *.suo
 
 # Local runtime state
-src/RunescapePriceChecker.Web/data/keys/
+src/RunescapeTools.Web/data/keys/
 *.log
 
 # Operating-system files
@@ -18,4 +18,4 @@ src/RunescapePriceChecker.Web/data/keys/
 Thumbs.db
 
 #exe
-/RuneScapePriceChecker.exe
+/RunescapeTools.exe

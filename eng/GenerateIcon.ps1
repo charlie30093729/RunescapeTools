@@ -1,5 +1,5 @@
 param(
-    [string] $OutputPath = (Join-Path $PSScriptRoot '..\src\RunescapePriceChecker.Wpf\Assets\ge-ledger.ico')
+    [string] $OutputPath = (Join-Path $PSScriptRoot '..\src\RunescapeTools.Wpf\Assets\ge-ledger.ico')
 )
 
 Add-Type -AssemblyName System.Drawing
