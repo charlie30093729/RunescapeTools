@@ -1,16 +1,16 @@
-# RuneScape Price Checker — Application Requirements
+# RunescapeTools — Application Requirements
 
 | Field | Value |
 | --- | --- |
 | Document version | 1.1 |
-| Application | RuneScape Price Checker / GE Ledger |
+| Application | RunescapeTools / GE Ledger |
 | Status | WPF MVP baseline |
 | Date | 13 July 2026 |
 | Target platform | Windows 10 2004+ x64; .NET 8 WPF desktop application |
 
 ## 1. Purpose
 
-This document defines the functional, data, integration, quality, and acceptance requirements for RuneScape Price Checker, presented in the user interface as **GE Ledger**.
+This document defines the functional, data, integration, quality, and acceptance requirements for RunescapeTools, presented in the user interface as **GE Ledger**.
 
 The application provides a focused personal workspace for Old School RuneScape Grand Exchange information. It intentionally limits general market noise by displaying favourite items and items required by registered money-making methods. It also supplies a reusable calculation model for GP per hour and future experience-per-hour or cost-per-hour features.
 
@@ -173,6 +173,7 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | FR-DATA-004 | The desktop host shall allow only one running application instance per Windows user session. |
 | FR-DATA-005 | On first launch only, the desktop host shall seed favourites from its embedded snapshot when no desktop file exists. |
 | FR-DATA-006 | The first-run seed shall never replace an existing desktop favourites file. |
+| FR-DATA-007 | When the renamed desktop data file does not yet exist, the host shall preserve an existing legacy favourites file by copying it to the new LocalAppData location before applying the seed. |
 | FR-ERR-001 | Item search, latest-price, history, and calculator failures shall produce user-readable messages. |
 | FR-ERR-002 | Temporary API failures shall not delete or overwrite stored favourites. |
 | FR-ERR-003 | HTTP 429 and server-error responses shall be retried up to three attempts with a delay. |
@@ -243,8 +244,9 @@ Requirements:
 
 ### 9.4 Local and generated data
 
-- Mutable desktop state shall be stored under `%LocalAppData%\RuneScapePriceChecker`.
-- Desktop favourites shall be stored at `%LocalAppData%\RuneScapePriceChecker\data\favourites.json`.
+- Mutable desktop state shall be stored under `%LocalAppData%\RunescapeTools`.
+- Desktop favourites shall be stored at `%LocalAppData%\RunescapeTools\data\favourites.json`.
+- The renamed desktop host shall copy an existing legacy favourites file into this location once, without overwriting new state.
 - The WPF assembly shall embed the versioned MVP favourites snapshot as first-run seed data, including the current Scythe favourite.
 - The parked Web host may retain its own `data/favourites.json`; it shall not share mutable state with WPF.
 - ASP.NET data-protection keys are runtime-generated Web state and shall be excluded from Git.
@@ -335,8 +337,8 @@ Requirements:
 
 - The WPF publish profile shall target `win-x64` with `SelfContained=true` and `PublishSingleFile=true`.
 - Native libraries shall be included for self-extraction, symbols shall be embedded, and trimming shall remain disabled.
-- The release artifact shall be named `RuneScapePriceChecker.exe` and shall include the GE monogram application icon.
-- The supported release command is `dotnet publish src\RunescapePriceChecker.Wpf\RunescapePriceChecker.Wpf.csproj -c Release -r win-x64 -p:PublishProfile=win-x64`.
+- The release artifact shall be named `RunescapeTools.exe` and shall include the GE monogram application icon.
+- The supported release command is `dotnet publish src\RunescapeTools.Wpf\RunescapeTools.Wpf.csproj -c Release -r win-x64 -p:PublishProfile=win-x64`.
 
 The maintainer shall replace placeholder contact information before public distribution or hosted deployment.
 
@@ -355,8 +357,8 @@ The MVP is accepted when all of the following are true:
 9. Market-service failures display understandable fallback messages without deleting favourites.
 10. The WPF views remain usable at 1100 × 720 without uncontrolled page-level overflow.
 11. A second desktop instance exits cleanly without opening a competing favourites store.
-12. First launch creates the LocalAppData favourites file from the embedded snapshot; later launches do not replace it.
-13. The `win-x64` Release publish produces a self-contained single-file `RuneScapePriceChecker.exe` with trimming disabled.
+12. First launch preserves an existing legacy favourites file when available, otherwise creates the LocalAppData file from the embedded snapshot; later launches do not replace it.
+13. The `win-x64` Release publish produces a self-contained single-file `RunescapeTools.exe` with trimming disabled.
 14. The parked Razor project continues to compile as part of the complete solution.
 15. Runtime data-protection keys and build outputs remain ignored by Git.
 

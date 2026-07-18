@@ -1,0 +1,172 @@
+<UserControl x:Class="RunescapeTools.Wpf.Views.FavouritesView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:lvc="clr-namespace:LiveChartsCore.SkiaSharpView.WPF;assembly=LiveChartsCore.SkiaSharpView.WPF">
+    <Grid Margin="32,26,32,30">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Grid Margin="0,0,0,20">
+            <StackPanel>
+                <TextBlock Text="MARKET WATCH" Style="{StaticResource Kicker}" />
+                <TextBlock Text="Favourites" Style="{StaticResource PageTitle}" Margin="0,3,0,0" />
+                <TextBlock Text="Your chosen items, with seven days of hourly trade data on demand."
+                           Foreground="{StaticResource MutedBrush}" FontSize="14" Margin="0,5,0,0" />
+            </StackPanel>
+            <Border HorizontalAlignment="Right" VerticalAlignment="Center" Background="#E9DFC9" CornerRadius="5" Padding="14,9">
+                <StackPanel>
+                    <TextBlock Text="HISTORY SOURCE" Style="{StaticResource Kicker}" FontSize="9" />
+                    <TextBlock Text="1-hour averages" FontWeight="SemiBold" Margin="0,2,0,0" />
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1.65*" MinWidth="400" />
+                <ColumnDefinition Width="320" />
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Style="{StaticResource Panel}" Margin="0,0,10,0" Padding="22">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <Grid>
+                        <Grid.Style><Style TargetType="Grid"><Setter Property="Visibility" Value="Visible" /><Style.Triggers><DataTrigger Binding="{Binding HasFavourites}" Value="False"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger></Style.Triggers></Style></Grid.Style>
+                        <StackPanel Orientation="Horizontal">
+                            <Border Style="{StaticResource Monogram}" Width="54" Height="54" CornerRadius="27">
+                                <TextBlock Text="{Binding SelectedFavourite.Monogram}" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" Foreground="{StaticResource GoldDarkBrush}" />
+                            </Border>
+                            <StackPanel Margin="13,1,0,0">
+                                <TextBlock Text="{Binding SelectedFavourite.ItemNumber}" Style="{StaticResource Kicker}" />
+                                <TextBlock Text="{Binding SelectedFavourite.Name}" Style="{StaticResource SectionTitle}" Margin="0,3,0,0" />
+                            </StackPanel>
+                        </StackPanel>
+                        <StackPanel HorizontalAlignment="Right" VerticalAlignment="Center">
+                            <TextBlock Text="CURRENT MIDPOINT" Foreground="{StaticResource MutedBrush}" FontSize="10" FontWeight="Bold" HorizontalAlignment="Right" />
+                            <TextBlock Text="{Binding CurrentMidpoint}" FontFamily="Georgia" FontSize="25" FontWeight="Bold" HorizontalAlignment="Right" />
+                            <TextBlock Text="{Binding WeeklyChange}" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Right">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock"><Setter Property="Foreground" Value="{StaticResource NegativeBrush}" /><Style.Triggers><DataTrigger Binding="{Binding IsWeeklyChangePositive}" Value="True"><Setter Property="Foreground" Value="{StaticResource PositiveBrush}" /></DataTrigger></Style.Triggers></Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid Grid.Row="1" Margin="0,20,0,14">
+                        <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition /><ColumnDefinition /><ColumnDefinition /></Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,1,0" Padding="4,6,12,6"><StackPanel><TextBlock Text="INSTANT BUY" Foreground="{StaticResource MutedBrush}" FontSize="10" /><TextBlock Text="{Binding InstantBuy}" FontWeight="Bold" Margin="0,3,0,0" /></StackPanel></Border>
+                        <Border Grid.Column="1" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,1,0" Padding="16,6"><StackPanel><TextBlock Text="INSTANT SELL" Foreground="{StaticResource MutedBrush}" FontSize="10" /><TextBlock Text="{Binding InstantSell}" FontWeight="Bold" Margin="0,3,0,0" /></StackPanel></Border>
+                        <Border Grid.Column="2" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,1,0" Padding="16,6"><StackPanel><TextBlock Text="WEEKLY POINTS" Foreground="{StaticResource MutedBrush}" FontSize="10" /><TextBlock Text="{Binding WeeklyPoints}" FontWeight="Bold" Margin="0,3,0,0" /></StackPanel></Border>
+                        <Border Grid.Column="3" Padding="16,6"><StackPanel><TextBlock Text="TRACKED VOLUME" Foreground="{StaticResource MutedBrush}" FontSize="10" /><TextBlock Text="{Binding TrackedVolume}" FontWeight="Bold" Margin="0,3,0,0" /></StackPanel></Border>
+                    </Grid>
+
+                    <Border Grid.Row="2" Margin="0,0,0,10">
+                        <Border.Style>
+                            <Style TargetType="Border" BasedOn="{StaticResource Notice}">
+                                <Setter Property="Visibility" Value="Visible" />
+                                <Style.Triggers><DataTrigger Binding="{Binding ErrorMessage}" Value="{x:Null}"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger><DataTrigger Binding="{Binding ErrorMessage}" Value=""><Setter Property="Visibility" Value="Collapsed" /></DataTrigger></Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <TextBlock Text="{Binding ErrorMessage}" Foreground="#805415" />
+                    </Border>
+
+                    <Grid Grid.Row="3" MinHeight="260">
+                        <lvc:CartesianChart Series="{Binding ChartSeries}"
+                                            XAxes="{Binding XAxes}"
+                                            YAxes="{Binding YAxes}"
+                                            LegendPosition="Hidden"
+                                            AutomationProperties.Name="Seven-day midpoint price history"
+                                            DrawMarginFrame="{x:Null}"
+                                            AnimationsSpeed="0:0:0.35" />
+                        <Border Background="#E8FBF8EF">
+                            <Border.Style><Style TargetType="Border"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding IsLoadingHistory}" Value="True"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style></Border.Style>
+                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <ProgressBar Width="150" Height="4" IsIndeterminate="True" Foreground="{StaticResource GoldBrush}" />
+                                <TextBlock Text="Loading the weekly curve…" Foreground="{StaticResource MutedBrush}" Margin="0,12,0,0" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <StackPanel Grid.RowSpan="4" HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <StackPanel.Style><Style TargetType="StackPanel"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding HasFavourites}" Value="False"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style></StackPanel.Style>
+                        <Border Style="{StaticResource Monogram}" Width="62" Height="62" CornerRadius="31"><TextBlock Text="＋" FontSize="24" Foreground="{StaticResource GoldBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border>
+                        <TextBlock Text="Build a focused watch list" Style="{StaticResource SectionTitle}" Margin="0,16,0,5" HorizontalAlignment="Center" />
+                        <TextBlock Text="Search in the favourites panel to add your first item." Foreground="{StaticResource MutedBrush}" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <Border Grid.Column="1" Style="{StaticResource Panel}" Margin="10,0,0,0" Padding="20">
+                <Grid>
+                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                    <Grid Margin="0,0,0,16">
+                        <StackPanel><TextBlock Text="WATCH LIST" Style="{StaticResource Kicker}" /><TextBlock Text="{Binding FavouriteCountText}" Style="{StaticResource SectionTitle}" Margin="0,3,0,0" /></StackPanel>
+                        <Button HorizontalAlignment="Right" VerticalAlignment="Center" Content="↻" FontSize="19" ToolTip="Refresh prices" Style="{StaticResource TextButton}" Command="{Binding RefreshCommand}" />
+                    </Grid>
+
+                    <StackPanel Grid.Row="1" Margin="0,0,0,14">
+                        <TextBlock Text="ADD AN ITEM" FontWeight="Bold" FontSize="10" Foreground="{StaticResource MutedBrush}" Margin="0,0,0,6" />
+                        <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input}" ToolTip="Search Grand Exchange items" AutomationProperties.Name="Search Grand Exchange items" />
+                        <Border Background="White" BorderBrush="{StaticResource LineBrush}" BorderThickness="1,0,1,1" MaxHeight="230">
+                            <Border.Style><Style TargetType="Border"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding HasSearchResults}" Value="True"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style></Border.Style>
+                            <ScrollViewer>
+                                <ItemsControl ItemsSource="{Binding SearchResults}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Button Background="Transparent" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,0,1" Padding="9" HorizontalContentAlignment="Stretch" Cursor="Hand"
+                                                    Command="{Binding DataContext.AddFavouriteCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}">
+                                                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="38" /><ColumnDefinition /><ColumnDefinition Width="24" /></Grid.ColumnDefinitions>
+                                                    <Border Style="{StaticResource Monogram}" Width="30" Height="30" CornerRadius="15"><TextBlock Text="{Binding Monogram}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource GoldDarkBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border>
+                                                    <StackPanel Grid.Column="1"><TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12" /><TextBlock Text="{Binding ItemNumber}" Foreground="{StaticResource MutedBrush}" FontSize="10" /></StackPanel>
+                                                    <TextBlock Grid.Column="2" Text="＋" Foreground="{StaticResource GoldBrush}" VerticalAlignment="Center" />
+                                                </Grid>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Border>
+                    </StackPanel>
+
+                    <ListBox Grid.Row="2" ItemsSource="{Binding FavouriteRows}" SelectedItem="{Binding SelectedFavourite}"
+                             Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                <Setter Property="Margin" Value="0,0,0,7" />
+                                <Setter Property="Padding" Value="0" />
+                                <Setter Property="Background" Value="Transparent" />
+                                <Setter Property="BorderThickness" Value="0" />
+                                <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem"><ContentPresenter /></ControlTemplate></Setter.Value></Setter>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border x:Name="Card" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="6" Padding="9" Background="#FCFAF4">
+                                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="42" /><ColumnDefinition /><ColumnDefinition Width="30" /></Grid.ColumnDefinitions>
+                                        <Border Style="{StaticResource Monogram}" Width="34" Height="34" CornerRadius="17"><TextBlock Text="{Binding Monogram}" FontSize="10" FontWeight="Bold" Foreground="{StaticResource GoldDarkBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center"><TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" /><TextBlock Text="{Binding Price}" Foreground="{StaticResource MutedBrush}" FontSize="10" /></StackPanel>
+                                        <Button Grid.Column="2" Content="×" Style="{StaticResource TextButton}" Foreground="#9A5A51" ToolTip="Remove favourite"
+                                                AutomationProperties.Name="{Binding Name, StringFormat=Remove {0} from favourites}"
+                                                Command="{Binding DataContext.RemoveFavouriteCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                                    </Grid>
+                                </Border>
+                                <DataTemplate.Triggers>
+                                    <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=ListBoxItem}, Path=IsSelected}" Value="True"><Setter TargetName="Card" Property="BorderBrush" Value="{StaticResource GoldBrush}" /><Setter TargetName="Card" Property="Background" Value="#F4E9D3" /></DataTrigger>
+                                </DataTemplate.Triggers>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>
