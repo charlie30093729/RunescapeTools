@@ -29,6 +29,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("JSON store seeds, sorts, and prevents duplicates", JsonStoreSeedsSortsAndDeduplicates),
     ("JSON store never overwrites existing state", JsonStoreDoesNotOverwrite),
     ("hiscore parser maps every current OSRS skill in API order", HiscoreParserMapsSkills),
+    ("profile skill icons map to official Wiki assets", ProfileSkillIconMapping),
     ("hiscore parser rejects incomplete and malformed skill rows", HiscoreParserRejectsInvalidResponses),
     ("hiscore client URL-encodes RSNs and distinguishes missing accounts", HiscoreClientProtocol),
     ("profile preference seeds bottleo and persists successful selections", ProfilePreferencePersistence),
@@ -276,6 +277,25 @@ static Task HiscoreParserMapsSkills()
     Equal("Runecraft", profile.Skills[20].Name, "API runecrafting alias");
     Equal("Sailing", profile.Skills[^1].Name, "latest skill");
     Equal(now, profile.RetrievedAtUtc, "retrieval time");
+    return Task.CompletedTask;
+}
+
+static Task ProfileSkillIconMapping()
+{
+    foreach (var skill in OsrsHiscoreSkillOrder.Skills)
+    {
+        Equal(
+            $"https://oldschool.runescape.wiki/images/{skill}_icon.png",
+            OsrsSkillIconMap.GetIconUrl(skill) ?? string.Empty,
+            $"{skill} icon URL");
+    }
+
+    Equal(
+        "https://oldschool.runescape.wiki/images/Runecraft_icon.png",
+        OsrsSkillIconMap.GetIconUrl("Runecraft") ?? string.Empty,
+        "Runecraft uses the documented asset name");
+    True(OsrsSkillIconMap.GetIconUrl("Runecrafting") is null, "Runecrafting is not a valid display mapping");
+    True(OsrsSkillIconMap.GetIconUrl("Unexpected skill") is null, "unknown skills use the UI fallback");
     return Task.CompletedTask;
 }
 

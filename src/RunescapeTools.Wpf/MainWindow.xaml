@@ -117,6 +117,9 @@
                     <StackPanel>
                         <TextBlock Text="OSRS WIKI PRICES" Foreground="#879088" FontSize="10" FontWeight="Bold" />
                         <TextBlock Text="Live Grand Exchange data" Foreground="{StaticResource SidebarMutedBrush}" FontSize="12" Margin="0,4,0,0" />
+                        <TextBlock Text="This application is not affiliated with, endorsed, or otherwise approved by Jagex Ltd. RuneScape and Old School RuneScape are trademarks of Jagex Ltd."
+                                   Foreground="#899188" FontSize="9" LineHeight="13" Margin="0,14,0,0"
+                                   TextWrapping="Wrap" />
                     </StackPanel>
                 </Border>
             </Grid>
