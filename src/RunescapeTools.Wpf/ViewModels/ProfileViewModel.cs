@@ -149,6 +149,7 @@ public partial class ProfileViewModel : ObservableObject, IPageViewModel
                 skill.Level.ToString("N0"),
                 skill.Experience < 0 ? "Not ranked" : $"{skill.Experience:N0} xp",
                 FormatRank(skill.Rank),
+                OsrsSkillIconMap.GetIconUrl(skill.Name),
                 DisplayFormat.Monogram(skill.Name)))
             .ToArray();
         RefreshCommand.NotifyCanExecuteChanged();
@@ -167,4 +168,5 @@ public sealed record ProfileSkillDisplay(
     string Level,
     string Experience,
     string Rank,
+    string? IconUrl,
     string Monogram);

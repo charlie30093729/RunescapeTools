@@ -104,23 +104,42 @@
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border Style="{StaticResource Panel}" Padding="14" Margin="4" MinHeight="92">
+                        <Border Style="{StaticResource Panel}" Padding="14" Margin="4" MinHeight="104">
                             <Grid>
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="46" />
+                                    <ColumnDefinition Width="50" />
                                     <ColumnDefinition />
                                 </Grid.ColumnDefinitions>
-                                <Border Style="{StaticResource Monogram}" Width="38" Height="38" CornerRadius="19">
-                                    <TextBlock Text="{Binding Monogram}" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                               FontWeight="Bold" FontSize="11" Foreground="{StaticResource GoldDarkBrush}" />
-                                </Border>
-                                <StackPanel Grid.Column="1">
+                                <Grid Width="42" Height="42" VerticalAlignment="Top">
+                                    <Border Style="{StaticResource Monogram}" Width="40" Height="40" CornerRadius="20">
+                                        <TextBlock Text="{Binding Monogram}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                   FontWeight="Bold" FontSize="11" Foreground="{StaticResource GoldDarkBrush}" />
+                                    </Border>
+                                    <Border Background="{StaticResource PaperLightBrush}" Width="42" Height="42">
+                                        <Image Source="{Binding IconUrl}" Width="34" Height="34" Stretch="Uniform"
+                                               RenderOptions.BitmapScalingMode="HighQuality"
+                                               ImageFailed="SkillIconFailed" />
+                                    </Border>
+                                </Grid>
+                                <StackPanel Grid.Column="1" MinWidth="0">
                                     <Grid>
-                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
-                                        <TextBlock Text="{Binding Level}" HorizontalAlignment="Right" FontFamily="Georgia" FontSize="21" FontWeight="Bold" />
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13"
+                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
+                                                   VerticalAlignment="Center" Margin="0,0,8,0" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Level}" HorizontalAlignment="Right"
+                                                   FontFamily="Georgia" FontSize="24" FontWeight="Bold" MinWidth="36"
+                                                   TextAlignment="Right" TextWrapping="NoWrap" />
                                     </Grid>
-                                    <TextBlock Text="{Binding Experience}" Foreground="{StaticResource MutedBrush}" FontSize="10" Margin="0,4,0,0" />
-                                    <TextBlock Text="{Binding Rank}" Foreground="{StaticResource GoldDarkBrush}" FontSize="10" />
+                                    <TextBlock Text="{Binding Experience}" ToolTip="{Binding Experience}"
+                                               Foreground="{StaticResource MutedBrush}" FontSize="12" FontWeight="SemiBold"
+                                               TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" Margin="0,4,0,0" />
+                                    <TextBlock Text="{Binding Rank}" ToolTip="{Binding Rank}"
+                                               Foreground="{StaticResource GoldDarkBrush}" FontSize="12"
+                                               TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" Margin="0,2,0,0" />
                                 </StackPanel>
                             </Grid>
                         </Border>
