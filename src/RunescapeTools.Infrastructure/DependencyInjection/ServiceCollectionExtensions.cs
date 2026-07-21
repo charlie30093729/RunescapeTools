@@ -2,14 +2,17 @@ using Microsoft.Extensions.DependencyInjection;
 using RunescapeTools.Application.Favourites;
 using RunescapeTools.Application.Market;
 using RunescapeTools.Application.Profiles;
+using RunescapeTools.Application.Training;
 using RunescapeTools.Core.Favourites;
 using RunescapeTools.Core.Market;
 using RunescapeTools.Core.MoneyMaking;
 using RunescapeTools.Core.Profiles;
+using RunescapeTools.Core.Training;
 using RunescapeTools.Infrastructure.Configuration;
 using RunescapeTools.Infrastructure.Market;
 using RunescapeTools.Infrastructure.Persistence;
 using RunescapeTools.Infrastructure.Profiles;
+using RunescapeTools.Infrastructure.Training;
 
 namespace RunescapeTools.Infrastructure.DependencyInjection;
 
@@ -20,7 +23,8 @@ public static class ServiceCollectionExtensions
         OsrsWikiOptions wikiOptions,
         FavouriteStoreOptions favouriteOptions,
         MarketDataOptions? marketOptions = null,
-        OsrsHiscoreOptions? hiscoreOptions = null)
+        OsrsHiscoreOptions? hiscoreOptions = null,
+        TrainingPlanOptions? trainingPlanOptions = null)
     {
         hiscoreOptions ??= new OsrsHiscoreOptions { UserAgent = wikiOptions.UserAgent };
         services.AddSingleton(wikiOptions);
@@ -50,6 +54,14 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IFavouriteHistoryWarmupService, FavouriteHistoryWarmupService>();
         services.AddSingleton<HiscoreParser>();
         services.AddSingleton<MoneyMakingCalculator>();
+        services.AddSingleton<IEhpCatalogue, MainEhpCatalogue>();
+        services.AddSingleton<TrainingPlanCalculator>();
+
+        if (trainingPlanOptions is not null)
+        {
+            services.AddSingleton(trainingPlanOptions);
+            services.AddSingleton<ITrainingPlanStore, JsonTrainingPlanStore>();
+        }
 
         var methodTypes = typeof(IMoneyMakingMethod).Assembly
             .GetTypes()

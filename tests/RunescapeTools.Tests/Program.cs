@@ -4,15 +4,18 @@ using Microsoft.Extensions.Logging.Abstractions;
 using RunescapeTools.Application.Favourites;
 using RunescapeTools.Application.Market;
 using RunescapeTools.Application.Profiles;
+using RunescapeTools.Application.Training;
 using RunescapeTools.Core.Favourites;
 using RunescapeTools.Core.Market;
 using RunescapeTools.Core.MoneyMaking;
 using RunescapeTools.Core.MoneyMaking.Methods;
 using RunescapeTools.Core.Profiles;
+using RunescapeTools.Core.Training;
 using RunescapeTools.Infrastructure.Configuration;
 using RunescapeTools.Infrastructure.Market;
 using RunescapeTools.Infrastructure.Persistence;
 using RunescapeTools.Infrastructure.Profiles;
+using RunescapeTools.Infrastructure.Training;
 using RunescapeTools.Wpf.ViewModels;
 
 var tests = new (string Name, Func<Task> Run)[]
@@ -38,6 +41,11 @@ var tests = new (string Name, Func<Task> Run)[]
     ("favourites view-model searches, adds, selects, and removes", FavouritesViewModelFlow),
     ("money-maker view-model reprices the complete ledger", MoneyMakerViewModelFlow),
     ("profile view-model loads defaults and keeps valid data on errors", ProfileViewModelFlow),
+    ("EHP catalogue covers every skill and ordered rate band", () => RunSync(EhpCatalogueCoverage)),
+    ("Construction route reproduces Main EHP hours and live-price economics", () => RunSync(ConstructionTrainingCalculation)),
+    ("training rate overrides scale hours without changing total resources", () => RunSync(TrainingRateOverride)),
+    ("training plans persist independently per RSN", TrainingPlanPersistence),
+    ("XP planner loads profile goals and construction pricing", XpPlannerViewModelFlow),
     ("shell navigation loads the requested page", ShellNavigation)
 };
 
@@ -493,6 +501,107 @@ static async Task ProfileViewModelFlow()
     Equal("75", viewModel.Skills[0].Level, "updated skill level");
 }
 
+static void EhpCatalogueCoverage()
+{
+    var catalogue = new MainEhpCatalogue();
+    Equal(24, catalogue.Skills.Count, "catalogue skill count");
+    Equal(
+        string.Join('|', OsrsHiscoreSkillOrder.Skills),
+        string.Join('|', catalogue.Skills.Select(skill => skill.Skill)),
+        "catalogue skill order");
+
+    foreach (var skill in catalogue.Skills)
+    {
+        True(skill.Bands.Count > 0, $"{skill.Skill} should have at least one rate band");
+        True(skill.Bands.All(band => band.ExperiencePerHour > 0), $"{skill.Skill} rates should be positive");
+        var ordered = skill.Bands.OrderBy(band => band.StartExperience).ToArray();
+        Equal(ordered.Length, ordered.Select(band => band.StartExperience).Distinct().Count(), $"{skill.Skill} band starts");
+        Equal(string.Join('|', ordered.Select(band => band.StartExperience)), string.Join('|', skill.Bands.Select(band => band.StartExperience)), $"{skill.Skill} band ordering");
+    }
+}
+
+static void ConstructionTrainingCalculation()
+{
+    var definition = new MainEhpCatalogue().Skills.Single(skill => skill.Skill == "Construction");
+    var prices = new Dictionary<int, ItemPrice>
+    {
+        [8778] = new ItemPrice(8778, 431, 425, null, null),
+        [8782] = new ItemPrice(8782, 1_910, 1_857, null, null)
+    };
+    var result = new TrainingPlanCalculator().Calculate(definition, 0, 200_000_000, prices);
+
+    EqualDecimal(142.7895m, result.Hours, "Construction EHP hours", 0.0001m);
+    Equal(199_981_753L, result.PricedExperience, "priced Construction XP");
+    True(!result.IsFullyPriced, "low-level furniture should remain visibly unpriced");
+    True(result.NetGp is < -2_800_000_000m and > -2_805_000_000m, "Construction cost should match the reviewed 2.8b estimate");
+}
+
+static void TrainingRateOverride()
+{
+    var definition = new MainEhpCatalogue().Skills.Single(skill => skill.Skill == "Construction");
+    var prices = new Dictionary<int, ItemPrice> { [8778] = Quote(8778, 431), [8782] = Quote(8782, 1_910) };
+    var calculator = new TrainingPlanCalculator();
+    var baseline = calculator.Calculate(definition, 0, 200_000_000, prices);
+    var doubled = calculator.Calculate(definition, 0, 200_000_000, prices, 109_400m);
+
+    EqualDecimal(baseline.Hours / 2m, doubled.Hours, "double-rate hours", 0.0001m);
+    EqualDecimal(baseline.NetGp ?? 0m, doubled.NetGp ?? 0m, "rate override total GP", 0.01m);
+}
+
+static async Task TrainingPlanPersistence()
+{
+    var directory = CreateTempDirectory();
+    try
+    {
+        var path = Path.Combine(directory, "training-plans.json");
+        var store = new JsonTrainingPlanStore(new TrainingPlanOptions { FilePath = path });
+        await store.SaveAsync("Player One", [new TrainingSkillPreference("Construction", 200_000_000, 0, 1_070_000)]);
+        await store.SaveAsync("Player Two", [new TrainingSkillPreference("Construction", 13_034_431)]);
+
+        var first = await store.GetAsync(" player one ");
+        var second = await store.GetAsync("PLAYER TWO");
+        Equal(200_000_000L, first["Construction"].TargetExperience, "first profile goal");
+        Equal(13_034_431L, second["Construction"].TargetExperience, "second profile goal");
+        True(first["Construction"].StartExperienceOverride == 0, "explicit zero-XP override persists");
+    }
+    finally
+    {
+        Directory.Delete(directory, true);
+    }
+}
+
+static async Task XpPlannerViewModelFlow()
+{
+    var client = new FakeHiscoreClient();
+    var context = new CurrentProfileContext(
+        client,
+        new HiscoreParser(TimeProvider.System),
+        new MemoryProfilePreferenceStore("bottleo"));
+    var market = new FakeMarketDataService
+    {
+        Latest = new Dictionary<int, ItemPrice> { [8778] = Quote(8778, 431), [8782] = Quote(8782, 1_910) }
+    };
+    var viewModel = new XpPlannerViewModel(
+        new MainEhpCatalogue(),
+        new TrainingPlanCalculator(),
+        market,
+        new MemoryTrainingPlanStore(),
+        context);
+
+    await viewModel.LoadAsync();
+    Equal(24, viewModel.Rows.Count, "XP planner row count");
+    Equal("bottleo", viewModel.ProfileName, "XP planner profile");
+    var construction = viewModel.Rows.Single(row => row.Skill == "Construction");
+    construction.StartExperience = 0;
+    Equal("142.8", construction.Hours, "Construction displayed hours");
+    True(construction.Result.NetGp is < -2_800_000_000m, "Construction live cost");
+    construction.PersonalRate = 100_000m;
+    True(construction.Hours != "142.8", "personal rate changes displayed hours");
+    construction.ResetRateCommand.Execute(null);
+    EqualDecimal(54_700m, construction.PersonalRate, "reset current method rate");
+    Equal("142.8", construction.Hours, "reset restores catalogue hours");
+}
+
 static async Task ShellNavigation()
 {
     var store = new MemoryFavouriteStore();
@@ -505,7 +614,13 @@ static async Task ShellNavigation()
         new HiscoreParser(TimeProvider.System),
         new MemoryProfilePreferenceStore("bottleo"));
     var profile = new ProfileViewModel(profileContext);
-    var shell = new ShellViewModel(profile, dashboard, favourites, money);
+    var xpPlanner = new XpPlannerViewModel(
+        new MainEhpCatalogue(),
+        new TrainingPlanCalculator(),
+        market,
+        new MemoryTrainingPlanStore(),
+        profileContext);
+    var shell = new ShellViewModel(profile, dashboard, favourites, money, xpPlanner);
 
     await shell.InitializeAsync();
     Equal(PageKind.Dashboard, shell.CurrentPageKind, "startup page remains dashboard");
@@ -638,6 +753,31 @@ sealed class MemoryProfilePreferenceStore(string selectedRsn) : IProfilePreferen
     public Task SetSelectedRsnAsync(string rsn, CancellationToken cancellationToken = default)
     {
         SelectedRsn = rsn.Trim();
+        return Task.CompletedTask;
+    }
+}
+
+sealed class MemoryTrainingPlanStore : ITrainingPlanStore
+{
+    private readonly Dictionary<string, Dictionary<string, TrainingSkillPreference>> profiles =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    public Task<IReadOnlyDictionary<string, TrainingSkillPreference>> GetAsync(
+        string rsn,
+        CancellationToken cancellationToken = default)
+    {
+        if (profiles.TryGetValue(rsn.Trim(), out var values))
+            return Task.FromResult<IReadOnlyDictionary<string, TrainingSkillPreference>>(values);
+        return Task.FromResult<IReadOnlyDictionary<string, TrainingSkillPreference>>(
+            new Dictionary<string, TrainingSkillPreference>(StringComparer.OrdinalIgnoreCase));
+    }
+
+    public Task SaveAsync(
+        string rsn,
+        IReadOnlyCollection<TrainingSkillPreference> preferences,
+        CancellationToken cancellationToken = default)
+    {
+        profiles[rsn.Trim()] = preferences.ToDictionary(value => value.Skill, StringComparer.OrdinalIgnoreCase);
         return Task.CompletedTask;
     }
 }

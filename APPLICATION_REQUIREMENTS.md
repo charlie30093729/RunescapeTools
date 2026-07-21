@@ -2,10 +2,10 @@
 
 | Field | Value |
 | --- | --- |
-| Document version | 1.1 |
+| Document version | 1.2 |
 | Application | RunescapeTools / GE Ledger |
 | Status | WPF MVP baseline |
-| Date | 13 July 2026 |
+| Date | 21 July 2026 |
 | Target platform | Windows 10 2004+ x64; .NET 8 WPF desktop application |
 
 ## 1. Purpose
@@ -23,7 +23,7 @@ The application shall:
 3. Calculate GP per hour from explicit item inputs and outputs using current market prices.
 4. Make money-making methods modular so that adding or removing a method does not require navigation or calculator rewrites.
 5. Keep application, infrastructure, persistence, and calculation logic independent from both front ends.
-6. Remain suitable for expansion into XP-per-hour and skill cost calculations.
+6. Calculate level-aware XP goals, active hours, and reviewed GP/XP economics from a dated EHP catalogue.
 
 ## 3. Stakeholders and users
 
@@ -45,7 +45,7 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 
 - Native WPF executable as the primary front end.
 - Generic Host-based dependency injection, configuration, and logging.
-- Dashboard, Favourites, and Money Makers navigation areas.
+- Profile, Dashboard, Favourites, Money Makers, and XP Planner navigation areas.
 - JSON-backed favourite persistence.
 - OSRS Wiki item mapping, latest-price, and time-series integration.
 - Seven-day hourly history graphs.
@@ -66,7 +66,7 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 - Price alerts or push notifications.
 - Editing money-making method definitions through the UI.
 - Formal investment, trading, or profit guarantees.
-- Completed skill XP/hour or cost/hour calculators.
+- Full economic coverage for every EHP training band.
 - Mobile-native applications.
 
 ## 5. Definitions and business terms
@@ -82,6 +82,8 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | Per hour | A quantity already expressed as an hourly amount. |
 | GE tax | The configured percentage deducted from taxable output value. |
 | Weekly history | Price points from the latest seven-day window using one-hour API data. |
+| EHP rate band | A dated skill XP/hour rate beginning at a configured XP threshold and ending at the next band. |
+| Economic coverage | The portion of remaining XP whose resource inputs, outputs, and fixed costs have been reviewed. |
 
 ## 6. Functional requirements
 
@@ -89,7 +91,7 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 
 | ID | Requirement |
 | --- | --- |
-| FR-NAV-001 | The application shall provide navigation to Dashboard, Favourites, and Money Makers views. |
+| FR-NAV-001 | The application shall provide navigation to Profile, Dashboard, Favourites, Money Makers, and XP Planner views. |
 | FR-NAV-002 | The active navigation destination shall be visually identifiable. |
 | FR-NAV-003 | The WPF layout shall remain usable at the 1100 × 720 minimum window size, using contained scrolling where necessary. |
 | FR-NAV-004 | The application shall identify the market-data source in the interface. |
@@ -170,7 +172,22 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | FR-CALC-011 | The calculation view shall display a line-by-line ledger for every input and output. |
 | FR-CALC-012 | The calculation model shall support optional experience rewards without requiring a GP formula rewrite. |
 
-### 6.7 Method modularity
+### 6.7 XP Planner
+
+| ID | Requirement |
+| --- | --- |
+| FR-XP-001 | The XP Planner shall show all 24 current skills in canonical Hiscores order. |
+| FR-XP-002 | Start XP shall default to the successfully loaded profile, and every new per-profile goal shall default to 200,000,000 XP. |
+| FR-XP-003 | Hours shall be summed across every EHP rate band intersecting the start-to-goal range. |
+| FR-XP-004 | The user shall be able to edit start XP, goal XP, and personal XP/hour and reset starts from the loaded profile. |
+| FR-XP-005 | A personal rate override shall scale all route-band rates proportionally without changing resource quantities per XP. |
+| FR-XP-006 | Training inputs shall use instant-buy/high prices and outputs shall use instant-sell/low prices, with visible fallback when only one quote side exists. |
+| FR-XP-007 | Unknown or unreviewed economics shall be labelled as unpriced and shall not be silently included as zero GP. |
+| FR-XP-008 | Summary totals shall show remaining XP, active hours, priced net GP, and economic coverage. |
+| FR-XP-009 | Construction shall include reviewed oak- and mahogany-plank quantities plus Demon Butler fees for the EHP bands beginning at level 33. |
+| FR-XP-010 | Hours shall represent active player time; the first release shall not claim calendar completion time for time-gated methods. |
+
+### 6.8 Method modularity
 
 | ID | Requirement |
 | --- | --- |
@@ -179,7 +196,7 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | FR-MOD-003 | Adding or removing a method class shall automatically update the available method list after rebuild and restart. |
 | FR-MOD-004 | Domain calculations shall not depend on WPF, Razor components, or infrastructure-specific API types. |
 
-### 6.8 Persistence and error handling
+### 6.9 Persistence and error handling
 
 | ID | Requirement |
 | --- | --- |
@@ -191,6 +208,7 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | FR-DATA-006 | The first-run seed shall never replace an existing desktop favourites file. |
 | FR-DATA-007 | When the renamed desktop data file does not yet exist, the host shall preserve an existing legacy favourites file by copying it to the new LocalAppData location before applying the seed. |
 | FR-DATA-008 | The selected RSN shall persist atomically in `%LocalAppData%\RunescapeTools\data\profile.json`. |
+| FR-DATA-009 | XP goals and overrides shall persist atomically per normalized RSN in `%LocalAppData%\RunescapeTools\data\training-plans.json`. |
 | FR-ERR-001 | Item search, latest-price, history, and calculator failures shall produce user-readable messages. |
 | FR-ERR-002 | Temporary API failures shall not delete or overwrite stored favourites. |
 | FR-ERR-003 | HTTP 429 and server-error responses shall be retried up to three attempts with a delay. |
@@ -274,6 +292,8 @@ Requirements:
 
 - Mutable desktop state shall be stored under `%LocalAppData%\RunescapeTools`.
 - Desktop favourites shall be stored at `%LocalAppData%\RunescapeTools\data\favourites.json`.
+- Per-RSN training plans shall be stored at `%LocalAppData%\RunescapeTools\data\training-plans.json`.
+- The EHP catalogue shall identify its source snapshot and verification date; rate changes shall be reviewed code/data changes rather than runtime scraping.
 - The renamed desktop host shall copy an existing legacy favourites file into this location once, without overwriting new state.
 - The WPF assembly shall embed the versioned MVP favourites snapshot as first-run seed data, including the current Scythe favourite.
 - The parked Web host may retain its own `data/favourites.json`; it shall not share mutable state with WPF.
@@ -360,6 +380,7 @@ Requirements:
 | `FavouriteStoreOptions.FilePath` | Selects the host-specific JSON file. | WPF uses the LocalAppData path; Web uses its content-root data directory. |
 | `FavouriteStoreOptions.SeedJson` | Supplies optional first-run seed content. | WPF passes the embedded snapshot; Web passes no seed. |
 | `MarketDataOptions` | Controls latest, mapping, history, window, and warmup cache behavior. | Shared defaults. |
+| `TrainingPlanOptions.FilePath` | Selects the per-RSN XP Planner JSON file. | WPF uses the LocalAppData data directory. |
 
 ### 12.1 Release packaging
 
@@ -389,6 +410,8 @@ The MVP is accepted when all of the following are true:
 13. The `win-x64` Release publish produces a self-contained single-file `RunescapeTools.exe` with trimming disabled.
 14. The parked Razor project continues to compile as part of the complete solution.
 15. Runtime data-protection keys and build outputs remain ignored by Git.
+16. XP Planner hours span every applicable level band and reproduce the reviewed Construction 0-to-200m benchmark within rounding tolerance.
+17. Unpriced training segments remain visible through economic-coverage states, and per-RSN goals survive restart.
 
 ## 14. Risks and dependencies
 
@@ -404,7 +427,8 @@ The MVP is accepted when all of the following are true:
 
 ## 15. Future requirements candidates
 
-- Skill XP/hour and cost/hour calculators using the existing experience reward model.
+- Additional reviewed GP/XP coverage for lower-level and alternative training methods.
+- Secondary-XP session ownership and crediting without double-counting hours or GP.
 - UI-driven method creation and parameter overrides.
 - Price and profit alerts.
 - Optional historical persistence beyond the Wiki API window.
