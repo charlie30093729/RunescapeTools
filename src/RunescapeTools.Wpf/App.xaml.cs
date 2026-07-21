@@ -101,7 +101,11 @@ public partial class App : System.Windows.Application
                 FilePath = Path.Combine(localData, "data", "favourites.json"),
                 SeedJson = ReadEmbeddedSeed()
             },
-            new MarketDataOptions());
+            new MarketDataOptions(),
+            trainingPlanOptions: new TrainingPlanOptions
+            {
+                FilePath = Path.Combine(localData, "data", "training-plans.json")
+            });
 
         builder.Services.AddSingleton(new ProfilePreferenceOptions
         {
@@ -115,6 +119,7 @@ public partial class App : System.Windows.Application
         builder.Services.AddSingleton<DashboardViewModel>();
         builder.Services.AddSingleton<FavouritesViewModel>();
         builder.Services.AddSingleton<MoneyMakersViewModel>();
+        builder.Services.AddSingleton<XpPlannerViewModel>();
         builder.Services.AddSingleton<ShellViewModel>();
         builder.Services.AddSingleton<MainWindow>();
 

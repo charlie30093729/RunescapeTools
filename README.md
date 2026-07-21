@@ -1,6 +1,6 @@
 # RunescapeTools
 
-RunescapeTools, presented as **GE Ledger**, is a native Windows desktop workspace for focused Old School RuneScape market tracking and modular GP-per-hour calculations.
+RunescapeTools, presented as **GE Ledger**, is a native Windows desktop workspace for Old School RuneScape profiles, market tracking, GP/hour calculations, and level-aware XP planning.
 
 The WPF executable is the active front end. The original Razor/Blazor application remains buildable in the solution as a parked reference implementation. Both hosts use the same application, infrastructure, persistence, market-data, and calculation services.
 
@@ -11,6 +11,8 @@ The WPF executable is the active front end. The original Razor/Blazor applicatio
 - Debounced Grand Exchange item search with add, select, and remove favourite actions.
 - Seven days of hourly Wiki price history rendered with LiveCharts2, including local-time tooltips, weekly change, and volume.
 - Automatically discovered money-making methods with live repricing and a complete input/output ledger.
+- XP Planner with all 24 skills, level-banded Main EHP rates, current-profile start XP, 99/200m goals, editable personal rates, active-hour totals, and per-RSN persistence.
+- Live GP/XP economics with explicit coverage states; Construction is the first fully reviewed route with oak/mahogany planks and Demon Butler fees.
 - Vyrewatch Sentinels method with supplies, output tax, per-account profit, and five-account total.
 - Local JSON persistence, API-friendly caches, bounded history warmup, retry handling, and user-readable failure states.
 - Single-instance desktop lifetime to prevent competing favourite-file writes.
@@ -45,6 +47,14 @@ The last successfully loaded RSN is stored separately at:
 ```text
 %LocalAppData%\RunescapeTools\data\profile.json
 ```
+
+XP goals, start overrides, and personal rates are stored per RSN at:
+
+```text
+%LocalAppData%\RunescapeTools\data\training-plans.json
+```
+
+The bundled EHP catalogue is a dated snapshot. Its level bands calculate the complete path from the selected start XP to the goal; GP totals clearly report how much of that path has reviewed economic data rather than treating unknown costs as zero.
 
 The first Profile visit creates this preference with `bottleo` when no saved RSN exists. A new RSN is persisted only after its complete hiscore response has been fetched and parsed successfully.
 

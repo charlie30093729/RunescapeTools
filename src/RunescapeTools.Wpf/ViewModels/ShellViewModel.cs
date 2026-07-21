@@ -16,6 +16,7 @@ public partial class ShellViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsDashboardSelected))]
     [NotifyPropertyChangedFor(nameof(IsFavouritesSelected))]
     [NotifyPropertyChangedFor(nameof(IsMoneyMakersSelected))]
+    [NotifyPropertyChangedFor(nameof(IsXpPlannerSelected))]
     private PageKind currentPageKind;
 
     [ObservableProperty]
@@ -25,14 +26,16 @@ public partial class ShellViewModel : ObservableObject
         ProfileViewModel profile,
         DashboardViewModel dashboard,
         FavouritesViewModel favourites,
-        MoneyMakersViewModel moneyMakers)
+        MoneyMakersViewModel moneyMakers,
+        XpPlannerViewModel xpPlanner)
     {
         pages = new Dictionary<PageKind, IPageViewModel>
         {
             [PageKind.Profile] = profile,
             [PageKind.Dashboard] = dashboard,
             [PageKind.Favourites] = favourites,
-            [PageKind.MoneyMakers] = moneyMakers
+            [PageKind.MoneyMakers] = moneyMakers,
+            [PageKind.XpPlanner] = xpPlanner
         };
         CurrentPageKind = PageKind.Dashboard;
         CurrentPage = dashboard;
@@ -42,6 +45,7 @@ public partial class ShellViewModel : ObservableObject
     public bool IsDashboardSelected => CurrentPageKind == PageKind.Dashboard;
     public bool IsFavouritesSelected => CurrentPageKind == PageKind.Favourites;
     public bool IsMoneyMakersSelected => CurrentPageKind == PageKind.MoneyMakers;
+    public bool IsXpPlannerSelected => CurrentPageKind == PageKind.XpPlanner;
     public string Today => DateTime.Now.ToString("dddd, d MMMM yyyy");
 
     public Task InitializeAsync(CancellationToken cancellationToken = default) =>

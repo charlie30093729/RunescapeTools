@@ -5,5 +5,6 @@ public enum PageKind
     Profile,
     Dashboard,
     Favourites,
-    MoneyMakers
+    MoneyMakers,
+    XpPlanner
 }

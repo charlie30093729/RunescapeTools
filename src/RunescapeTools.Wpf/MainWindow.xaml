@@ -19,6 +19,9 @@
         <DataTemplate DataType="{x:Type vm:MoneyMakersViewModel}">
             <views:MoneyMakersView />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:XpPlannerViewModel}">
+            <views:XpPlannerView />
+        </DataTemplate>
         <Style x:Key="NavButton" TargetType="Button">
             <Setter Property="Height" Value="48" />
             <Setter Property="Margin" Value="0,3" />
@@ -110,6 +113,14 @@
                             </Style>
                         </Button.Style>
                         <StackPanel Orientation="Horizontal"><TextBlock Text="◈" FontSize="17" Width="30" /><TextBlock Text="Money Makers" VerticalAlignment="Center" /></StackPanel>
+                    </Button>
+                    <Button Command="{Binding NavigateCommand}" CommandParameter="XpPlanner" AutomationProperties.Name="XP Planner">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource NavButton}">
+                                <Style.Triggers><DataTrigger Binding="{Binding IsXpPlannerSelected}" Value="True"><Setter Property="Background" Value="#394334" /><Setter Property="Foreground" Value="White" /></DataTrigger></Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                        <StackPanel Orientation="Horizontal"><TextBlock Text="XP" FontFamily="Georgia" FontWeight="Bold" FontSize="13" Width="30" /><TextBlock Text="XP Planner" VerticalAlignment="Center" /></StackPanel>
                     </Button>
                 </StackPanel>
 
