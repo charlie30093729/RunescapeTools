@@ -42,8 +42,10 @@ var tests = new (string Name, Func<Task> Run)[]
     ("money-maker view-model reprices the complete ledger", MoneyMakerViewModelFlow),
     ("profile view-model loads defaults and keeps valid data on errors", ProfileViewModelFlow),
     ("EHP catalogue covers every skill and ordered rate band", () => RunSync(EhpCatalogueCoverage)),
+    ("approved deterministic methods expose reviewed rates and economics", () => RunSync(DeterministicMethodCatalogue)),
     ("Construction route reproduces Main EHP hours and live-price economics", () => RunSync(ConstructionTrainingCalculation)),
     ("training rate overrides scale hours without changing total resources", () => RunSync(TrainingRateOverride)),
+    ("hourly training costs respond to personal rate overrides", () => RunSync(HourlyTrainingEconomics)),
     ("training plans persist independently per RSN", TrainingPlanPersistence),
     ("XP planner loads profile goals and construction pricing", XpPlannerViewModelFlow),
     ("shell navigation loads the requested page", ShellNavigation)
@@ -536,6 +538,58 @@ static void ConstructionTrainingCalculation()
     True(result.NetGp is < -2_800_000_000m and > -2_805_000_000m, "Construction cost should match the reviewed 2.8b estimate");
 }
 
+static void DeterministicMethodCatalogue()
+{
+    var catalogue = new MainEhpCatalogue();
+
+    var prayer = TrainingBand(catalogue, "Prayer", 737_627);
+    EqualDecimal(2_000_000m, prayer.ExperiencePerHour, "Prayer rate");
+    Equal("Superior dragon bones at the Chaos Altar", prayer.Method, "Prayer method");
+    EqualDecimal(1m / 1_050m, Resource(prayer, 22124).QuantityPerExperience, "Prayer bones per XP");
+
+    var cooking = TrainingBand(catalogue, "Cooking", 8_771_558);
+    EqualDecimal(490_000m, cooking.ExperiencePerHour, "Cooking rate");
+    Equal("Bake Pie spell - summer pies", cooking.Method, "Cooking method");
+    Equal(
+        "7216|7218|9075",
+        string.Join('|', cooking.Economics!.Resources.Select(resource => resource.ItemId).Order()),
+        "Cooking item IDs");
+    EqualDecimal(1m / 260m, Resource(cooking, 7216).QuantityPerExperience, "raw summer pies per XP");
+
+    var crafting = TrainingBand(catalogue, "Crafting", 2_951_373);
+    EqualDecimal(465_000m, crafting.ExperiencePerHour, "Crafting rate");
+    Equal("Black dragonhide bodies", crafting.Method, "Crafting method");
+    EqualDecimal(3m / 258m, Resource(crafting, 2509).QuantityPerExperience, "black leather per XP");
+    EqualDecimal(1m / 258m, Resource(crafting, 2503).QuantityPerExperience, "black bodies per XP");
+
+    var smithing = TrainingBand(catalogue, "Smithing", 13_034_431);
+    EqualDecimal(410_000m, smithing.ExperiencePerHour, "Smithing 99+ rate");
+    Equal("Solo Blast Furnace gold", smithing.Method, "Smithing method");
+    EqualDecimal(72_000m, smithing.Economics!.FixedGpPerHour, "Blast Furnace hourly fee");
+    EqualDecimal(10m, Resource(smithing, 12625).QuantityPerHour, "stamina potions per hour");
+
+    var herblore = TrainingBand(catalogue, "Herblore", 2_192_818);
+    EqualDecimal(450_000m, herblore.ExperiencePerHour, "Herblore rate");
+    Equal("Saradomin brews", herblore.Method, "Herblore method");
+    Equal(
+        "3002|6687|6693",
+        string.Join('|', herblore.Economics!.Resources.Select(resource => resource.ItemId).Order()),
+        "Herblore item IDs");
+
+    var fletching = TrainingBand(catalogue, "Fletching", 5_346_332);
+    EqualDecimal(1_000_000m, fletching.ExperiencePerHour, "Fletching rate");
+    Equal("Amethyst darts", fletching.Method, "Fletching method");
+    EqualDecimal(1m / 21m, Resource(fletching, 25853).QuantityPerExperience, "amethyst tips per XP");
+
+    var firemaking = TrainingBand(catalogue, "Firemaking", 13_034_431);
+    EqualDecimal(623_700m, firemaking.ExperiencePerHour, "Firemaking rate");
+    Equal("Rosewood logs - bow burning", firemaking.Method, "Firemaking method");
+    EqualDecimal(1m / 420m, Resource(firemaking, 32910).QuantityPerExperience, "rosewood logs per XP");
+
+    foreach (var band in new[] { prayer, cooking, crafting, smithing, herblore, fletching, firemaking })
+        True(band.Economics is { IsComplete: true }, $"{band.Method} should be fully modelled");
+}
+
 static void TrainingRateOverride()
 {
     var definition = new MainEhpCatalogue().Skills.Single(skill => skill.Skill == "Construction");
@@ -547,6 +601,46 @@ static void TrainingRateOverride()
     EqualDecimal(baseline.Hours / 2m, doubled.Hours, "double-rate hours", 0.0001m);
     EqualDecimal(baseline.NetGp ?? 0m, doubled.NetGp ?? 0m, "rate override total GP", 0.01m);
 }
+
+static void HourlyTrainingEconomics()
+{
+    var definition = new TrainingSkillDefinition(
+        "Hourly test",
+        [
+            new TrainingRateBand(
+                0,
+                100m,
+                "Hourly method",
+                new TrainingEconomics(
+                    [
+                        new TrainingResourceFlow(
+                            1,
+                            "Hourly supply",
+                            0m,
+                            TrainingFlowDirection.Input,
+                            QuantityPerHour: 10m)
+                    ],
+                    FixedGpPerHour: 100m))
+        ]);
+    var prices = new Dictionary<int, ItemPrice> { [1] = Quote(1, 100) };
+    var calculator = new TrainingPlanCalculator();
+
+    var baseline = calculator.Calculate(definition, 0, 100, prices);
+    var doubled = calculator.Calculate(definition, 0, 100, prices, 200m);
+
+    EqualDecimal(1m, baseline.Hours, "baseline hourly-method hours");
+    EqualDecimal(-1_100m, baseline.NetGp ?? 0m, "baseline hourly-method cost");
+    EqualDecimal(0.5m, doubled.Hours, "doubled hourly-method hours");
+    EqualDecimal(-550m, doubled.NetGp ?? 0m, "doubled hourly-method cost");
+}
+
+static TrainingRateBand TrainingBand(MainEhpCatalogue catalogue, string skill, long startExperience) =>
+    catalogue.Skills.Single(definition => definition.Skill == skill)
+        .Bands.Single(band => band.StartExperience == startExperience);
+
+static TrainingResourceFlow Resource(TrainingRateBand band, int itemId) =>
+    band.Economics?.Resources.Single(resource => resource.ItemId == itemId)
+    ?? throw new InvalidOperationException($"{band.Method} is missing item {itemId}.");
 
 static async Task TrainingPlanPersistence()
 {

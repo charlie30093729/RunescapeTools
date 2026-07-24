@@ -13,12 +13,14 @@ public sealed record TrainingResourceFlow(
     string Name,
     decimal QuantityPerExperience,
     TrainingFlowDirection Direction,
-    bool SubjectToGeTax = true);
+    bool SubjectToGeTax = true,
+    decimal QuantityPerHour = 0m);
 
 public sealed record TrainingEconomics(
     IReadOnlyList<TrainingResourceFlow> Resources,
     decimal FixedGpPerExperience = 0m,
-    bool IsComplete = true);
+    bool IsComplete = true,
+    decimal FixedGpPerHour = 0m);
 
 public sealed record TrainingRateBand(
     long StartExperience,
@@ -130,6 +132,9 @@ public sealed class TrainingPlanCalculator
             if (band.Economics is { IsComplete: true } economics)
             {
                 var gpPerExperience = -economics.FixedGpPerExperience;
+                if (economics.FixedGpPerHour != 0m && effectiveBandRate > 0m)
+                    gpPerExperience -= economics.FixedGpPerHour / effectiveBandRate;
+
                 foreach (var resource in economics.Resources)
                 {
                     if (!prices.TryGetValue(resource.ItemId, out var quote))
@@ -146,7 +151,11 @@ public sealed class TrainingPlanCalculator
                         break;
                     }
 
-                    var value = unitPrice.Value * resource.QuantityPerExperience;
+                    var quantityPerExperience = resource.QuantityPerExperience;
+                    if (resource.QuantityPerHour != 0m && effectiveBandRate > 0m)
+                        quantityPerExperience += resource.QuantityPerHour / effectiveBandRate;
+
+                    var value = unitPrice.Value * quantityPerExperience;
                     if (resource.Direction == TrainingFlowDirection.Input)
                     {
                         gpPerExperience -= value;
@@ -156,7 +165,7 @@ public sealed class TrainingPlanCalculator
                         if (resource.SubjectToGeTax)
                         {
                             var taxPerItem = Math.Min(Math.Floor(unitPrice.Value * GeTaxRate), GeTaxCapPerItem);
-                            value -= taxPerItem * resource.QuantityPerExperience;
+                            value -= taxPerItem * quantityPerExperience;
                         }
 
                         gpPerExperience += value;
