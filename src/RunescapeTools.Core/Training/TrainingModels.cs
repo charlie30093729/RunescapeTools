@@ -20,7 +20,9 @@ public sealed record TrainingEconomics(
     IReadOnlyList<TrainingResourceFlow> Resources,
     decimal FixedGpPerExperience = 0m,
     bool IsComplete = true,
-    decimal FixedGpPerHour = 0m);
+    decimal FixedGpPerHour = 0m,
+    decimal FixedGpOutputPerExperience = 0m,
+    decimal FixedGpOutputPerHour = 0m);
 
 public sealed record TrainingRateBand(
     long StartExperience,
@@ -158,9 +160,14 @@ public sealed class TrainingPlanCalculator
             var segmentMissing = false;
             if (band.Economics is { IsComplete: true } economics)
             {
-                var gpPerExperience = -economics.FixedGpPerExperience;
-                if (economics.FixedGpPerHour != 0m && effectiveBandRate > 0m)
-                    gpPerExperience -= economics.FixedGpPerHour / effectiveBandRate;
+                var gpPerExperience =
+                    economics.FixedGpOutputPerExperience - economics.FixedGpPerExperience;
+                if (effectiveBandRate > 0m)
+                {
+                    gpPerExperience +=
+                        (economics.FixedGpOutputPerHour - economics.FixedGpPerHour)
+                        / effectiveBandRate;
+                }
 
                 foreach (var resource in economics.Resources)
                 {
