@@ -56,6 +56,8 @@ XP goals, start overrides, and personal rates are stored per RSN at:
 
 The bundled EHP catalogue is a dated snapshot. Its level bands calculate the complete path from the selected start XP to the goal; GP totals clearly report how much of that path has reviewed economic data rather than treating unknown costs as zero.
 
+Reviewed economic routes now include the first deterministic processing batch plus 1.5t teak Woodcutting, crystal-harpoon Fishing, 3t4g granite Mining, shooting-alt black chinchompas, solo mud Runecraft, and Construction. Method notes disclose dropped outputs and calibrated assumptions; the crystal-tool routes budget whole enhanced crystal teleport seeds while retaining the reviewed shard totals.
+
 The first Profile visit creates this preference with `bottleo` when no saved RSN exists. A new RSN is persisted only after its complete hiscore response has been fetched and parsed successfully.
 
 On first launch after the rename, the app first copies an existing legacy favourites file when available. Otherwise, it seeds this file from the embedded MVP snapshot. Existing desktop data is never replaced. The current seed includes Blood shard, Tanzanite fang, and Scythe of vitur (uncharged).
