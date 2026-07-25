@@ -28,11 +28,35 @@ public sealed record TrainingRateBand(
     string Method,
     TrainingEconomics? Economics = null);
 
+public sealed record TrainingMethodDefinition(
+    string Id,
+    string Name,
+    IReadOnlyList<TrainingRateBand> Bands,
+    string? Note = null);
+
 public sealed record TrainingSkillDefinition(
     string Skill,
     IReadOnlyList<TrainingRateBand> Bands,
     bool IsZeroTime = false,
-    string? Note = null);
+    string? Note = null,
+    IReadOnlyList<TrainingMethodDefinition>? Methods = null,
+    string DefaultMethodId = "main-ehp")
+{
+    public IReadOnlyList<TrainingMethodDefinition> AvailableMethods =>
+        Methods is { Count: > 0 }
+            ? Methods
+            : [new TrainingMethodDefinition(DefaultMethodId, "Main EHP route", Bands, Note)];
+
+    public TrainingMethodDefinition ResolveMethod(string? methodId = null)
+    {
+        var resolvedId = string.IsNullOrWhiteSpace(methodId) ? DefaultMethodId : methodId;
+        return AvailableMethods.FirstOrDefault(
+                   method => string.Equals(method.Id, resolvedId, StringComparison.OrdinalIgnoreCase))
+               ?? throw new ArgumentException(
+                   $"Training method '{resolvedId}' is not registered for {Skill}.",
+                   nameof(methodId));
+    }
+}
 
 public sealed record TrainingBandResult(
     TrainingRateBand Band,
@@ -48,6 +72,7 @@ public sealed record TrainingBandResult(
 
 public sealed record TrainingSkillPlanResult(
     TrainingSkillDefinition Definition,
+    TrainingMethodDefinition Method,
     long StartExperience,
     long TargetExperience,
     decimal BaseRate,
@@ -80,14 +105,16 @@ public sealed class TrainingPlanCalculator
         long startExperience,
         long targetExperience,
         IReadOnlyDictionary<int, ItemPrice> prices,
-        decimal? personalRate = null)
+        decimal? personalRate = null,
+        string? methodId = null)
     {
         ArgumentNullException.ThrowIfNull(definition);
         ArgumentNullException.ThrowIfNull(prices);
 
         var start = Math.Clamp(startExperience, 0, MaximumExperience);
         var target = Math.Clamp(targetExperience, start, MaximumExperience);
-        var ordered = definition.Bands.OrderBy(band => band.StartExperience).ToArray();
+        var method = definition.ResolveMethod(methodId);
+        var ordered = method.Bands.OrderBy(band => band.StartExperience).ToArray();
         var activeBand = ordered.LastOrDefault(band => band.StartExperience <= start)
                          ?? ordered.FirstOrDefault();
         var baseRate = activeBand?.ExperiencePerHour ?? 0m;
@@ -98,7 +125,7 @@ public sealed class TrainingPlanCalculator
         if (definition.IsZeroTime || target == start || ordered.Length == 0)
         {
             return new TrainingSkillPlanResult(
-                definition, start, target, baseRate, personalRate ?? baseRate, 0m, 0m,
+                definition, method, start, target, baseRate, personalRate ?? baseRate, 0m, 0m,
                 target - start, false, false, []);
         }
 
@@ -189,6 +216,7 @@ public sealed class TrainingPlanCalculator
 
         return new TrainingSkillPlanResult(
             definition,
+            method,
             start,
             target,
             baseRate,

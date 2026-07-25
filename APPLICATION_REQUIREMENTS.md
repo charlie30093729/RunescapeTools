@@ -191,6 +191,8 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | FR-XP-013 | Shooting-alt Hunter shall value one black chinchompa per 315 Hunter XP at the live low price after GE tax and disclose that PK losses and alt ammunition are excluded. |
 | FR-XP-014 | Solo mud Runecraft shall price level-appropriate essence, earth runes, binding necklaces, Magic Imbue runes, pouch-repair runes, and taxed mud-rune output; level 99 shall omit pouch-repair runes. |
 | FR-XP-015 | Hours shall represent active player time; the first release shall not claim calendar completion time for time-gated methods. |
+| FR-XP-016 | The method subtitle shall identify its monetary rate as `gp/hr`; negative values represent cost and positive values represent profit. |
+| FR-XP-017 | Every skill definition shall expose a stable default method ID and support additional named method routes without changing the calculator contract. |
 
 ### 6.8 Method modularity
 
@@ -361,6 +363,8 @@ Requirements:
 | NFR-MAINT-002 | Market behavior and use cases shall remain in the Application project; external HTTP and JSON persistence shall remain in Infrastructure. |
 | NFR-MAINT-003 | WPF view-models and Razor components shall consume shared services and domain results rather than reproduce calculation rules. |
 | NFR-MAINT-004 | Shared dependency registration shall configure HTTP, persistence, caches, calculator, and discovered methods for either host. |
+| NFR-MAINT-005 | Each XP Planner skill catalogue shall be maintained in its own Infrastructure file; the main catalogue shall only compose skills in canonical order. |
+| NFR-MAINT-006 | Verified training item IDs and common catalogue-construction helpers shall remain centralized rather than duplicated between skill files. |
 | NFR-TEST-001 | The regression harness shall cover calculation rules, caching, history filtering, search ordering, retries, warmup, JSON persistence, and WPF view-model behavior. |
 | NFR-TEST-002 | A release candidate shall build with zero compiler errors. |
 
