@@ -44,6 +44,12 @@ internal static class TrainingCatalogueBuilder
     public static TrainingResourceFlow Output(
         int itemId,
         string name,
-        decimal quantityPerExperience) =>
-        new(itemId, name, quantityPerExperience, TrainingFlowDirection.Output);
+        decimal quantityPerExperience,
+        decimal quantityPerHour = 0m) =>
+        new(
+            itemId,
+            name,
+            quantityPerExperience,
+            TrainingFlowDirection.Output,
+            QuantityPerHour: quantityPerHour);
 }
