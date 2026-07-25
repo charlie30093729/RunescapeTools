@@ -12,7 +12,7 @@ The WPF executable is the active front end. The original Razor/Blazor applicatio
 - Seven days of hourly Wiki price history rendered with LiveCharts2, including local-time tooltips, weekly change, and volume.
 - Automatically discovered money-making methods with live repricing and a complete input/output ledger.
 - XP Planner with all 24 skills, level-banded Main EHP rates, current-profile start XP, 99/200m goals, editable personal rates, active-hour totals, and per-RSN persistence.
-- Live GP/XP economics with explicit coverage states and reviewed processing, gathering, Runecraft, Hunter, and Construction routes.
+- Live GP/XP economics with explicit coverage states and reviewed processing, gathering, Runecraft, Hunter, Construction, and Gwenith Glide routes.
 - Vyrewatch Sentinels method with supplies, output tax, per-account profit, and five-account total.
 - Local JSON persistence, API-friendly caches, bounded history warmup, retry handling, and user-readable failure states.
 - Single-instance desktop lifetime to prevent competing favourite-file writes.
@@ -56,7 +56,7 @@ XP goals, start overrides, and personal rates are stored per RSN at:
 
 The bundled EHP catalogue is a dated snapshot. Its level bands calculate the complete path from the selected start XP to the goal; GP totals clearly report how much of that path has reviewed economic data rather than treating unknown costs as zero.
 
-Reviewed economic routes now include the first deterministic processing batch plus 1.5t teak Woodcutting, crystal-harpoon Fishing, 3t4g granite Mining, shooting-alt black chinchompas, solo mud Runecraft, and Construction. Method notes disclose dropped outputs and calibrated assumptions; the crystal-tool routes budget whole enhanced crystal teleport seeds while retaining the reviewed shard totals.
+Reviewed economic routes now include the first deterministic processing batch plus 1.5t teak Woodcutting, crystal-harpoon Fishing, 3t4g granite Mining, shooting-alt black chinchompas, solo mud Runecraft, Construction, and rosewood-hull Gwenith Glide. The latest rate-only routes cover no-loot Hallowed Sepulchre, Gem knights, and efficient tree runs. Method notes disclose excluded outputs and calibrated assumptions; crystal-tool routes budget whole enhanced crystal teleport seeds, while Sailing values the reviewed shard-to-divine-potion conversion at live prices.
 
 Each skill owns a catalogue file under `src\RunescapeTools.Infrastructure\Training\Skills`. `MainEhpCatalogue` only composes those definitions in canonical Hiscores order, while shared item IDs and construction helpers remain centralized. Training definitions expose a stable default method ID and can accept additional named method routes without returning to a monolithic catalogue.
 

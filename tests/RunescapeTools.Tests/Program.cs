@@ -46,6 +46,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("approved deterministic methods expose reviewed rates and economics", () => RunSync(DeterministicMethodCatalogue)),
     ("phase-two methods expose reviewed unlocks, rates, and item flows", () => RunSync(PhaseTwoMethodCatalogue)),
     ("phase-two calculations reproduce reviewed resource totals and pricing", () => RunSync(PhaseTwoTrainingCalculations)),
+    ("phase-three methods expose reviewed rates and Sailing item flows", () => RunSync(PhaseThreeMethodCatalogue)),
+    ("phase-three calculations reproduce reviewed hours and Sailing resources", () => RunSync(PhaseThreeTrainingCalculations)),
     ("Construction route reproduces Main EHP hours and live-price economics", () => RunSync(ConstructionTrainingCalculation)),
     ("training rate overrides scale hours without changing total resources", () => RunSync(TrainingRateOverride)),
     ("hourly training costs respond to personal rate overrides", () => RunSync(HourlyTrainingEconomics)),
@@ -787,6 +789,112 @@ static void PhaseTwoTrainingCalculations()
     True(runecraft.NetGp > 0m, "solo mud runes should produce profit with the test market");
     True(!runecraft.HasMissingPrice, "all solo mud-rune resources should be priced");
     True(!runecraft.IsFullyPriced, "early Runecraft should remain visibly unpriced");
+}
+
+static void PhaseThreeMethodCatalogue()
+{
+    var catalogue = new MainEhpCatalogue();
+
+    var agilityDefinition = catalogue.Skills.Single(skill => skill.Skill == "Agility");
+    Equal(
+        "15100|35000|40000|50000|71700|81000|98500",
+        string.Join('|', agilityDefinition.Bands.Select(band => band.ExperiencePerHour)),
+        "Agility rate progression");
+    var agility52 = TrainingBand(catalogue, "Agility", 123_660);
+    var agility92 = TrainingBand(catalogue, "Agility", 6_517_253);
+    EqualDecimal(40_000m, agility52.ExperiencePerHour, "Agility level-52 rate");
+    EqualDecimal(98_500m, agility92.ExperiencePerHour, "Agility level-92 rate");
+    Equal("Hallowed Sepulchre - no looting", agility92.Method, "Agility method");
+    True(agility92.Economics is null, "Agility loot should remain unpriced");
+
+    var thieving = TrainingBand(catalogue, "Thieving", 0);
+    EqualDecimal(260_000m, thieving.ExperiencePerHour, "Gem knights rate");
+    Equal("Gem knights", thieving.Method, "Thieving method");
+    True(thieving.Economics is null, "Gem knights should remain unpriced");
+
+    var farming = TrainingBand(catalogue, "Farming", 6_517_253);
+    Equal(
+        "16000|364000|575000|841000|1222000|1428000|2063000|2475000|2611000|2669000",
+        string.Join(
+            '|',
+            catalogue.Skills.Single(skill => skill.Skill == "Farming")
+                .Bands.Select(band => band.ExperiencePerHour)),
+        "Farming rate progression");
+    EqualDecimal(2_669_000m, farming.ExperiencePerHour, "Farming level-92 rate");
+    Equal("Efficient tree runs", farming.Method, "Farming method");
+    True(farming.Economics is null, "Farming should remain unpriced");
+
+    var sailingDefinition = catalogue.Skills.Single(skill => skill.Skill == "Sailing");
+    var sailing = TrainingBand(catalogue, "Sailing", 0);
+    EqualDecimal(240_000m, sailing.ExperiencePerHour, "Gwenith Glide rate");
+    Equal("Gwenith Glide - rosewood hull", sailing.Method, "Sailing method");
+    EqualDecimal(48.12m, Resource(sailing, 12695).QuantityPerHour, "regular potions per hour");
+    EqualDecimal(48.12m, Resource(sailing, 23685).QuantityPerHour, "divine potions per hour");
+    Equal(TrainingFlowDirection.Input, Resource(sailing, 12695).Direction, "regular potion direction");
+    Equal(TrainingFlowDirection.Output, Resource(sailing, 23685).Direction, "divine potion direction");
+    True(Resource(sailing, 23685).SubjectToGeTax, "divine potions should be GE taxed");
+    True(sailingDefinition.Note?.Contains("16,040") == true, "Sailing note should retain the shard total");
+    True(sailingDefinition.Note?.Contains("40,100") == true, "Sailing note should retain the potion total");
+    True(
+        !sailingDefinition.Bands.Any(band => band.Method.Contains("Spin Flax", StringComparison.OrdinalIgnoreCase)),
+        "Sailing should exclude multiskilling");
+}
+
+static void PhaseThreeTrainingCalculations()
+{
+    var catalogue = new MainEhpCatalogue();
+    var calculator = new TrainingPlanCalculator();
+
+    var thieving = calculator.Calculate(
+        catalogue.Skills.Single(skill => skill.Skill == "Thieving"),
+        0,
+        TrainingPlanCalculator.MaximumExperience,
+        new Dictionary<int, ItemPrice>());
+    EqualDecimal(769.2308m, thieving.Hours, "Gem knights 0-200m hours", 0.0001m);
+    True(thieving.NetGp is null, "Gem knights GP should remain visibly unpriced");
+
+    var prices = new Dictionary<int, ItemPrice>
+    {
+        [12695] = Quote(12695, 14_000),
+        [23685] = Quote(23685, 18_000)
+    };
+    var sailingDefinition = catalogue.Skills.Single(skill => skill.Skill == "Sailing");
+    var sailing = calculator.Calculate(
+        sailingDefinition,
+        0,
+        TrainingPlanCalculator.MaximumExperience,
+        prices);
+
+    EqualDecimal(833.3333m, sailing.Hours, "Gwenith Glide 0-200m hours", 0.0001m);
+    EqualDecimal(
+        40_100m,
+        TotalResourceQuantity(catalogue, "Sailing", 12695),
+        "Gwenith regular potions",
+        0.0001m);
+    EqualDecimal(
+        40_100m,
+        TotalResourceQuantity(catalogue, "Sailing", 23685),
+        "Gwenith divine potions",
+        0.0001m);
+    EqualDecimal(
+        40_100m * (18_000m - 360m - 14_000m),
+        sailing.NetGp ?? 0m,
+        "Gwenith potion profit after tax",
+        0.01m);
+    True(sailing.IsFullyPriced, "Gwenith projection should be fully priced");
+
+    var fasterSailing = calculator.Calculate(
+        sailingDefinition,
+        0,
+        TrainingPlanCalculator.MaximumExperience,
+        prices,
+        300_000m);
+    EqualDecimal(666.6667m, fasterSailing.Hours, "personal Sailing rate hours", 0.0001m);
+    EqualDecimal(
+        (sailing.NetGp ?? 0m) * 0.8m,
+        fasterSailing.NetGp ?? 0m,
+        "hourly Sailing resources scale with hours",
+        0.01m);
 }
 
 static void TrainingRateOverride()

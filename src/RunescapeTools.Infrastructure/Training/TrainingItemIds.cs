@@ -13,6 +13,7 @@ internal static class TrainingItemIds
     public const int CosmicRune = 564;
     public const int CrushedNest = 6693;
     public const int DragonPickaxe = 11920;
+    public const int DivineSuperCombatPotion4 = 23685;
     public const int EarthRune = 557;
     public const int EnhancedCrystalTeleportSeed = 23959;
     public const int Feather = 314;
@@ -27,6 +28,7 @@ internal static class TrainingItemIds
     public const int RosewoodLogs = 32910;
     public const int SaradominBrew3 = 6687;
     public const int StaminaPotion4 = 12625;
+    public const int SuperCombatPotion4 = 12695;
     public const int SummerPie = 7218;
     public const int SuperiorDragonBones = 22124;
     public const int ToadflaxPotionUnfinished = 3002;
