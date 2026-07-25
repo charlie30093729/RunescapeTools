@@ -796,16 +796,18 @@ static void PhaseThreeMethodCatalogue()
     var catalogue = new MainEhpCatalogue();
 
     var agilityDefinition = catalogue.Skills.Single(skill => skill.Skill == "Agility");
-    Equal(
-        "15100|35000|40000|50000|71700|81000|98500",
-        string.Join('|', agilityDefinition.Bands.Select(band => band.ExperiencePerHour)),
-        "Agility rate progression");
-    var agility52 = TrainingBand(catalogue, "Agility", 123_660);
-    var agility92 = TrainingBand(catalogue, "Agility", 6_517_253);
-    EqualDecimal(40_000m, agility52.ExperiencePerHour, "Agility level-52 rate");
-    EqualDecimal(98_500m, agility92.ExperiencePerHour, "Agility level-92 rate");
-    Equal("Hallowed Sepulchre - no looting", agility92.Method, "Agility method");
-    True(agility92.Economics is null, "Agility loot should remain unpriced");
+    var agility = TrainingBand(catalogue, "Agility", 0);
+    EqualDecimal(98_500m, agility.ExperiencePerHour, "Agility rate");
+    Equal("Hallowed Sepulchre - Grand Coffin", agility.Method, "Agility method");
+    EqualDecimal(0.5m / 11_700m, Resource(agility, 12625).QuantityPerExperience, "stamina potions per XP");
+    EqualDecimal(1m / 200m / 11_700m, Resource(agility, 24844).QuantityPerExperience, "rings per XP");
+    EqualDecimal(20m / 11_700m, Resource(agility, 565).QuantityPerExperience, "blood runes per XP");
+    EqualDecimal(0.15m / 11_700m, Resource(agility, 10925).QuantityPerExperience, "Sanfew serum per XP");
+    EqualDecimal(2_125m / 11_700m, agility.Economics!.FixedGpOutputPerExperience, "coins per XP");
+    True(agilityDefinition.Note?.Contains("17,095") == true, "Agility note should retain coffin total");
+    True(agilityDefinition.Note?.Contains("3,419,000") == true, "Agility note should retain Thieving XP");
+    True(agilityDefinition.Note?.Contains("only the Grand Coffin", StringComparison.OrdinalIgnoreCase) == true, "Agility note should disclose looting scope");
+    True(agility.Economics is { IsComplete: true }, "Grand Coffin economics should be fully modelled");
 
     var thieving = TrainingBand(catalogue, "Thieving", 0);
     EqualDecimal(260_000m, thieving.ExperiencePerHour, "Gem knights rate");
@@ -844,6 +846,42 @@ static void PhaseThreeTrainingCalculations()
 {
     var catalogue = new MainEhpCatalogue();
     var calculator = new TrainingPlanCalculator();
+
+    var agilityPrices = new Dictionary<int, ItemPrice>
+    {
+        [12625] = Quote(12625, 3_000),
+        [24844] = Quote(24844, 4_000_000),
+        [1319] = Quote(1319, 40_000),
+        [1127] = Quote(1127, 40_000),
+        [563] = Quote(563, 100),
+        [565] = Quote(565, 300),
+        [566] = Quote(566, 400),
+        [9144] = Quote(9144, 100),
+        [7946] = Quote(7946, 200),
+        [10925] = Quote(10925, 20_000),
+        [5295] = Quote(5295, 30_000)
+    };
+    var agility = calculator.Calculate(
+        catalogue.Skills.Single(skill => skill.Skill == "Agility"),
+        0,
+        TrainingPlanCalculator.MaximumExperience,
+        agilityPrices);
+    var reviewedCoffins = TrainingPlanCalculator.MaximumExperience / 11_700m;
+    const decimal expectedNetGpPerCoffin =
+        19_600m + 3_920m + 3_920m + 1_960m + 5_880m + 7_840m + 1_960m
+        + 78.4m + 2_940m + 4_410m + 2_125m - 1_500m;
+    EqualDecimal(2_030.4569m, agility.Hours, "Grand Coffin 0-200m hours", 0.0001m);
+    EqualDecimal(
+        reviewedCoffins * 0.5m,
+        TotalResourceQuantity(catalogue, "Agility", 12625),
+        "Grand Coffin stamina potions",
+        0.0001m);
+    EqualDecimal(
+        reviewedCoffins * expectedNetGpPerCoffin,
+        agility.NetGp ?? 0m,
+        "Grand Coffin expected profit",
+        0.01m);
+    True(agility.IsFullyPriced, "Grand Coffin projection should be fully priced");
 
     var thieving = calculator.Calculate(
         catalogue.Skills.Single(skill => skill.Skill == "Thieving"),

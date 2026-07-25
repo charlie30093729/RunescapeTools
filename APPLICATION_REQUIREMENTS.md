@@ -194,7 +194,8 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | FR-XP-016 | The method subtitle shall identify its monetary rate as `gp/hr`; negative values represent cost and positive values represent profit. |
 | FR-XP-017 | Every skill definition shall expose a stable default method ID and support additional named method routes without changing the calculator contract. |
 | FR-XP-018 | The reviewed Gwenith Glide projection shall use a rosewood hull at 240,000 Sailing XP/hour, exclude multiskilling, and live-price the conversion of generated crystal shards into divine super combat potions after GE tax. |
-| FR-XP-019 | No-loot Hallowed Sepulchre, Gem knights, and efficient tree-run projections shall remain visibly unpriced until their complete input and output ledgers have been reviewed. |
+| FR-XP-019 | Gem knights and efficient tree-run projections shall remain visibly unpriced until their complete input and output ledgers have been reviewed. |
+| FR-XP-020 | The reviewed Hallowed Sepulchre projection shall apply 98,500 Agility XP/hour across the selected range, loot only the Floor 5 Grand Hallowed Coffin, price its expected tradeable loot and coin output, consume one stamina potion(4) per two coffins, and exclude Hallowed marks and elite clues from GP. |
 
 ### 6.8 Method modularity
 
