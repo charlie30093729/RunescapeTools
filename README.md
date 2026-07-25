@@ -12,7 +12,7 @@ The WPF executable is the active front end. The original Razor/Blazor applicatio
 - Seven days of hourly Wiki price history rendered with LiveCharts2, including local-time tooltips, weekly change, and volume.
 - Automatically discovered money-making methods with live repricing and a complete input/output ledger.
 - XP Planner with all 24 skills, level-banded Main EHP rates, current-profile start XP, 99/200m goals, editable personal rates, active-hour totals, and per-RSN persistence.
-- Live GP/XP economics with explicit coverage states; Construction is the first fully reviewed route with oak/mahogany planks and Demon Butler fees.
+- Live GP/XP economics with explicit coverage states and reviewed processing, gathering, Runecraft, Hunter, and Construction routes.
 - Vyrewatch Sentinels method with supplies, output tax, per-account profit, and five-account total.
 - Local JSON persistence, API-friendly caches, bounded history warmup, retry handling, and user-readable failure states.
 - Single-instance desktop lifetime to prevent competing favourite-file writes.
@@ -23,7 +23,7 @@ The WPF executable is the active front end. The original Razor/Blazor applicatio
 | --- | --- |
 | `RunescapeTools.Core` | Domain records, API contracts, profile models, calculation rules, and money-making definitions. |
 | `RunescapeTools.Application` | Market behavior, defensive hiscore parsing, current-profile state, and favourite-history warmup. |
-| `RunescapeTools.Infrastructure` | Wiki and Hiscores HTTP clients, JSON persistence, configuration, and shared DI registration. |
+| `RunescapeTools.Infrastructure` | Wiki and Hiscores HTTP clients, JSON persistence, configuration, per-skill training catalogues, and shared DI registration. |
 | `RunescapeTools.Wpf` | Active Windows front end, Generic Host composition, MVVM view-models, and LiveCharts UI. |
 | `RunescapeTools.Web` | Parked Razor front end; retained and kept buildable. |
 | `RunescapeTools.Tests` | Calculator, service, persistence, retry, and view-model regression harness. |
@@ -57,6 +57,8 @@ XP goals, start overrides, and personal rates are stored per RSN at:
 The bundled EHP catalogue is a dated snapshot. Its level bands calculate the complete path from the selected start XP to the goal; GP totals clearly report how much of that path has reviewed economic data rather than treating unknown costs as zero.
 
 Reviewed economic routes now include the first deterministic processing batch plus 1.5t teak Woodcutting, crystal-harpoon Fishing, 3t4g granite Mining, shooting-alt black chinchompas, solo mud Runecraft, and Construction. Method notes disclose dropped outputs and calibrated assumptions; the crystal-tool routes budget whole enhanced crystal teleport seeds while retaining the reviewed shard totals.
+
+Each skill owns a catalogue file under `src\RunescapeTools.Infrastructure\Training\Skills`. `MainEhpCatalogue` only composes those definitions in canonical Hiscores order, while shared item IDs and construction helpers remain centralized. Training definitions expose a stable default method ID and can accept additional named method routes without returning to a monolithic catalogue.
 
 The first Profile visit creates this preference with `bottleo` when no saved RSN exists. A new RSN is persisted only after its complete hiscore response has been fetched and parsed successfully.
 

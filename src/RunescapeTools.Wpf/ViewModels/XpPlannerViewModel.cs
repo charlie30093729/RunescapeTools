@@ -68,6 +68,7 @@ public partial class XpPlannerRowViewModel : ObservableObject
     public string Skill => Definition.Skill;
     public string? IconUrl => OsrsSkillIconMap.GetIconUrl(Skill);
     public string? Note => Definition.Note;
+    public IReadOnlyList<TrainingMethodDefinition> AvailableMethods => Definition.AvailableMethods;
     public long ProfileExperience { get; private set; }
     public TrainingSkillPlanResult Result { get; private set; } = null!;
 
@@ -144,15 +145,15 @@ public partial class XpPlannerRowViewModel : ObservableObject
                 prices,
                 PersonalRate > 0m ? PersonalRate : null);
 
-            var activeBand = Definition.Bands
+            var activeBand = Result.Method.Bands
                 .OrderBy(band => band.StartExperience)
                 .LastOrDefault(band => band.StartExperience <= Result.StartExperience)
-                ?? Definition.Bands.FirstOrDefault();
+                ?? Result.Method.Bands.FirstOrDefault();
             Method = activeBand?.Method ?? "Passive / zero-time";
             Hours = Result.Hours.ToString("N1");
             TotalGp = Result.NetGp.HasValue ? DisplayFormat.Gp(Result.NetGp) : "Not priced";
             GpPerHour = Result.AverageGpPerHour.HasValue
-                ? DisplayFormat.Gp(Result.AverageGpPerHour)
+                ? DisplayFormat.GpPerHour(Result.AverageGpPerHour)
                 : "Not priced";
             IsProfit = Result.NetGp >= 0m;
             PricingStatus = Result.IsFullyPriced

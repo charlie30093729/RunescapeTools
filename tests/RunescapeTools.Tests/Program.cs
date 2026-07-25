@@ -42,6 +42,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("money-maker view-model reprices the complete ledger", MoneyMakerViewModelFlow),
     ("profile view-model loads defaults and keeps valid data on errors", ProfileViewModelFlow),
     ("EHP catalogue covers every skill and ordered rate band", () => RunSync(EhpCatalogueCoverage)),
+    ("training definitions support stable default and alternative methods", () => RunSync(TrainingMethodSelection)),
     ("approved deterministic methods expose reviewed rates and economics", () => RunSync(DeterministicMethodCatalogue)),
     ("phase-two methods expose reviewed unlocks, rates, and item flows", () => RunSync(PhaseTwoMethodCatalogue)),
     ("phase-two calculations reproduce reviewed resource totals and pricing", () => RunSync(PhaseTwoTrainingCalculations)),
@@ -521,7 +522,41 @@ static void EhpCatalogueCoverage()
         var ordered = skill.Bands.OrderBy(band => band.StartExperience).ToArray();
         Equal(ordered.Length, ordered.Select(band => band.StartExperience).Distinct().Count(), $"{skill.Skill} band starts");
         Equal(string.Join('|', ordered.Select(band => band.StartExperience)), string.Join('|', skill.Bands.Select(band => band.StartExperience)), $"{skill.Skill} band ordering");
+        Equal(1, skill.AvailableMethods.Count, $"{skill.Skill} default method count");
+        Equal("main-ehp", skill.AvailableMethods[0].Id, $"{skill.Skill} default method ID");
+        Equal(skill.Bands.Count, skill.AvailableMethods[0].Bands.Count, $"{skill.Skill} default method bands");
     }
+}
+
+static void TrainingMethodSelection()
+{
+    var main = new TrainingMethodDefinition(
+        "main",
+        "Main route",
+        [new TrainingRateBand(0, 100m, "Main route")]);
+    var alternative = new TrainingMethodDefinition(
+        "alternative",
+        "Alternative route",
+        [new TrainingRateBand(0, 200m, "Alternative route")]);
+    var definition = new TrainingSkillDefinition(
+        "Method test",
+        main.Bands,
+        Methods: [main, alternative],
+        DefaultMethodId: main.Id);
+    var calculator = new TrainingPlanCalculator();
+
+    var defaultResult = calculator.Calculate(definition, 0, 1_000, new Dictionary<int, ItemPrice>());
+    var alternativeResult = calculator.Calculate(
+        definition,
+        0,
+        1_000,
+        new Dictionary<int, ItemPrice>(),
+        methodId: alternative.Id);
+
+    Equal("main", defaultResult.Method.Id, "resolved default method");
+    EqualDecimal(10m, defaultResult.Hours, "default method hours");
+    Equal("alternative", alternativeResult.Method.Id, "resolved alternative method");
+    EqualDecimal(5m, alternativeResult.Hours, "alternative method hours");
 }
 
 static void ConstructionTrainingCalculation()
@@ -885,6 +920,8 @@ static async Task XpPlannerViewModelFlow()
     construction.StartExperience = 0;
     Equal("142.8", construction.Hours, "Construction displayed hours");
     True(construction.Result.NetGp is < -2_800_000_000m, "Construction live cost");
+    True(construction.GpPerHour.EndsWith(" gp/hr"), "method subtitle identifies GP per hour");
+    Equal(1, construction.AvailableMethods.Count, "current catalogue exposes its default route");
     construction.PersonalRate = 100_000m;
     True(construction.Hours != "142.8", "personal rate changes displayed hours");
     construction.ResetRateCommand.Execute(null);

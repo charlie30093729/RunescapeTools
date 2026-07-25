@@ -6,6 +6,9 @@ internal static class DisplayFormat
 
     public static string Gp(long? value) => value.HasValue ? $"{value.Value:N0} gp" : "Unavailable";
 
+    public static string GpPerHour(decimal? value) =>
+        value.HasValue ? $"{value.Value:N0} gp/hr" : "Unavailable";
+
     public static string Quantity(decimal value) => value switch
     {
         < 1m => value.ToString("0.###"),
