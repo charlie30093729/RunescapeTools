@@ -21,6 +21,16 @@ public sealed class MainEhpCatalogue : IEhpCatalogue
     private const int FeatherId = 314;
     private const int AmethystDartId = 25849;
     private const int RosewoodLogsId = 32910;
+    private const int EnhancedCrystalTeleportSeedId = 23959;
+    private const int ForestersRationId = 28157;
+    private const int DragonPickaxeId = 11920;
+    private const int BlackChinchompaId = 11959;
+    private const int PureEssenceId = 7936;
+    private const int EarthRuneId = 557;
+    private const int BindingNecklaceId = 5521;
+    private const int AirRuneId = 556;
+    private const int CosmicRuneId = 564;
+    private const int MudRuneId = 4698;
     private const decimal EffectiveChaosAltarXpPerSuperiorBone = 1_050m;
     private const decimal SummerPieCookingXp = 260m;
     private const decimal BlackDhideBodyCraftingXp = 258m;
@@ -35,10 +45,19 @@ public sealed class MainEhpCatalogue : IEhpCatalogue
     private const int MahoganyPlankId = 8782;
     private const decimal DemonButlerGpPerTrip = 10_000m / 8m;
     private const decimal DemonButlerCapacity = 24m;
+    private const decimal ReviewedWoodcuttingRationTotal = 2_091_504m;
+    private const decimal ReviewedWoodcuttingShardTotal = 14_953m;
+    private const decimal ReviewedWoodcuttingSeedTotal = 100m;
+    private const decimal ReviewedFishingShardTotal = 4_894m;
+    private const decimal ReviewedFishingSeedTotal = 33m;
+    private const long WoodcuttingTeakStartExperience = 22_406;
+    private const long CrystalToolStartExperience = 814_445;
+    private const decimal InfernalPickaxeExperiencePerDragonPickaxe = 960_000m;
+    private const decimal BlackChinchompaExperience = 315m;
 
     public string Version => "OSRS training catalogue 2026-07";
 
-    public DateOnly VerifiedOn => new(2026, 7, 24);
+    public DateOnly VerifiedOn => new(2026, 7, 25);
 
     public IReadOnlyList<TrainingSkillDefinition> Skills { get; } = CreateSkills();
 
@@ -70,21 +89,34 @@ public sealed class MainEhpCatalogue : IEhpCatalogue
             B(273_742, 735_700, "1t karambwan"), B(737_627, 808_000, "1t karambwan"),
             B(1_986_068, 880_400, "1t karambwan"), B(5_346_332, 948_100, "1t karambwan"),
             B(8_771_558, 490_000, "Bake Pie spell - summer pies", SummerPieEconomics())),
-        Skill("Woodcutting",
+        Skill(
+            "Woodcutting",
+            $"Reviewed 0-200m resources: {ReviewedWoodcuttingRationTotal:N0} Forester's rations, " +
+            $"{ReviewedWoodcuttingShardTotal:N0} crystal shards ({ReviewedWoodcuttingSeedTotal:N0} whole enhanced seeds). Teak logs are dropped.",
             B(0, 29_000, "Quests and trees"), B(2_411, 56_000, "2t oaks"),
-            B(22_406, 93_174, "1.5t teaks"), B(41_171, 114_728, "1.5t teaks"),
-            B(111_945, 127_339, "1.5t teaks"), B(302_288, 172_507, "1.5t teaks"),
-            B(814_445, 194_022, "1.5t teaks"), B(1_986_068, 207_636, "1.5t teaks"),
-            B(5_346_332, 221_977, "1.5t teaks"), B(13_034_431, 235_000, "1.5t teaks")),
+            B(22_406, 93_174, "1.5t teaks", TeakEconomics()), B(41_171, 114_728, "1.5t teaks", TeakEconomics()),
+            B(111_945, 127_339, "1.5t teaks", TeakEconomics()), B(302_288, 172_507, "1.5t teaks", TeakEconomics()),
+            B(814_445, 194_022, "1.5t teaks - crystal felling axe", TeakEconomics(includeCrystalCharges: true)),
+            B(1_986_068, 207_636, "1.5t teaks - crystal felling axe", TeakEconomics(includeCrystalCharges: true)),
+            B(5_346_332, 221_977, "1.5t teaks - crystal felling axe", TeakEconomics(includeCrystalCharges: true)),
+            B(13_034_431, 235_000, "1.5t teaks - crystal felling axe", TeakEconomics(includeCrystalCharges: true))),
         Skill(
             "Fletching",
             B(0, 1_000_000, "Zero-time Fletching - rate only"),
             B(5_346_332, 1_000_000, "Amethyst darts", AmethystDartEconomics())),
-        Skill("Fishing",
+        Skill(
+            "Fishing",
+            $"Crystal charges use the reviewed all-skills 0-200m allocation of {ReviewedFishingShardTotal:N0} shards " +
+            $"({ReviewedFishingSeedTotal:N0} whole enhanced seeds); fish are dropped.",
             B(0, 29_200, "Quests"), B(14_612, 46_592, "3t fly fishing"),
             B(75_127, 84_686, "Drift net fishing"), B(106_046, 97_867, "Drift net fishing"),
             B(229_685, 112_877, "Drift net fishing"), B(302_288, 128_082, "Drift net fishing"),
-            B(593_234, 139_313, "Drift net fishing"), B(737_627, 132_800, "Drift net plus 2t swordfish and tuna")),
+            B(593_234, 139_313, "Drift net fishing"), B(737_627, 132_800, "Drift net fishing"),
+            B(
+                CrystalToolStartExperience,
+                132_800,
+                "2t swordfish and tuna - crystal harpoon",
+                CrystalToolEconomics(ReviewedFishingSeedTotal, CrystalToolStartExperience))),
         Skill("Firemaking",
             B(0, 73_700, "Coloured logs"), B(22_406, 138_900, "Teak logs"),
             B(45_529, 184_250, "Arctic pine logs"), B(61_512, 198_990, "Maple logs"),
@@ -114,11 +146,15 @@ public sealed class MainEhpCatalogue : IEhpCatalogue
                 410_000,
                 "Solo Blast Furnace gold",
                 SoloBlastFurnaceGoldEconomics(BlastFurnaceGpPerHour))),
-        Skill("Mining",
+        Skill(
+            "Mining",
+            "Granite is dropped. Infernal pickaxe recharges use one dragon pickaxe per 960,000 Mining XP.",
             B(0, 20_000, "Quests"), B(35_025, 50_000, "Prospector and celestial ring"),
-            B(393_485, 106_540, "3t granite"), B(1_210_421, 112_166, "3t granite"),
-            B(3_258_594, 116_760, "3t granite"), B(8_771_558, 119_438, "3t granite"),
-            B(13_034_431, 126_000, "3t granite")),
+            B(393_485, 106_540, "3t4g granite - infernal pickaxe", InfernalPickaxeEconomics()),
+            B(1_210_421, 112_166, "3t4g granite - infernal pickaxe", InfernalPickaxeEconomics()),
+            B(3_258_594, 116_760, "3t4g granite - infernal pickaxe", InfernalPickaxeEconomics()),
+            B(8_771_558, 119_438, "3t4g granite - infernal pickaxe", InfernalPickaxeEconomics()),
+            B(13_034_431, 126_000, "3t4g granite - infernal pickaxe", InfernalPickaxeEconomics())),
         Skill("Herblore",
             B(0, 11_100, "Quests"), B(8_025, 218_750, "Serum 207s"),
             B(123_660, 293_750, "Super energies"), B(166_636, 312_500, "Super strengths"),
@@ -148,16 +184,22 @@ public sealed class MainEhpCatalogue : IEhpCatalogue
             B(273_742, 1_222_000, "Tree runs"), B(605_032, 1_428_000, "Tree runs"),
             B(1_210_421, 2_063_000, "Tree runs"), B(2_192_818, 2_475_000, "Tree runs"),
             B(3_258_594, 2_611_000, "Tree runs"), B(6_517_253, 2_669_000, "Tree runs")),
-        Skill("Runecraft",
+        Skill(
+            "Runecraft",
+            "Solo mud-rune flows include Magic Imbue, pouch repair below 99, and discarded binding-necklace charges; reusable gear is excluded.",
             B(0, 13_600, "Quests"), B(33_210, 45_000, "Guardians of the Rift rewards"),
-            B(1_210_421, 75_400, "Solo mud runes"), B(3_258_594, 106_100, "Solo mud runes"),
-            B(13_034_431, 200_000, "2+1 aether runes")),
-        Skill("Hunter",
+            B(1_210_421, 74_500, "Solo mud runes", SoloMudRuneEconomicsLevel75()),
+            B(3_258_594, 96_900, "Solo mud runes", SoloMudRuneEconomicsLevel85()),
+            B(13_034_431, 98_200, "Solo mud runes", SoloMudRuneEconomicsLevel99())),
+        Skill(
+            "Hunter",
+            "Black chinchompas are sold at the live low price after GE tax. PK/death losses and shooting-alt ammunition are excluded.",
             B(0, 30_000, "Varrock museum and birdhouses"), B(2_107, 83_000, "Oak birdhouses"),
             B(7_028, 110_000, "Willow birdhouses"), B(20_224, 138_000, "Teak birdhouses"),
             B(55_649, 215_112, "Drift net fishing"), B(91_721, 268_770, "Drift net fishing"),
             B(184_040, 293_310, "Drift net fishing"), B(343_551, 322_424, "Drift net fishing"),
-            B(737_627, 350_697, "Drift net fishing"), B(933_979, 275_000, "Drift net / black chinchompas")),
+            B(737_627, 350_697, "Drift net fishing"), B(933_979, 275_000, "Drift net fishing"),
+            B(992_895, 265_000, "Black chinchompas - shooting alt", BlackChinchompaEconomics())),
         Construction(),
         Skill("Sailing",
             B(0, 27_000, "Quests, Tears of Guthix and Tempor Tantrum"),
@@ -222,6 +264,115 @@ public sealed class MainEhpCatalogue : IEhpCatalogue
     private static TrainingEconomics RosewoodLogEconomics() =>
         new([Input(RosewoodLogsId, "Rosewood logs", 1m / RosewoodLogBowFiremakingXp)]);
 
+    private static TrainingEconomics TeakEconomics(bool includeCrystalCharges = false)
+    {
+        var resources = new List<TrainingResourceFlow>
+        {
+            Input(
+                ForestersRationId,
+                "Forester's ration",
+                ReviewedWoodcuttingRationTotal
+                / (TrainingPlanCalculator.MaximumExperience - WoodcuttingTeakStartExperience))
+        };
+        if (includeCrystalCharges)
+        {
+            resources.Add(CrystalToolChargeInput(
+                ReviewedWoodcuttingSeedTotal,
+                CrystalToolStartExperience,
+                "Enhanced crystal teleport seed (crystal felling axe charges)"));
+        }
+
+        return new TrainingEconomics(resources);
+    }
+
+    private static TrainingEconomics CrystalToolEconomics(
+        decimal reviewedSeedTotal,
+        long startExperience) =>
+        new(
+            [
+                CrystalToolChargeInput(
+                    reviewedSeedTotal,
+                    startExperience,
+                    "Enhanced crystal teleport seed (crystal harpoon charges)")
+            ]);
+
+    private static TrainingResourceFlow CrystalToolChargeInput(
+        decimal reviewedSeedTotal,
+        long startExperience,
+        string name) =>
+        Input(
+            EnhancedCrystalTeleportSeedId,
+            name,
+            reviewedSeedTotal / (TrainingPlanCalculator.MaximumExperience - startExperience));
+
+    private static TrainingEconomics InfernalPickaxeEconomics() =>
+        new(
+            [
+                Input(
+                    DragonPickaxeId,
+                    "Dragon pickaxe (infernal pickaxe recharge)",
+                    1m / InfernalPickaxeExperiencePerDragonPickaxe)
+            ]);
+
+    private static TrainingEconomics BlackChinchompaEconomics() =>
+        new(
+            [
+                Output(
+                    BlackChinchompaId,
+                    "Black chinchompa",
+                    1m / BlackChinchompaExperience)
+            ]);
+
+    private static TrainingEconomics SoloMudRuneEconomicsLevel75() =>
+        SoloMudRuneEconomics(
+            experiencePerLap: 475m,
+            essencePerLap: 50m,
+            mudRunesPerLap: 74m,
+            astralRunesPerLap: 2.1m,
+            airRunesPerLap: 0.2m,
+            cosmicRunesPerLap: 0.1m);
+
+    private static TrainingEconomics SoloMudRuneEconomicsLevel85() =>
+        SoloMudRuneEconomics(
+            experiencePerLap: 598.5m,
+            essencePerLap: 63m,
+            mudRunesPerLap: 93m,
+            astralRunesPerLap: 2.125m,
+            airRunesPerLap: 0.25m,
+            cosmicRunesPerLap: 0.125m);
+
+    private static TrainingEconomics SoloMudRuneEconomicsLevel99() =>
+        SoloMudRuneEconomics(
+            experiencePerLap: 598.5m,
+            essencePerLap: 63m,
+            mudRunesPerLap: 93m,
+            astralRunesPerLap: 2m,
+            airRunesPerLap: 0m,
+            cosmicRunesPerLap: 0m);
+
+    private static TrainingEconomics SoloMudRuneEconomics(
+        decimal experiencePerLap,
+        decimal essencePerLap,
+        decimal mudRunesPerLap,
+        decimal astralRunesPerLap,
+        decimal airRunesPerLap,
+        decimal cosmicRunesPerLap)
+    {
+        var resources = new List<TrainingResourceFlow>
+        {
+            Input(PureEssenceId, "Pure essence", essencePerLap / experiencePerLap),
+            Input(EarthRuneId, "Earth rune", essencePerLap / experiencePerLap),
+            Input(BindingNecklaceId, "Binding necklace", 0.2m / experiencePerLap),
+            Input(AstralRuneId, "Astral rune", astralRunesPerLap / experiencePerLap),
+            Output(MudRuneId, "Mud rune", mudRunesPerLap / experiencePerLap)
+        };
+        if (airRunesPerLap > 0m)
+            resources.Add(Input(AirRuneId, "Air rune", airRunesPerLap / experiencePerLap));
+        if (cosmicRunesPerLap > 0m)
+            resources.Add(Input(CosmicRuneId, "Cosmic rune", cosmicRunesPerLap / experiencePerLap));
+        return new TrainingEconomics(resources);
+    }
+
     private static TrainingSkillDefinition Construction()
     {
         var oakEconomics = PlankEconomics(OakPlankId, "Oak plank", 60m);
@@ -265,6 +416,12 @@ public sealed class MainEhpCatalogue : IEhpCatalogue
         string name,
         TrainingRateBand band,
         string? note = null) => new(name, [band], Note: note);
+
+    private static TrainingSkillDefinition Skill(
+        string name,
+        string note,
+        params TrainingRateBand[] bands) =>
+        new(name, bands, Note: note);
 
     private static TrainingSkillDefinition Skill(string name, params TrainingRateBand[] bands) =>
         new(name, bands);

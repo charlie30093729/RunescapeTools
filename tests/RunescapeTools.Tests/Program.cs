@@ -43,6 +43,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("profile view-model loads defaults and keeps valid data on errors", ProfileViewModelFlow),
     ("EHP catalogue covers every skill and ordered rate band", () => RunSync(EhpCatalogueCoverage)),
     ("approved deterministic methods expose reviewed rates and economics", () => RunSync(DeterministicMethodCatalogue)),
+    ("phase-two methods expose reviewed unlocks, rates, and item flows", () => RunSync(PhaseTwoMethodCatalogue)),
+    ("phase-two calculations reproduce reviewed resource totals and pricing", () => RunSync(PhaseTwoTrainingCalculations)),
     ("Construction route reproduces Main EHP hours and live-price economics", () => RunSync(ConstructionTrainingCalculation)),
     ("training rate overrides scale hours without changing total resources", () => RunSync(TrainingRateOverride)),
     ("hourly training costs respond to personal rate overrides", () => RunSync(HourlyTrainingEconomics)),
@@ -590,6 +592,168 @@ static void DeterministicMethodCatalogue()
         True(band.Economics is { IsComplete: true }, $"{band.Method} should be fully modelled");
 }
 
+static void PhaseTwoMethodCatalogue()
+{
+    var catalogue = new MainEhpCatalogue();
+
+    var woodcutting = TrainingBand(catalogue, "Woodcutting", 814_445);
+    EqualDecimal(194_022m, woodcutting.ExperiencePerHour, "Woodcutting level-71 rate");
+    Equal("1.5t teaks - crystal felling axe", woodcutting.Method, "Woodcutting method");
+    EqualDecimal(
+        2_091_504m,
+        TotalResourceQuantity(catalogue, "Woodcutting", 28157),
+        "Woodcutting Forester's rations",
+        0.001m);
+    EqualDecimal(
+        100m,
+        TotalResourceQuantity(catalogue, "Woodcutting", 23959),
+        "Woodcutting enhanced seeds",
+        0.001m);
+    True(
+        catalogue.Skills.Single(skill => skill.Skill == "Woodcutting").Note?.Contains("14,953") == true,
+        "Woodcutting note should retain the consumed shard total");
+    True(
+        catalogue.Skills.Single(skill => skill.Skill == "Woodcutting")
+            .Bands.SelectMany(band => band.Economics?.Resources ?? [])
+            .All(resource => resource.Direction == TrainingFlowDirection.Input),
+        "dropped teak logs should not be valued as outputs");
+
+    var fishing = TrainingBand(catalogue, "Fishing", 814_445);
+    EqualDecimal(132_800m, fishing.ExperiencePerHour, "Fishing rate");
+    Equal("2t swordfish and tuna - crystal harpoon", fishing.Method, "Fishing method");
+    EqualDecimal(
+        33m,
+        TotalResourceQuantity(catalogue, "Fishing", 23959),
+        "Fishing enhanced seeds",
+        0.001m);
+    True(
+        catalogue.Skills.Single(skill => skill.Skill == "Fishing").Note?.Contains("4,894") == true,
+        "Fishing note should retain the consumed shard total");
+
+    var mining = TrainingBand(catalogue, "Mining", 393_485);
+    EqualDecimal(106_540m, mining.ExperiencePerHour, "Mining first granite rate");
+    Equal("3t4g granite - infernal pickaxe", mining.Method, "Mining method");
+    EqualDecimal(
+        1m / 960_000m,
+        Resource(mining, 11920).QuantityPerExperience,
+        "dragon pickaxes per Mining XP");
+    Equal(TrainingFlowDirection.Input, Resource(mining, 11920).Direction, "dragon pickaxe direction");
+
+    var hunter = TrainingBand(catalogue, "Hunter", 992_895);
+    EqualDecimal(265_000m, hunter.ExperiencePerHour, "Hunter rate");
+    Equal("Black chinchompas - shooting alt", hunter.Method, "Hunter method");
+    EqualDecimal(1m / 315m, Resource(hunter, 11959).QuantityPerExperience, "black chins per Hunter XP");
+    Equal(TrainingFlowDirection.Output, Resource(hunter, 11959).Direction, "black chin direction");
+    True(Resource(hunter, 11959).SubjectToGeTax, "black chins should be GE taxed");
+
+    var runecraft75 = TrainingBand(catalogue, "Runecraft", 1_210_421);
+    EqualDecimal(74_500m, runecraft75.ExperiencePerHour, "Runecraft level-75 rate");
+    EqualDecimal(50m / 475m, Resource(runecraft75, 7936).QuantityPerExperience, "level-75 essence per XP");
+    EqualDecimal(74m / 475m, Resource(runecraft75, 4698).QuantityPerExperience, "level-75 mud runes per XP");
+    EqualDecimal(0.2m / 475m, Resource(runecraft75, 5521).QuantityPerExperience, "level-75 necklaces per XP");
+    EqualDecimal(2.1m / 475m, Resource(runecraft75, 9075).QuantityPerExperience, "level-75 astrals per XP");
+
+    var runecraft85 = TrainingBand(catalogue, "Runecraft", 3_258_594);
+    EqualDecimal(96_900m, runecraft85.ExperiencePerHour, "Runecraft level-85 rate");
+    EqualDecimal(63m / 598.5m, Resource(runecraft85, 7936).QuantityPerExperience, "level-85 essence per XP");
+    EqualDecimal(93m / 598.5m, Resource(runecraft85, 4698).QuantityPerExperience, "level-85 mud runes per XP");
+    EqualDecimal(2.125m / 598.5m, Resource(runecraft85, 9075).QuantityPerExperience, "level-85 astrals per XP");
+    EqualDecimal(0.25m / 598.5m, Resource(runecraft85, 556).QuantityPerExperience, "level-85 air runes per XP");
+    EqualDecimal(0.125m / 598.5m, Resource(runecraft85, 564).QuantityPerExperience, "level-85 cosmic runes per XP");
+
+    var runecraft99 = TrainingBand(catalogue, "Runecraft", 13_034_431);
+    EqualDecimal(98_200m, runecraft99.ExperiencePerHour, "Runecraft level-99 rate");
+    Equal("Solo mud runes", runecraft99.Method, "Runecraft method");
+    True(
+        runecraft99.Economics!.Resources.All(resource => resource.ItemId is not 556 and not 564),
+        "Runecraft cape should remove NPC Contact rune costs");
+
+    foreach (var band in new[] { woodcutting, fishing, mining, hunter, runecraft75, runecraft85, runecraft99 })
+        True(band.Economics is { IsComplete: true }, $"{band.Method} should expose reviewed economics");
+}
+
+static void PhaseTwoTrainingCalculations()
+{
+    var catalogue = new MainEhpCatalogue();
+    var calculator = new TrainingPlanCalculator();
+    var prices = new Dictionary<int, ItemPrice>
+    {
+        [23959] = Quote(23959, 3_000_000),
+        [28157] = Quote(28157, 50),
+        [11920] = Quote(11920, 1_000_000),
+        [11959] = Quote(11959, 3_000),
+        [7936] = Quote(7936, 1),
+        [557] = Quote(557, 5),
+        [5521] = Quote(5521, 1_000),
+        [9075] = Quote(9075, 200),
+        [556] = Quote(556, 5),
+        [564] = Quote(564, 100),
+        [4698] = Quote(4698, 100)
+    };
+
+    var woodcutting = calculator.Calculate(
+        catalogue.Skills.Single(skill => skill.Skill == "Woodcutting"),
+        0,
+        TrainingPlanCalculator.MaximumExperience,
+        prices);
+    Equal(199_977_594L, woodcutting.PricedExperience, "priced Woodcutting XP");
+    EqualDecimal(
+        -(2_091_504m * 50m + 100m * 3_000_000m),
+        woodcutting.NetGp ?? 0m,
+        "Woodcutting resource cost",
+        0.01m);
+    True(!woodcutting.IsFullyPriced, "early Woodcutting should remain visibly unpriced");
+
+    var fishing = calculator.Calculate(
+        catalogue.Skills.Single(skill => skill.Skill == "Fishing"),
+        0,
+        TrainingPlanCalculator.MaximumExperience,
+        prices);
+    Equal(199_185_555L, fishing.PricedExperience, "priced Fishing XP");
+    EqualDecimal(
+        -(33m * 3_000_000m),
+        fishing.NetGp ?? 0m,
+        "Fishing crystal-charge cost",
+        0.01m);
+    True(!fishing.IsFullyPriced, "early Fishing should remain visibly unpriced");
+
+    var mining = calculator.Calculate(
+        catalogue.Skills.Single(skill => skill.Skill == "Mining"),
+        0,
+        TrainingPlanCalculator.MaximumExperience,
+        prices);
+    Equal(199_606_515L, mining.PricedExperience, "priced Mining XP");
+    EqualDecimal(
+        -(199_606_515m / 960_000m * 1_000_000m),
+        mining.NetGp ?? 0m,
+        "Mining infernal-pickaxe cost",
+        0.01m);
+    True(!mining.IsFullyPriced, "early Mining should remain visibly unpriced");
+
+    var hunter = calculator.Calculate(
+        catalogue.Skills.Single(skill => skill.Skill == "Hunter"),
+        0,
+        TrainingPlanCalculator.MaximumExperience,
+        prices);
+    Equal(199_007_105L, hunter.PricedExperience, "priced Hunter XP");
+    EqualDecimal(
+        199_007_105m / 315m * 2_940m,
+        hunter.NetGp ?? 0m,
+        "Hunter black-chin revenue after tax",
+        0.01m);
+    True(hunter.NetGp > 0m, "black chinchompas should produce profit");
+
+    var runecraft = calculator.Calculate(
+        catalogue.Skills.Single(skill => skill.Skill == "Runecraft"),
+        0,
+        TrainingPlanCalculator.MaximumExperience,
+        prices);
+    Equal(198_789_579L, runecraft.PricedExperience, "priced Runecraft XP");
+    True(runecraft.NetGp > 0m, "solo mud runes should produce profit with the test market");
+    True(!runecraft.HasMissingPrice, "all solo mud-rune resources should be priced");
+    True(!runecraft.IsFullyPriced, "early Runecraft should remain visibly unpriced");
+}
+
 static void TrainingRateOverride()
 {
     var definition = new MainEhpCatalogue().Skills.Single(skill => skill.Skill == "Construction");
@@ -641,6 +805,38 @@ static TrainingRateBand TrainingBand(MainEhpCatalogue catalogue, string skill, l
 static TrainingResourceFlow Resource(TrainingRateBand band, int itemId) =>
     band.Economics?.Resources.Single(resource => resource.ItemId == itemId)
     ?? throw new InvalidOperationException($"{band.Method} is missing item {itemId}.");
+
+static decimal TotalResourceQuantity(
+    MainEhpCatalogue catalogue,
+    string skill,
+    int itemId,
+    long startExperience = 0,
+    long targetExperience = TrainingPlanCalculator.MaximumExperience)
+{
+    var definition = catalogue.Skills.Single(value => value.Skill == skill);
+    var ordered = definition.Bands.OrderBy(band => band.StartExperience).ToArray();
+    decimal total = 0m;
+    for (var index = 0; index < ordered.Length; index++)
+    {
+        var band = ordered[index];
+        var nextStart = index + 1 < ordered.Length
+            ? ordered[index + 1].StartExperience
+            : TrainingPlanCalculator.MaximumExperience;
+        var segmentStart = Math.Max(startExperience, band.StartExperience);
+        var segmentEnd = Math.Min(targetExperience, nextStart);
+        if (segmentEnd <= segmentStart)
+            continue;
+
+        var resource = band.Economics?.Resources.SingleOrDefault(value => value.ItemId == itemId);
+        if (resource is null)
+            continue;
+        var experience = segmentEnd - segmentStart;
+        var hours = experience / band.ExperiencePerHour;
+        total += resource.QuantityPerExperience * experience + resource.QuantityPerHour * hours;
+    }
+
+    return total;
+}
 
 static async Task TrainingPlanPersistence()
 {

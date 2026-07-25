@@ -185,7 +185,12 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | FR-XP-007 | Unknown or unreviewed economics shall be labelled as unpriced and shall not be silently included as zero GP. |
 | FR-XP-008 | Summary totals shall show remaining XP, active hours, priced net GP, and economic coverage. |
 | FR-XP-009 | Construction shall include reviewed oak- and mahogany-plank quantities plus Demon Butler fees for the EHP bands beginning at level 33. |
-| FR-XP-010 | Hours shall represent active player time; the first release shall not claim calendar completion time for time-gated methods. |
+| FR-XP-010 | Woodcutting shall price Forester's rations and whole enhanced crystal teleport seeds for crystal-felling-axe charges while treating dropped teak logs as having no output value. |
+| FR-XP-011 | Fishing shall price the reviewed all-skills crystal-harpoon charge allocation using whole enhanced crystal teleport seeds while treating dropped fish as having no output value. |
+| FR-XP-012 | Mining shall price infernal-pickaxe recharges at one dragon pickaxe per 960,000 Mining XP while treating dropped granite as having no output value. |
+| FR-XP-013 | Shooting-alt Hunter shall value one black chinchompa per 315 Hunter XP at the live low price after GE tax and disclose that PK losses and alt ammunition are excluded. |
+| FR-XP-014 | Solo mud Runecraft shall price level-appropriate essence, earth runes, binding necklaces, Magic Imbue runes, pouch-repair runes, and taxed mud-rune output; level 99 shall omit pouch-repair runes. |
+| FR-XP-015 | Hours shall represent active player time; the first release shall not claim calendar completion time for time-gated methods. |
 
 ### 6.8 Method modularity
 
