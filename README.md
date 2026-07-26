@@ -13,6 +13,7 @@ The WPF executable is the active front end. The original Razor/Blazor applicatio
 - Automatically discovered money-making methods with live repricing and a complete input/output ledger.
 - XP Planner with 21 planned skills, level-banded Main EHP rates, current-profile start XP, 99/200m goals, editable personal rates, active-hour totals, and per-RSN persistence. Attack, Strength, and Hitpoints remain visible in profiles but are omitted from the planner as zero-time skills.
 - Live GP/XP economics with explicit coverage states and reviewed processing, gathering, combat, Runecraft, Hunter, Construction, and Gwenith Glide routes.
+- Shared Herblore potion economics include Prescription goggles, charged Alchemist's amulet output, and the live cost of Amulets of chemistry used for charges; reviewed Saradomin brews use this model.
 - Vyrewatch Sentinels method with supplies, output tax, per-account profit, and five-account total.
 - Local JSON persistence, API-friendly caches, bounded history warmup, retry handling, and user-readable failure states.
 - Single-instance desktop lifetime to prevent competing favourite-file writes.

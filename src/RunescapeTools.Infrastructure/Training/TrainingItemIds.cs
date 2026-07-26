@@ -3,6 +3,7 @@ namespace RunescapeTools.Infrastructure.Training;
 internal static class TrainingItemIds
 {
     public const int AirRune = 556;
+    public const int AmuletOfChemistry = 21163;
     public const int AmethystDart = 25849;
     public const int AmethystDartTip = 25853;
     public const int AstralRune = 9075;
