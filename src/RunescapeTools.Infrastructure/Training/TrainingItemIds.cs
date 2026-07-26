@@ -11,8 +11,10 @@ internal static class TrainingItemIds
     public const int BlackDhideBody = 2503;
     public const int BlackDragonLeather = 2509;
     public const int BloodRune = 565;
+    public const int Cannonball = 2;
     public const int CosmicRune = 564;
     public const int CrushedNest = 6693;
+    public const int DeathRune = 560;
     public const int DragonPickaxe = 11920;
     public const int DivineSuperCombatPotion4 = 23685;
     public const int EarthRune = 557;

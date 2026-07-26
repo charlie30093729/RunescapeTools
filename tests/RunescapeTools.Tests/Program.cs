@@ -48,6 +48,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("phase-two calculations reproduce reviewed resource totals and pricing", () => RunSync(PhaseTwoTrainingCalculations)),
     ("phase-three methods expose reviewed rates and Sailing item flows", () => RunSync(PhaseThreeMethodCatalogue)),
     ("phase-three calculations reproduce reviewed hours and Sailing resources", () => RunSync(PhaseThreeTrainingCalculations)),
+    ("combat methods expose reviewed rates, zero-time flags, and supplies", () => RunSync(CombatMethodCatalogue)),
+    ("Slayer credit reduces zero-time Magic cost without changing profile XP", () => RunSync(CombatDependencyCalculations)),
     ("Construction route reproduces Main EHP hours and live-price economics", () => RunSync(ConstructionTrainingCalculation)),
     ("training rate overrides scale hours without changing total resources", () => RunSync(TrainingRateOverride)),
     ("hourly training costs respond to personal rate overrides", () => RunSync(HourlyTrainingEconomics)),
@@ -511,9 +513,12 @@ static async Task ProfileViewModelFlow()
 static void EhpCatalogueCoverage()
 {
     var catalogue = new MainEhpCatalogue();
-    Equal(24, catalogue.Skills.Count, "catalogue skill count");
+    var expectedSkills = OsrsHiscoreSkillOrder.Skills
+        .Where(skill => skill is not "Attack" and not "Strength" and not "Hitpoints")
+        .ToArray();
+    Equal(21, catalogue.Skills.Count, "catalogue skill count");
     Equal(
-        string.Join('|', OsrsHiscoreSkillOrder.Skills),
+        string.Join('|', expectedSkills),
         string.Join('|', catalogue.Skills.Select(skill => skill.Skill)),
         "catalogue skill order");
 
@@ -935,6 +940,113 @@ static void PhaseThreeTrainingCalculations()
         0.01m);
 }
 
+static void CombatMethodCatalogue()
+{
+    var catalogue = new MainEhpCatalogue();
+    True(
+        catalogue.Skills.All(skill => skill.Skill is not "Attack" and not "Strength" and not "Hitpoints"),
+        "zero-time melee and Hitpoints skills should be omitted from the XP Planner catalogue");
+
+    var defence = TrainingBand(catalogue, "Defence", 0);
+    EqualDecimal(405_000m, defence.ExperiencePerHour, "Defence rate");
+    Equal("Black Chinchompas & Cannon - Defensive", defence.Method, "Defence method");
+    EqualDecimal(1_500m / 405_000m, Resource(defence, 11959).QuantityPerExperience, "Defence chins per XP");
+    EqualDecimal(6_000m / 405_000m, Resource(defence, 2).QuantityPerExperience, "Defence cannonballs per XP");
+
+    var rangedDefinition = catalogue.Skills.Single(skill => skill.Skill == "Ranged");
+    var ranged = TrainingBand(catalogue, "Ranged", 0);
+    True(rangedDefinition.IsZeroTime, "Ranged should contribute zero active hours");
+    EqualDecimal(1_150_000m, ranged.ExperiencePerHour, "Ranged rate");
+    Equal("Black Chinchompas & Cannon", ranged.Method, "Ranged method");
+    EqualDecimal(1_866m / 1_150_000m, Resource(ranged, 11959).QuantityPerExperience, "Ranged chins per XP");
+    EqualDecimal(6_000m / 1_150_000m, Resource(ranged, 2).QuantityPerExperience, "Ranged cannonballs per XP");
+
+    var magicDefinition = catalogue.Skills.Single(skill => skill.Skill == "Magic");
+    var magic = TrainingBand(catalogue, "Magic", 0);
+    True(magicDefinition.IsZeroTime, "Magic should contribute zero active hours");
+    EqualDecimal(330_000m, magic.ExperiencePerHour, "Magic reference rate");
+    Equal("Ice Barrage", magic.Method, "Magic method");
+    EqualDecimal(2m * 0.85m * 1_085m / 330_000m, Resource(magic, 565).QuantityPerExperience, "blood runes per Magic XP");
+    EqualDecimal(4m * 0.85m * 1_085m / 330_000m, Resource(magic, 560).QuantityPerExperience, "death runes per Magic XP");
+
+    var slayerDefinition = catalogue.Skills.Single(skill => skill.Skill == "Slayer");
+    var slayer = TrainingBand(catalogue, "Slayer", 0);
+    EqualDecimal(123_040m, slayer.ExperiencePerHour, "Slayer rate");
+    Equal(1, slayerDefinition.ExperienceOutputs?.Count ?? 0, "Slayer secondary skill count");
+    Equal("Magic", slayerDefinition.ExperienceOutputs![0].Skill, "Slayer secondary skill");
+    EqualDecimal(
+        163_136_972m / (6_578m * 28_397m),
+        slayerDefinition.ExperienceOutputs[0].QuantityPerPrimaryExperience,
+        "Magic XP per Slayer XP");
+}
+
+static void CombatDependencyCalculations()
+{
+    var catalogue = new MainEhpCatalogue();
+    var calculator = new TrainingPlanCalculator();
+    var prices = new Dictionary<int, ItemPrice>
+    {
+        [2] = Quote(2, 200),
+        [11959] = Quote(11959, 3_000),
+        [560] = Quote(560, 150),
+        [565] = Quote(565, 300)
+    };
+
+    var defence = calculator.Calculate(
+        catalogue.Skills.Single(skill => skill.Skill == "Defence"),
+        0,
+        TrainingPlanCalculator.MaximumExperience,
+        prices);
+    EqualDecimal(493.8272m, defence.Hours, "Defence 0-200m hours", 0.0001m);
+    EqualDecimal(
+        -TrainingPlanCalculator.MaximumExperience
+        * (1_500m / 405_000m * 3_000m + 6_000m / 405_000m * 200m),
+        defence.NetGp ?? 0m,
+        "Defence supply cost",
+        0.01m);
+
+    var ranged = calculator.Calculate(
+        catalogue.Skills.Single(skill => skill.Skill == "Ranged"),
+        0,
+        TrainingPlanCalculator.MaximumExperience,
+        prices);
+    EqualDecimal(0m, ranged.Hours, "zero-time Ranged hours");
+    EqualDecimal(
+        -TrainingPlanCalculator.MaximumExperience
+        * (1_866m / 1_150_000m * 3_000m + 6_000m / 1_150_000m * 200m),
+        ranged.NetGp ?? 0m,
+        "Ranged supply cost",
+        0.01m);
+    True(ranged.GpPerExperience < 0m, "Ranged should expose GP per XP");
+
+    const long reviewedSlayerExperience = 6_578L * 28_397L;
+    var slayer = calculator.Calculate(
+        catalogue.Skills.Single(skill => skill.Skill == "Slayer"),
+        0,
+        reviewedSlayerExperience,
+        prices);
+    EqualDecimal(163_136_972m, slayer.GeneratedExperience["Magic"], "generated Slayer Magic XP", 0.0001m);
+
+    var magic = calculator.Calculate(
+        catalogue.Skills.Single(skill => skill.Skill == "Magic"),
+        0,
+        TrainingPlanCalculator.MaximumExperience,
+        prices,
+        pendingExperienceCredit: (long)slayer.GeneratedExperience["Magic"]);
+    const long expectedMagicRemaining = TrainingPlanCalculator.MaximumExperience - 163_136_972L;
+    Equal(163_136_972L, magic.AppliedExperienceCredit, "applied Slayer Magic credit");
+    Equal(expectedMagicRemaining, magic.ExperienceRemaining, "Magic XP left for Ice Barrage");
+    Equal(0L, magic.StartExperience, "Magic profile start remains unchanged");
+    EqualDecimal(0m, magic.Hours, "zero-time Magic hours");
+    EqualDecimal(
+        -expectedMagicRemaining
+        * (2m * 0.85m * 1_085m / 330_000m * 300m
+           + 4m * 0.85m * 1_085m / 330_000m * 150m),
+        magic.NetGp ?? 0m,
+        "Ice Barrage residual cost",
+        0.01m);
+}
+
 static void TrainingRateOverride()
 {
     var definition = new MainEhpCatalogue().Skills.Single(skill => skill.Skill == "Construction");
@@ -1060,19 +1172,33 @@ static async Task XpPlannerViewModelFlow()
         context);
 
     await viewModel.LoadAsync();
-    Equal(24, viewModel.Rows.Count, "XP planner row count");
+    Equal(21, viewModel.Rows.Count, "XP planner row count");
+    True(
+        viewModel.Rows.All(row => row.Skill is not "Attack" and not "Strength" and not "Hitpoints"),
+        "XP planner omits zero-time melee and Hitpoints rows");
     Equal("bottleo", viewModel.ProfileName, "XP planner profile");
     var construction = viewModel.Rows.Single(row => row.Skill == "Construction");
     construction.StartExperience = 0;
     Equal("142.8", construction.Hours, "Construction displayed hours");
     True(construction.Result.NetGp is < -2_800_000_000m, "Construction live cost");
-    True(construction.GpPerHour.EndsWith(" gp/hr"), "method subtitle identifies GP per hour");
+    True(construction.EconomicRate.EndsWith(" gp/hr"), "method subtitle identifies GP per hour");
     Equal(1, construction.AvailableMethods.Count, "current catalogue exposes its default route");
     construction.PersonalRate = 100_000m;
     True(construction.Hours != "142.8", "personal rate changes displayed hours");
     construction.ResetRateCommand.Execute(null);
     EqualDecimal(54_700m, construction.PersonalRate, "reset current method rate");
     Equal("142.8", construction.Hours, "reset restores catalogue hours");
+
+    var slayer = viewModel.Rows.Single(row => row.Skill == "Slayer");
+    var magic = viewModel.Rows.Single(row => row.Skill == "Magic");
+    slayer.StartExperience = 0;
+    slayer.TargetExperience = 6_578L * 28_397L;
+    magic.StartExperience = 0;
+    magic.TargetExperience = TrainingPlanCalculator.MaximumExperience;
+    Equal(163_136_972L, magic.Result.AppliedExperienceCredit, "view-model Slayer credit");
+    Equal("0", magic.Hours, "view-model zero-time Magic hours");
+    True(magic.HasExperienceCredit, "view-model exposes pending Magic credit");
+    True(magic.CreditSummary.Contains("163,136,972"), "view-model formats pending Magic credit");
 }
 
 static async Task ShellNavigation()

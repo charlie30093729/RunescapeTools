@@ -16,6 +16,11 @@ public sealed record TrainingResourceFlow(
     bool SubjectToGeTax = true,
     decimal QuantityPerHour = 0m);
 
+public sealed record TrainingExperienceFlow(
+    string Skill,
+    decimal QuantityPerPrimaryExperience,
+    decimal QuantityPerHour = 0m);
+
 public sealed record TrainingEconomics(
     IReadOnlyList<TrainingResourceFlow> Resources,
     decimal FixedGpPerExperience = 0m,
@@ -34,7 +39,8 @@ public sealed record TrainingMethodDefinition(
     string Id,
     string Name,
     IReadOnlyList<TrainingRateBand> Bands,
-    string? Note = null);
+    string? Note = null,
+    IReadOnlyList<TrainingExperienceFlow>? ExperienceOutputs = null);
 
 public sealed record TrainingSkillDefinition(
     string Skill,
@@ -42,12 +48,13 @@ public sealed record TrainingSkillDefinition(
     bool IsZeroTime = false,
     string? Note = null,
     IReadOnlyList<TrainingMethodDefinition>? Methods = null,
-    string DefaultMethodId = "main-ehp")
+    string DefaultMethodId = "main-ehp",
+    IReadOnlyList<TrainingExperienceFlow>? ExperienceOutputs = null)
 {
     public IReadOnlyList<TrainingMethodDefinition> AvailableMethods =>
         Methods is { Count: > 0 }
             ? Methods
-            : [new TrainingMethodDefinition(DefaultMethodId, "Main EHP route", Bands, Note)];
+            : [new TrainingMethodDefinition(DefaultMethodId, "Main EHP route", Bands, Note, ExperienceOutputs)];
 
     public TrainingMethodDefinition ResolveMethod(string? methodId = null)
     {
@@ -84,9 +91,14 @@ public sealed record TrainingSkillPlanResult(
     long PricedExperience,
     bool UsedFallbackPrice,
     bool HasMissingPrice,
-    IReadOnlyList<TrainingBandResult> Bands)
+    IReadOnlyList<TrainingBandResult> Bands,
+    long AppliedExperienceCredit,
+    IReadOnlyDictionary<string, decimal> GeneratedExperience)
 {
-    public long ExperienceRemaining => Math.Max(0, TargetExperience - StartExperience);
+    public long EffectiveStartExperience =>
+        Math.Min(TargetExperience, StartExperience + AppliedExperienceCredit);
+    public long RawExperienceRemaining => Math.Max(0, TargetExperience - StartExperience);
+    public long ExperienceRemaining => Math.Max(0, TargetExperience - EffectiveStartExperience);
     public bool IsFullyPriced => ExperienceRemaining == 0 || PricedExperience >= ExperienceRemaining;
     public decimal? GpPerExperience => NetGp.HasValue && ExperienceRemaining > 0
         ? NetGp.Value / ExperienceRemaining
@@ -108,31 +120,35 @@ public sealed class TrainingPlanCalculator
         long targetExperience,
         IReadOnlyDictionary<int, ItemPrice> prices,
         decimal? personalRate = null,
-        string? methodId = null)
+        string? methodId = null,
+        long pendingExperienceCredit = 0)
     {
         ArgumentNullException.ThrowIfNull(definition);
         ArgumentNullException.ThrowIfNull(prices);
 
         var start = Math.Clamp(startExperience, 0, MaximumExperience);
         var target = Math.Clamp(targetExperience, start, MaximumExperience);
+        var appliedCredit = Math.Clamp(pendingExperienceCredit, 0, target - start);
+        var effectiveStart = start + appliedCredit;
         var method = definition.ResolveMethod(methodId);
         var ordered = method.Bands.OrderBy(band => band.StartExperience).ToArray();
-        var activeBand = ordered.LastOrDefault(band => band.StartExperience <= start)
+        var activeBand = ordered.LastOrDefault(band => band.StartExperience <= effectiveStart)
                          ?? ordered.FirstOrDefault();
         var baseRate = activeBand?.ExperiencePerHour ?? 0m;
         var multiplier = personalRate is > 0m && baseRate > 0m
             ? personalRate.Value / baseRate
             : 1m;
 
-        if (definition.IsZeroTime || target == start || ordered.Length == 0)
+        if (target == effectiveStart || ordered.Length == 0)
         {
             return new TrainingSkillPlanResult(
                 definition, method, start, target, baseRate, personalRate ?? baseRate, 0m, 0m,
-                target - start, false, false, []);
+                target - effectiveStart, false, false, [], appliedCredit,
+                new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase));
         }
 
         var results = new List<TrainingBandResult>();
-        decimal totalHours = 0m;
+        decimal calculationHours = 0m;
         decimal totalGp = 0m;
         long pricedExperience = 0;
         var hasAnyPrice = false;
@@ -145,7 +161,7 @@ public sealed class TrainingPlanCalculator
             var nextStart = index + 1 < ordered.Length
                 ? ordered[index + 1].StartExperience
                 : MaximumExperience;
-            var segmentStart = Math.Max(start, band.StartExperience);
+            var segmentStart = Math.Max(effectiveStart, band.StartExperience);
             var segmentEnd = Math.Min(target, nextStart);
             if (segmentEnd <= segmentStart)
                 continue;
@@ -153,7 +169,7 @@ public sealed class TrainingPlanCalculator
             var experience = segmentEnd - segmentStart;
             var effectiveBandRate = band.ExperiencePerHour * multiplier;
             var hours = effectiveBandRate > 0m ? experience / effectiveBandRate : 0m;
-            totalHours += hours;
+            calculationHours += hours;
 
             decimal? segmentGp = null;
             var segmentFallback = false;
@@ -218,8 +234,23 @@ public sealed class TrainingPlanCalculator
             usedFallback |= segmentFallback;
             hasMissing |= segmentMissing;
             results.Add(new TrainingBandResult(
-                band, segmentStart, segmentEnd, hours, segmentGp, segmentFallback, segmentMissing));
+                band,
+                segmentStart,
+                segmentEnd,
+                definition.IsZeroTime ? 0m : hours,
+                segmentGp,
+                segmentFallback,
+                segmentMissing));
         }
+
+        var generatedExperience = (method.ExperienceOutputs ?? [])
+            .GroupBy(flow => flow.Skill, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => group.Sum(
+                    flow => flow.QuantityPerPrimaryExperience * (target - effectiveStart)
+                            + flow.QuantityPerHour * calculationHours),
+                StringComparer.OrdinalIgnoreCase);
 
         return new TrainingSkillPlanResult(
             definition,
@@ -228,12 +259,14 @@ public sealed class TrainingPlanCalculator
             target,
             baseRate,
             personalRate ?? baseRate,
-            totalHours,
+            definition.IsZeroTime ? 0m : calculationHours,
             hasAnyPrice ? totalGp : null,
             pricedExperience,
             usedFallback,
             hasMissing,
-            results);
+            results,
+            appliedCredit,
+            generatedExperience);
     }
 
     private static decimal? SelectPrice(
