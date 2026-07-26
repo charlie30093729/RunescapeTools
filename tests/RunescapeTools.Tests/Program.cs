@@ -48,6 +48,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("phase-two calculations reproduce reviewed resource totals and pricing", () => RunSync(PhaseTwoTrainingCalculations)),
     ("phase-three methods expose reviewed rates and Sailing item flows", () => RunSync(PhaseThreeMethodCatalogue)),
     ("phase-three calculations reproduce reviewed hours and Sailing resources", () => RunSync(PhaseThreeTrainingCalculations)),
+    ("Farming tree runs price saplings, protection, and clearing fees", () => RunSync(FarmingTrainingCalculations)),
     ("combat methods expose reviewed rates, zero-time flags, and supplies", () => RunSync(CombatMethodCatalogue)),
     ("Slayer credit reduces zero-time Magic cost without changing profile XP", () => RunSync(CombatDependencyCalculations)),
     ("Construction route reproduces Main EHP hours and live-price economics", () => RunSync(ConstructionTrainingCalculation)),
@@ -829,7 +830,32 @@ static void PhaseThreeMethodCatalogue()
         "Farming rate progression");
     EqualDecimal(2_669_000m, farming.ExperiencePerHour, "Farming level-92 rate");
     Equal("Efficient tree runs", farming.Method, "Farming method");
-    True(farming.Economics is null, "Farming should remain unpriced");
+    True(farming.Economics is { IsComplete: true }, "Farming economics should be complete");
+    const decimal rosewoodTreesPerDay = 1m;
+    const decimal redwoodTreesPerDay = 0.225m;
+    const decimal farmingExperiencePerDay =
+        6m * 13_913.8m
+        + 6m * 17_475m
+        + rosewoodTreesPerDay * 23_352m
+        + 12_225.5m
+        + 14_334m
+        + redwoodTreesPerDay * 22_680m;
+    EqualDecimal(
+        6m / farmingExperiencePerDay,
+        Resource(farming, 5374).QuantityPerExperience,
+        "Magic saplings per Farming XP");
+    EqualDecimal(
+        240m / farmingExperiencePerDay,
+        Resource(farming, 5974).QuantityPerExperience,
+        "coconuts per Farming XP");
+    EqualDecimal(
+        (8m * rosewoodTreesPerDay + 6m * redwoodTreesPerDay) / farmingExperiencePerDay,
+        Resource(farming, 22929).QuantityPerExperience,
+        "dragonfruit protection per Farming XP");
+    True(
+        catalogue.Skills.Single(skill => skill.Skill == "Farming").Note?
+            .Contains("not harvested", StringComparison.OrdinalIgnoreCase) == true,
+        "Farming note should disclose excluded harvest value");
 
     var sailingDefinition = catalogue.Skills.Single(skill => skill.Skill == "Sailing");
     var sailing = TrainingBand(catalogue, "Sailing", 0);
@@ -940,6 +966,39 @@ static void PhaseThreeTrainingCalculations()
         0.01m);
 }
 
+static void FarmingTrainingCalculations()
+{
+    var definition = new MainEhpCatalogue().Skills.Single(skill => skill.Skill == "Farming");
+    var prices = definition.Bands
+        .Where(band => band.Economics is not null)
+        .SelectMany(band => band.Economics!.Resources)
+        .Select(resource => resource.ItemId)
+        .Distinct()
+        .ToDictionary(itemId => itemId, itemId => Quote(itemId, 100));
+    var calculator = new TrainingPlanCalculator();
+
+    var pricedRoute = calculator.Calculate(
+        definition,
+        32_500,
+        TrainingPlanCalculator.MaximumExperience,
+        prices);
+    Equal(
+        TrainingPlanCalculator.MaximumExperience - 32_500,
+        pricedRoute.PricedExperience,
+        "priced Farming XP");
+    True(pricedRoute.IsFullyPriced, "every tree-run band should be fully priced");
+    True(!pricedRoute.HasMissingPrice, "reviewed Farming inputs should all resolve");
+    True(pricedRoute.NetGp < 0m, "tree runs should cost GP");
+
+    var fullRoute = calculator.Calculate(
+        definition,
+        0,
+        TrainingPlanCalculator.MaximumExperience,
+        prices);
+    True(!fullRoute.IsFullyPriced, "quest XP should remain visibly unpriced");
+    Equal(32_500L, fullRoute.ExperienceRemaining - fullRoute.PricedExperience, "unpriced quest XP");
+}
+
 static void CombatMethodCatalogue()
 {
     var catalogue = new MainEhpCatalogue();
@@ -972,6 +1031,7 @@ static void CombatMethodCatalogue()
     var slayerDefinition = catalogue.Skills.Single(skill => skill.Skill == "Slayer");
     var slayer = TrainingBand(catalogue, "Slayer", 0);
     EqualDecimal(123_040m, slayer.ExperiencePerHour, "Slayer rate");
+    True(slayer.Economics is { IsComplete: true }, "Slayer break-even economics should be explicit");
     Equal(1, slayerDefinition.ExperienceOutputs?.Count ?? 0, "Slayer secondary skill count");
     Equal("Magic", slayerDefinition.ExperienceOutputs![0].Skill, "Slayer secondary skill");
     EqualDecimal(
@@ -1025,6 +1085,8 @@ static void CombatDependencyCalculations()
         0,
         reviewedSlayerExperience,
         prices);
+    EqualDecimal(0m, slayer.NetGp ?? decimal.MinValue, "Slayer GP/XP break-even");
+    True(slayer.IsFullyPriced, "Slayer should be explicitly fully priced at break-even");
     EqualDecimal(163_136_972m, slayer.GeneratedExperience["Magic"], "generated Slayer Magic XP", 0.0001m);
 
     var magic = calculator.Calculate(

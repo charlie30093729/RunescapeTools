@@ -15,9 +15,16 @@ internal static class SlayerCatalogue
     public static TrainingSkillDefinition Create() =>
         new(
             "Slayer",
-            [Band(0, ReviewedExperiencePerHour, "Efficient Slayer task list")],
+            [
+                Band(
+                    0,
+                    ReviewedExperiencePerHour,
+                    "Efficient Slayer task list",
+                    new TrainingEconomics([]))
+            ],
             Note: "Reviewed task-list projection: 123,040 Slayer XP/hour. Only Magic receives deferred " +
-                  "secondary XP; Attack, Strength, Defence, Hitpoints, Ranged, and Prayer credits are excluded.",
+                  "secondary XP; Attack, Strength, Defence, Hitpoints, Ranged, and Prayer credits are excluded. " +
+                  "Slayer supplies and loot are treated as break-even at an explicit 0 GP/XP.",
             ExperienceOutputs:
             [
                 new TrainingExperienceFlow("Magic", MagicExperiencePerSlayerExperience)
