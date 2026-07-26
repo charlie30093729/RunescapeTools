@@ -104,7 +104,9 @@
                                     <TextBox Grid.Column="1" Text="{Binding StartExperience, UpdateSourceTrigger=LostFocus}" Style="{StaticResource Input}" Margin="0,9,8,9" Padding="8,5" FontSize="12" VerticalContentAlignment="Center" />
                                     <TextBox Grid.Column="2" Text="{Binding TargetExperience, UpdateSourceTrigger=LostFocus}" Style="{StaticResource Input}" Margin="0,9,8,9" Padding="8,5" FontSize="12" VerticalContentAlignment="Center" />
                                     <StackPanel Grid.Column="3" Margin="0,8,12,8" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding Method}" FontWeight="SemiBold" FontSize="11" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
+                                        <TextBlock Text="{Binding Method}" FontWeight="SemiBold" FontSize="11"
+                                                   TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                                                   ToolTip="{Binding Note}" />
                                         <TextBlock Text="{Binding EconomicRate}" Foreground="{StaticResource MutedBrush}" FontSize="9" Margin="0,3,0,0"
                                                    ToolTip="{Binding EconomicRateToolTip}"
                                                    AutomationProperties.Name="Estimated economic rate" />

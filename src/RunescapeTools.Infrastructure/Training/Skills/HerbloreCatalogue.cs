@@ -11,6 +11,7 @@ internal static class HerbloreCatalogue
     public static TrainingSkillDefinition Create() =>
         Skill(
             "Herblore",
+            HerblorePotionEconomics.EquipmentNote,
             Band(0, 11_100m, "Quests"),
             Band(8_025, 218_750m, "Serum 207s"),
             Band(123_660, 293_750m, "Super energies"),
@@ -25,13 +26,12 @@ internal static class HerbloreCatalogue
                 2_192_818,
                 450_000m,
                 "Saradomin brews",
-                new TrainingEconomics(
-                    [
-                        Input(
-                            ToadflaxPotionUnfinished,
-                            "Toadflax potion (unf)",
-                            1m / SaradominBrewHerbloreXp),
-                        Input(CrushedNest, "Crushed nest", 1m / SaradominBrewHerbloreXp),
-                        Output(SaradominBrew3, "Saradomin brew(3)", 1m / SaradominBrewHerbloreXp)
-                    ])));
+                HerblorePotionEconomics.Create(
+                    ToadflaxPotionUnfinished,
+                    "Toadflax potion (unf)",
+                    CrushedNest,
+                    "Crushed nest",
+                    SaradominBrew3,
+                    "Saradomin brew(3)",
+                    SaradominBrewHerbloreXp)));
 }

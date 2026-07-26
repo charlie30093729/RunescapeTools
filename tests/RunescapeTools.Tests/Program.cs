@@ -44,6 +44,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("EHP catalogue covers every skill and ordered rate band", () => RunSync(EhpCatalogueCoverage)),
     ("training definitions support stable default and alternative methods", () => RunSync(TrainingMethodSelection)),
     ("approved deterministic methods expose reviewed rates and economics", () => RunSync(DeterministicMethodCatalogue)),
+    ("Herblore brews include prescription goggles and alchemist amulet", () => RunSync(HerbloreEquipmentEconomics)),
     ("phase-two methods expose reviewed unlocks, rates, and item flows", () => RunSync(PhaseTwoMethodCatalogue)),
     ("phase-two calculations reproduce reviewed resource totals and pricing", () => RunSync(PhaseTwoTrainingCalculations)),
     ("phase-three methods expose reviewed rates and Sailing item flows", () => RunSync(PhaseThreeMethodCatalogue)),
@@ -617,9 +618,29 @@ static void DeterministicMethodCatalogue()
     EqualDecimal(450_000m, herblore.ExperiencePerHour, "Herblore rate");
     Equal("Saradomin brews", herblore.Method, "Herblore method");
     Equal(
-        "3002|6687|6693",
+        "3002|6687|6693|21163",
         string.Join('|', herblore.Economics!.Resources.Select(resource => resource.ItemId).Order()),
         "Herblore item IDs");
+    EqualDecimal(
+        0.90m / 180m,
+        Resource(herblore, 6693).QuantityPerExperience,
+        "Prescription goggles secondary consumption");
+    EqualDecimal(
+        0.15m / 10m / 180m,
+        Resource(herblore, 21163).QuantityPerExperience,
+        "Alchemist's amulet charge consumption");
+    EqualDecimal(
+        (1m + 0.15m / 3m) / 180m,
+        Resource(herblore, 6687).QuantityPerExperience,
+        "Alchemist's amulet brew output");
+    True(
+        catalogue.Skills.Single(skill => skill.Skill == "Herblore").Note?
+            .Contains("Prescription goggles", StringComparison.Ordinal) == true,
+        "Herblore note should disclose Prescription goggles");
+    True(
+        catalogue.Skills.Single(skill => skill.Skill == "Herblore").Note?
+            .Contains("Alchemist's amulet", StringComparison.Ordinal) == true,
+        "Herblore note should disclose Alchemist's amulet");
 
     var fletching = TrainingBand(catalogue, "Fletching", 5_346_332);
     EqualDecimal(1_000_000m, fletching.ExperiencePerHour, "Fletching rate");
@@ -633,6 +654,37 @@ static void DeterministicMethodCatalogue()
 
     foreach (var band in new[] { prayer, cooking, crafting, smithing, herblore, fletching, firemaking })
         True(band.Economics is { IsComplete: true }, $"{band.Method} should be fully modelled");
+}
+
+static void HerbloreEquipmentEconomics()
+{
+    var catalogue = new MainEhpCatalogue();
+    var definition = catalogue.Skills.Single(skill => skill.Skill == "Herblore");
+    var prices = new Dictionary<int, ItemPrice>
+    {
+        [3002] = new ItemPrice(3002, 1_000, 900, null, null),
+        [6693] = new ItemPrice(6693, 2_000, 1_900, null, null),
+        [21163] = new ItemPrice(21163, 3_000, 2_900, null, null),
+        [6687] = new ItemPrice(6687, 600, 500, null, null)
+    };
+
+    var result = new TrainingPlanCalculator().Calculate(
+        definition,
+        2_192_818,
+        2_642_818,
+        prices);
+
+    EqualDecimal(1m, result.Hours, "one hour of Saradomin brews");
+    EqualDecimal(
+        -5_826_250m,
+        result.NetGp ?? 0m,
+        "equipment-adjusted brew GP per hour",
+        0.01m);
+    EqualDecimal(
+        -5_826_250m,
+        result.AverageGpPerHour ?? 0m,
+        "equipment-adjusted displayed GP per hour",
+        0.01m);
 }
 
 static void PhaseTwoMethodCatalogue()

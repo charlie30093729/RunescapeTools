@@ -204,6 +204,7 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | FR-XP-026 | Slayer supplies and loot shall use an explicit reviewed break-even assumption of 0 GP/XP while retaining active hours and pending Magic XP. |
 | FR-XP-027 | Farming tree-run bands from level 38 onward shall live-price the highest unlocked regular, fruit, hardwood, and special-tree saplings plus their protection payments and gardener clearing fees. |
 | FR-XP-028 | Farming economics shall assume one six-tree and six-fruit-tree run per day, normalize four hardwood patches and the redwood patch by growth time, complete calquat and celastrus daily once unlocked, and exclude unharvested fruit, bark, and logs from output value. Quest XP shall remain visibly unpriced. |
+| FR-XP-029 | Herblore potion economics shall include the average Prescription goggles secondary saving, Alchemist's amulet extra-dose output, and the Amulets of chemistry consumed to recharge it by default; ineligible future potion routes shall opt out explicitly. |
 
 ### 6.8 Method modularity
 
