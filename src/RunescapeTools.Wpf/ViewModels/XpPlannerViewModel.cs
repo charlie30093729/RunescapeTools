@@ -14,6 +14,7 @@ public partial class XpPlannerRowViewModel : ObservableObject
     private readonly TrainingPlanCalculator calculator;
     private readonly Action changed;
     private IReadOnlyDictionary<int, ItemPrice> prices;
+    private long pendingExperienceCredit;
     private bool suppressChanges;
 
     [ObservableProperty]
@@ -35,7 +36,16 @@ public partial class XpPlannerRowViewModel : ObservableObject
     private string totalGp = "Not priced";
 
     [ObservableProperty]
-    private string gpPerHour = "Not priced";
+    private string economicRate = "Not priced";
+
+    [ObservableProperty]
+    private string economicRateToolTip = "Estimated GP per hour.";
+
+    [ObservableProperty]
+    private string creditSummary = string.Empty;
+
+    [ObservableProperty]
+    private bool hasExperienceCredit;
 
     [ObservableProperty]
     private string pricingStatus = "Rate only";
@@ -98,10 +108,25 @@ public partial class XpPlannerRowViewModel : ObservableObject
 
     public void SetTarget(long value) => TargetExperience = value;
 
+    public void SetPendingExperienceCredit(long value)
+    {
+        var normalized = Math.Max(0, value);
+        if (pendingExperienceCredit == normalized)
+            return;
+
+        pendingExperienceCredit = normalized;
+        Recalculate();
+    }
+
     [RelayCommand]
     private void ResetRate()
     {
-        var baseline = calculator.Calculate(Definition, StartExperience, TargetExperience, prices);
+        var baseline = calculator.Calculate(
+            Definition,
+            StartExperience,
+            TargetExperience,
+            prices,
+            pendingExperienceCredit: pendingExperienceCredit);
         PersonalRate = baseline.BaseRate;
     }
 
@@ -114,7 +139,12 @@ public partial class XpPlannerRowViewModel : ObservableObject
                                     && Math.Abs(PersonalRate - Result.BaseRate) < 0.001m;
         if (wasUsingCatalogueRate)
         {
-            var baseline = calculator.Calculate(Definition, value, TargetExperience, prices);
+            var baseline = calculator.Calculate(
+                Definition,
+                value,
+                TargetExperience,
+                prices,
+                pendingExperienceCredit: pendingExperienceCredit);
             suppressChanges = true;
             PersonalRate = baseline.BaseRate;
             suppressChanges = false;
@@ -143,18 +173,30 @@ public partial class XpPlannerRowViewModel : ObservableObject
                 StartExperience,
                 TargetExperience,
                 prices,
-                PersonalRate > 0m ? PersonalRate : null);
+                PersonalRate > 0m ? PersonalRate : null,
+                pendingExperienceCredit: pendingExperienceCredit);
 
             var activeBand = Result.Method.Bands
                 .OrderBy(band => band.StartExperience)
-                .LastOrDefault(band => band.StartExperience <= Result.StartExperience)
+                .LastOrDefault(band => band.StartExperience <= Result.EffectiveStartExperience)
                 ?? Result.Method.Bands.FirstOrDefault();
             Method = activeBand?.Method ?? "Passive / zero-time";
-            Hours = Result.Hours.ToString("N1");
+            Hours = Result.Hours == 0m ? "0" : Result.Hours.ToString("N1");
             TotalGp = Result.NetGp.HasValue ? DisplayFormat.Gp(Result.NetGp) : "Not priced";
-            GpPerHour = Result.AverageGpPerHour.HasValue
-                ? DisplayFormat.GpPerHour(Result.AverageGpPerHour)
-                : "Not priced";
+            EconomicRate = Definition.IsZeroTime
+                ? Result.GpPerExperience.HasValue
+                    ? DisplayFormat.GpPerExperience(Result.GpPerExperience)
+                    : "Not priced"
+                : Result.AverageGpPerHour.HasValue
+                    ? DisplayFormat.GpPerHour(Result.AverageGpPerHour)
+                    : "Not priced";
+            EconomicRateToolTip = Definition.IsZeroTime
+                ? "Estimated GP per XP. This method contributes zero active hours."
+                : "Estimated GP per hour. Negative values are costs; positive values are profit.";
+            HasExperienceCredit = Result.AppliedExperienceCredit > 0;
+            CreditSummary = HasExperienceCredit
+                ? $"+{Result.AppliedExperienceCredit:N0} XP pending from Slayer"
+                : string.Empty;
             IsProfit = Result.NetGp >= 0m;
             PricingStatus = Result.IsFullyPriced
                 ? "Fully priced"
@@ -359,6 +401,7 @@ public partial class XpPlannerViewModel : ObservableObject, IPageViewModel
 
     private void RecalculateSummary()
     {
+        ApplyExperienceDependencies();
         var experience = Rows.Sum(row => row.Result.ExperienceRemaining);
         var hours = Rows.Sum(row => row.Result.Hours);
         var pricedExperience = Rows.Sum(row => row.Result.PricedExperience);
@@ -367,6 +410,18 @@ public partial class XpPlannerViewModel : ObservableObject, IPageViewModel
         TotalHours = $"{hours:N1} h";
         TotalNetGp = pricedExperience > 0 ? DisplayFormat.Gp(gp) : "Not priced";
         PricedCoverage = experience > 0 ? $"{(decimal)pricedExperience / experience:P0}" : "100%";
+    }
+
+    private void ApplyExperienceDependencies()
+    {
+        var slayer = Rows.FirstOrDefault(row => row.Skill == "Slayer");
+        var magic = Rows.FirstOrDefault(row => row.Skill == "Magic");
+        if (magic is null)
+            return;
+
+        var generatedMagic = slayer?.Result.GeneratedExperience
+            .GetValueOrDefault("Magic") ?? 0m;
+        magic.SetPendingExperienceCredit((long)Math.Floor(generatedMagic));
     }
 
     private void ScheduleSave()

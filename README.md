@@ -11,8 +11,8 @@ The WPF executable is the active front end. The original Razor/Blazor applicatio
 - Debounced Grand Exchange item search with add, select, and remove favourite actions.
 - Seven days of hourly Wiki price history rendered with LiveCharts2, including local-time tooltips, weekly change, and volume.
 - Automatically discovered money-making methods with live repricing and a complete input/output ledger.
-- XP Planner with all 24 skills, level-banded Main EHP rates, current-profile start XP, 99/200m goals, editable personal rates, active-hour totals, and per-RSN persistence.
-- Live GP/XP economics with explicit coverage states and reviewed processing, gathering, Runecraft, Hunter, Construction, and Gwenith Glide routes.
+- XP Planner with 21 planned skills, level-banded Main EHP rates, current-profile start XP, 99/200m goals, editable personal rates, active-hour totals, and per-RSN persistence. Attack, Strength, and Hitpoints remain visible in profiles but are omitted from the planner as zero-time skills.
+- Live GP/XP economics with explicit coverage states and reviewed processing, gathering, combat, Runecraft, Hunter, Construction, and Gwenith Glide routes.
 - Vyrewatch Sentinels method with supplies, output tax, per-account profit, and five-account total.
 - Local JSON persistence, API-friendly caches, bounded history warmup, retry handling, and user-readable failure states.
 - Single-instance desktop lifetime to prevent competing favourite-file writes.
@@ -56,7 +56,11 @@ XP goals, start overrides, and personal rates are stored per RSN at:
 
 The bundled EHP catalogue is a dated snapshot. Its level bands calculate the complete path from the selected start XP to the goal; GP totals clearly report how much of that path has reviewed economic data rather than treating unknown costs as zero.
 
-Reviewed economic routes now include the first deterministic processing batch plus Grand-Coffin Hallowed Sepulchre, 1.5t teak Woodcutting, crystal-harpoon Fishing, 3t4g granite Mining, shooting-alt black chinchompas, solo mud Runecraft, Construction, and rosewood-hull Gwenith Glide. Gem knights and efficient tree runs remain rate-only. Method notes disclose excluded outputs and calibrated assumptions; Agility values the Grand Coffin's expected tradeable loot and coins while excluding marks and clues, crystal-tool routes budget whole enhanced crystal teleport seeds, and Sailing values the reviewed shard-to-divine-potion conversion at live prices.
+Reviewed economic routes now include the first deterministic processing batch plus Grand-Coffin Hallowed Sepulchre, 1.5t teak Woodcutting, crystal-harpoon Fishing, 3t4g granite Mining, shooting-alt black chinchompas, solo mud Runecraft, Construction, rosewood-hull Gwenith Glide, efficient tree runs, defensive black chinchompas with cannon, zero-time Ranged, residual Ice Barrage, and explicit break-even Slayer. Gem knights remain rate-only. Method notes disclose excluded outputs and calibrated assumptions; Agility values the Grand Coffin's expected tradeable loot and coins while excluding marks and clues, crystal-tool routes budget whole enhanced crystal teleport seeds, and Sailing values the reviewed shard-to-divine-potion conversion at live prices.
+
+The Slayer route contributes a pending Magic XP credit to the plan and uses an explicit reviewed assumption of `0 gp/xp`. That credit reduces the Magic XP and Ice Barrage supplies still required after the planned Slayer goal, without changing the successfully loaded profile XP. Ranged and Magic retain live GP/XP calculations but contribute zero active hours to the planner total.
+
+Farming economics buy the highest unlocked tree-run saplings and protection payments at live high prices and include gardener clearing fees. The reviewed schedule assumes one six-tree and six-fruit-tree run per day, four hardwood patches normalized by growth time, daily calquat and celastrus trees once unlocked, and the redwood patch normalized by its growth time. Efficient runs do not harvest or value fruit, bark, or logs; early quest XP remains visibly unpriced.
 
 Each skill owns a catalogue file under `src\RunescapeTools.Infrastructure\Training\Skills`. `MainEhpCatalogue` only composes those definitions in canonical Hiscores order, while shared item IDs and construction helpers remain centralized. Training definitions expose a stable default method ID and can accept additional named method routes without returning to a monolithic catalogue.
 

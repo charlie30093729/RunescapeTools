@@ -88,7 +88,7 @@
                     <ItemsControl Grid.Row="1" ItemsSource="{Binding Rows}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Grid MinHeight="58" Background="#FCFAF4" ToolTip="{Binding Note}">
+                                <Grid MinHeight="64" Background="#FCFAF4" ToolTip="{Binding Note}">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="145" /><ColumnDefinition Width="120" /><ColumnDefinition Width="120" />
                                         <ColumnDefinition Width="250" /><ColumnDefinition Width="120" /><ColumnDefinition Width="80" />
@@ -105,9 +105,21 @@
                                     <TextBox Grid.Column="2" Text="{Binding TargetExperience, UpdateSourceTrigger=LostFocus}" Style="{StaticResource Input}" Margin="0,9,8,9" Padding="8,5" FontSize="12" VerticalContentAlignment="Center" />
                                     <StackPanel Grid.Column="3" Margin="0,8,12,8" VerticalAlignment="Center">
                                         <TextBlock Text="{Binding Method}" FontWeight="SemiBold" FontSize="11" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
-                                        <TextBlock Text="{Binding GpPerHour}" Foreground="{StaticResource MutedBrush}" FontSize="9" Margin="0,3,0,0"
-                                                   ToolTip="Estimated GP per hour. Negative values are costs; positive values are profit."
-                                                   AutomationProperties.Name="Estimated GP per hour" />
+                                        <TextBlock Text="{Binding EconomicRate}" Foreground="{StaticResource MutedBrush}" FontSize="9" Margin="0,3,0,0"
+                                                   ToolTip="{Binding EconomicRateToolTip}"
+                                                   AutomationProperties.Name="Estimated economic rate" />
+                                        <TextBlock Text="{Binding CreditSummary}" Foreground="{StaticResource GoldBrush}" FontSize="9" Margin="0,2,0,0">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding HasExperienceCredit}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
                                     </StackPanel>
                                     <Grid Grid.Column="4" Margin="0,9,8,9">
                                         <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="28" /></Grid.ColumnDefinitions>

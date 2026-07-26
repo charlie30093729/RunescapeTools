@@ -9,6 +9,9 @@ internal static class DisplayFormat
     public static string GpPerHour(decimal? value) =>
         value.HasValue ? $"{value.Value:N0} gp/hr" : "Unavailable";
 
+    public static string GpPerExperience(decimal? value) =>
+        value.HasValue ? $"{value.Value:N2} gp/xp" : "Unavailable";
+
     public static string Quantity(decimal value) => value switch
     {
         < 1m => value.ToString("0.###"),

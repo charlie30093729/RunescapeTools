@@ -176,9 +176,9 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 
 | ID | Requirement |
 | --- | --- |
-| FR-XP-001 | The XP Planner shall show all 24 current skills in canonical Hiscores order. |
+| FR-XP-001 | The XP Planner shall show the 21 planned skills in canonical Hiscores order; Attack, Strength, and Hitpoints shall remain available to the Profile Dashboard but shall be omitted from the XP Planner as zero-time skills. |
 | FR-XP-002 | Start XP shall default to the successfully loaded profile, and every new per-profile goal shall default to 200,000,000 XP. |
-| FR-XP-003 | Hours shall be summed across every EHP rate band intersecting the start-to-goal range. |
+| FR-XP-003 | Active hours shall be summed across every counted EHP rate band intersecting the start-to-goal range; zero-time methods shall retain their economics while contributing no active hours. |
 | FR-XP-004 | The user shall be able to edit start XP, goal XP, and personal XP/hour and reset starts from the loaded profile. |
 | FR-XP-005 | A personal rate override shall scale all route-band rates proportionally without changing resource quantities per XP. |
 | FR-XP-006 | Training inputs shall use instant-buy/high prices and outputs shall use instant-sell/low prices, with visible fallback when only one quote side exists. |
@@ -191,11 +191,19 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | FR-XP-013 | Shooting-alt Hunter shall value one black chinchompa per 315 Hunter XP at the live low price after GE tax and disclose that PK losses and alt ammunition are excluded. |
 | FR-XP-014 | Solo mud Runecraft shall price level-appropriate essence, earth runes, binding necklaces, Magic Imbue runes, pouch-repair runes, and taxed mud-rune output; level 99 shall omit pouch-repair runes. |
 | FR-XP-015 | Hours shall represent active player time; the first release shall not claim calendar completion time for time-gated methods. |
-| FR-XP-016 | The method subtitle shall identify its monetary rate as `gp/hr`; negative values represent cost and positive values represent profit. |
+| FR-XP-016 | The method subtitle shall identify counted methods as `gp/hr` and zero-time methods as `gp/xp`; negative values represent cost and positive values represent profit. |
 | FR-XP-017 | Every skill definition shall expose a stable default method ID and support additional named method routes without changing the calculator contract. |
 | FR-XP-018 | The reviewed Gwenith Glide projection shall use a rosewood hull at 240,000 Sailing XP/hour, exclude multiskilling, and live-price the conversion of generated crystal shards into divine super combat potions after GE tax. |
-| FR-XP-019 | Gem knights and efficient tree-run projections shall remain visibly unpriced until their complete input and output ledgers have been reviewed. |
+| FR-XP-019 | Gem knights shall remain visibly unpriced until its complete input and output ledger has been reviewed. |
 | FR-XP-020 | The reviewed Hallowed Sepulchre projection shall apply 98,500 Agility XP/hour across the selected range, loot only the Floor 5 Grand Hallowed Coffin, price its expected tradeable loot and coin output, consume one stamina potion(4) per two coffins, and exclude Hallowed marks and elite clues from GP. |
+| FR-XP-021 | Defence shall use Black Chinchompas & Cannon - Defensive at 405,000 XP/hour and price 1,500 black chinchompas plus 6,000 cannonballs per active hour. |
+| FR-XP-022 | Ranged shall use Black Chinchompas & Cannon at 1,150,000 XP/hour for supply conversion and GP/XP, while contributing zero active hours; the projection shall price 1,866 black chinchompas plus 6,000 cannonballs per calculation hour. |
+| FR-XP-023 | Slayer shall use the reviewed 123,040 XP/hour task-list projection and generate pending Magic XP at the centralized ratio derived from 163,136,972 Magic XP across 6,578 tasks averaging 28,397 Slayer XP. No other Slayer secondary XP shall be applied in this release. |
+| FR-XP-024 | Pending Slayer Magic XP shall reduce only the residual Magic training required by the current plan and shall never replace or mutate the successfully loaded profile XP. |
+| FR-XP-025 | Magic shall price residual Ice Barrage supplies after pending Slayer credit using 1,085 casts per calculation hour, two blood and four death runes per cast, and the reviewed 15 percent Kodai rune-saving assumption; it shall contribute zero active hours. |
+| FR-XP-026 | Slayer supplies and loot shall use an explicit reviewed break-even assumption of 0 GP/XP while retaining active hours and pending Magic XP. |
+| FR-XP-027 | Farming tree-run bands from level 38 onward shall live-price the highest unlocked regular, fruit, hardwood, and special-tree saplings plus their protection payments and gardener clearing fees. |
+| FR-XP-028 | Farming economics shall assume one six-tree and six-fruit-tree run per day, normalize four hardwood patches and the redwood patch by growth time, complete calquat and celastrus daily once unlocked, and exclude unharvested fruit, bark, and logs from output value. Quest XP shall remain visibly unpriced. |
 
 ### 6.8 Method modularity
 

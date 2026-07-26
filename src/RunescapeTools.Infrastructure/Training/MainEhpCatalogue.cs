@@ -12,10 +12,7 @@ public sealed class MainEhpCatalogue : IEhpCatalogue
 
     public IReadOnlyList<TrainingSkillDefinition> Skills { get; } =
     [
-        AttackCatalogue.Create(),
         DefenceCatalogue.Create(),
-        StrengthCatalogue.Create(),
-        HitpointsCatalogue.Create(),
         RangedCatalogue.Create(),
         PrayerCatalogue.Create(),
         MagicCatalogue.Create(),
