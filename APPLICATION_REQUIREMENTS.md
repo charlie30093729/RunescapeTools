@@ -2,10 +2,10 @@
 
 | Field | Value |
 | --- | --- |
-| Document version | 1.3 |
+| Document version | 1.4 |
 | Application | RunescapeTools / GE Ledger |
 | Status | WPF MVP baseline |
-| Date | 21 July 2026 |
+| Date | 27 July 2026 |
 | Target platform | Windows 10 2004+ x64; .NET 8 WPF desktop application |
 
 ## 1. Purpose
@@ -211,6 +211,7 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | FR-XP-032 | Money-maker income shall equal the selected method's combined GP/hour across the chosen account quantity multiplied only by the active planner hours of selected skills and shall be added to Priced Net GP. Zero-time skills shall add no money-making hours. |
 | FR-XP-033 | Per-skill money-making allocations shall persist per RSN with training goals, starts, and personal rates. The selected method and its per-method account quantities shall remain session state and shall not be silently restored after application restart. |
 | FR-XP-034 | Opening Money Makers without a shared selection shall not automatically select a default method; only a successfully priced explicit selection shall become available to the XP Planner. |
+| FR-XP-035 | Every XP Planner skill tooltip shall list the active method's live market resources, suggest input purchases at the same high price used by the calculator, suggest output sales at the same low price used by the calculator, show the selected quote timestamp, identify fallback or unavailable prices, and disclose that recent completed trades do not guarantee offer execution. |
 | FR-XP-029 | Herblore potion economics shall include the average Prescription goggles secondary saving, Alchemist's amulet extra-dose output, and the Amulets of chemistry consumed to recharge it by default; ineligible future potion routes shall opt out explicitly. |
 
 ### 6.8 Method modularity

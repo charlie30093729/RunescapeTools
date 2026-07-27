@@ -39,7 +39,7 @@ public partial class XpPlannerRowViewModel : ObservableObject
     private string economicRate = "Not priced";
 
     [ObservableProperty]
-    private string economicRateToolTip = "Estimated GP per hour.";
+    private string priceToolTip = "No live Grand Exchange ingredients are defined for this method.";
 
     [ObservableProperty]
     private string creditSummary = string.Empty;
@@ -196,9 +196,7 @@ public partial class XpPlannerRowViewModel : ObservableObject
                 : Result.AverageGpPerHour.HasValue
                     ? DisplayFormat.GpPerHour(Result.AverageGpPerHour)
                     : "Not priced";
-            EconomicRateToolTip = Definition.IsZeroTime
-                ? "Estimated GP per XP. This method contributes zero active hours."
-                : "Estimated GP per hour. Negative values are costs; positive values are profit.";
+            PriceToolTip = BuildPriceToolTip(activeBand);
             HasExperienceCredit = Result.AppliedExperienceCredit > 0;
             CreditSummary = HasExperienceCredit
                 ? $"+{Result.AppliedExperienceCredit:N0} XP pending from Slayer"
@@ -214,6 +212,52 @@ public partial class XpPlannerRowViewModel : ObservableObject
         {
             suppressChanges = false;
         }
+    }
+
+    private string BuildPriceToolTip(TrainingRateBand? activeBand)
+    {
+        if (activeBand is null)
+            return "No current training method is available.";
+
+        var lines = new List<string>
+        {
+            activeBand.Method,
+            "Suggested Grand Exchange offers"
+        };
+        var resources = activeBand.Economics?.Resources;
+        if (resources is not { Count: > 0 })
+        {
+            lines.Add("No live Grand Exchange ingredients are defined for this method.");
+        }
+        else
+        {
+            foreach (var resource in resources.DistinctBy(item => (item.ItemId, item.Direction)))
+            {
+                prices.TryGetValue(resource.ItemId, out var quote);
+                var selected = TrainingMarketPricing.Select(resource.Direction, quote);
+                var action = resource.Direction == TrainingFlowDirection.Input ? "Buy" : "Sell";
+                var side = resource.Direction == TrainingFlowDirection.Input ? "high" : "low";
+                var fallbackSide = resource.Direction == TrainingFlowDirection.Input ? "low" : "high";
+                var price = selected.UnitPrice.HasValue
+                    ? $"{selected.UnitPrice.Value:N0} gp"
+                    : "unavailable";
+                var source = !selected.UnitPrice.HasValue
+                    ? "no high or low quote"
+                    : selected.UsedFallbackPrice
+                        ? $"{fallbackSide} fallback"
+                        : side;
+                var timestamp = selected.Timestamp.HasValue
+                    ? $" · {selected.Timestamp.Value.ToUniversalTime():yyyy-MM-dd HH:mm} UTC"
+                    : string.Empty;
+
+                lines.Add($"{action} {resource.Name} @ {price} ({source}{timestamp})");
+            }
+        }
+
+        lines.Add(string.Empty);
+        lines.Add("Inputs use latest high; outputs use latest low.");
+        lines.Add("These are recent completed trades, not guaranteed offers.");
+        return string.Join(Environment.NewLine, lines);
     }
 }
 

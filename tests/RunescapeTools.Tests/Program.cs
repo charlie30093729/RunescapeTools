@@ -58,6 +58,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("hourly training costs respond to personal rate overrides", () => RunSync(HourlyTrainingEconomics)),
     ("money-maker profit applies only to selected non-negative skill hours", () => RunSync(TrainingMoneyMakerAllocation)),
     ("training plans persist independently per RSN", TrainingPlanPersistence),
+    ("XP Planner tooltips use live high buys and low sells", () => RunSync(XpPlannerPriceTooltips)),
     ("XP planner allocates money-maker profit to selected skill hours", XpPlannerViewModelFlow),
     ("XP planner remains usable when live prices fail", XpPlannerPriceFailure),
     ("shell navigation loads the requested page", ShellNavigation),
@@ -1314,6 +1315,77 @@ static decimal TotalResourceQuantity(
     }
 
     return total;
+}
+
+static void XpPlannerPriceTooltips()
+{
+    var timestamp = new DateTimeOffset(2026, 7, 27, 5, 30, 0, TimeSpan.Zero);
+    var prices = new Dictionary<int, ItemPrice>
+    {
+        [3002] = new ItemPrice(3002, 10_000, 9_000, timestamp, timestamp.AddMinutes(-1)),
+        [6693] = new ItemPrice(6693, 5_000, 4_500, timestamp.AddMinutes(-2), timestamp.AddMinutes(-3)),
+        [21163] = new ItemPrice(21163, 2_000, 1_800, timestamp.AddMinutes(-4), timestamp.AddMinutes(-5)),
+        [6687] = new ItemPrice(6687, 12_000, 11_000, timestamp.AddMinutes(-6), timestamp.AddMinutes(-7))
+    };
+    var definition = new MainEhpCatalogue().Skills.Single(skill => skill.Skill == "Herblore");
+    var row = new XpPlannerRowViewModel(
+        definition,
+        new TrainingPlanCalculator(),
+        13_034_431,
+        null,
+        prices,
+        () => { });
+
+    Equal("Saradomin brews", row.Method, "active Herblore method");
+    True(
+        row.PriceToolTip.Contains(
+            "Buy Toadflax potion (unf) @ 10,000 gp (high · 2026-07-27 05:30 UTC)",
+            StringComparison.Ordinal),
+        "base potion uses latest high");
+    True(
+        row.PriceToolTip.Contains(
+            "Buy Crushed nest @ 5,000 gp (high · 2026-07-27 05:28 UTC)",
+            StringComparison.Ordinal),
+        "secondary ingredient uses latest high");
+    True(
+        row.PriceToolTip.Contains(
+            "Buy Amulet of chemistry @ 2,000 gp (high · 2026-07-27 05:26 UTC)",
+            StringComparison.Ordinal),
+        "equipment charge input uses latest high");
+    True(
+        row.PriceToolTip.Contains(
+            "Sell Saradomin brew(3) @ 11,000 gp (low · 2026-07-27 05:23 UTC)",
+            StringComparison.Ordinal),
+        "finished potion uses latest low");
+    True(
+        row.PriceToolTip.Contains("not guaranteed offers", StringComparison.OrdinalIgnoreCase),
+        "tooltip discloses execution uncertainty");
+
+    var fallbackPrices = new Dictionary<int, ItemPrice>(prices)
+    {
+        [6693] = new ItemPrice(6693, null, 4_500, null, timestamp.AddMinutes(-3))
+    };
+    row.UpdatePrices(fallbackPrices);
+    True(
+        row.PriceToolTip.Contains(
+            "Buy Crushed nest @ 4,500 gp (low fallback · 2026-07-27 05:27 UTC)",
+            StringComparison.Ordinal),
+        "missing buy quote exposes low fallback");
+
+    var outputFallback = TrainingMarketPricing.Select(
+        TrainingFlowDirection.Output,
+        new ItemPrice(6687, 12_000, null, timestamp, null));
+    Equal(12_000L, outputFallback.UnitPrice ?? 0L, "output high fallback price");
+    True(outputFallback.UsedFallbackPrice, "output high fallback state");
+
+    var missingPrices = new Dictionary<int, ItemPrice>(prices);
+    missingPrices.Remove(21163);
+    row.UpdatePrices(missingPrices);
+    True(
+        row.PriceToolTip.Contains(
+            "Buy Amulet of chemistry @ unavailable (no high or low quote)",
+            StringComparison.Ordinal),
+        "missing ingredient price is visible");
 }
 
 static async Task TrainingPlanPersistence()

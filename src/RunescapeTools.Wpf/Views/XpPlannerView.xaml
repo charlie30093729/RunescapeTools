@@ -2,6 +2,12 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:controls="clr-namespace:RunescapeTools.Wpf.Controls">
+    <UserControl.Resources>
+        <Style TargetType="{x:Type ToolTip}">
+            <Setter Property="MaxWidth" Value="560" />
+            <Setter Property="Padding" Value="12,9" />
+        </Style>
+    </UserControl.Resources>
     <Grid Margin="30,24,30,28">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -131,7 +137,8 @@
                     <DataTemplate>
                         <ToggleButton Width="36" Height="36" Margin="2,0"
                                       IsChecked="{Binding IsMoneyMakingSelected, Mode=TwoWay}"
-                                      ToolTip="{Binding Skill}"
+                                      ToolTip="{Binding PriceToolTip}"
+                                      ToolTipService.ShowDuration="30000"
                                       AutomationProperties.Name="{Binding Skill, StringFormat=Money make during {0}}">
                             <ToggleButton.Style>
                                 <Style TargetType="ToggleButton">
@@ -194,7 +201,8 @@
                     <ItemsControl Grid.Row="1" ItemsSource="{Binding Rows}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Grid MinHeight="64" Background="#FCFAF4" ToolTip="{Binding Note}">
+                                <Grid MinHeight="64" Background="#FCFAF4" ToolTip="{Binding PriceToolTip}"
+                                      ToolTipService.ShowDuration="30000">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="145" /><ColumnDefinition Width="120" /><ColumnDefinition Width="120" />
                                         <ColumnDefinition Width="250" /><ColumnDefinition Width="120" /><ColumnDefinition Width="80" />
@@ -214,9 +222,9 @@
                                     <StackPanel Grid.Column="3" Margin="0,8,12,8" VerticalAlignment="Center">
                                         <TextBlock Text="{Binding Method}" FontWeight="SemiBold" FontSize="11"
                                                    TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
-                                                   ToolTip="{Binding Note}" />
+                                                   ToolTip="{Binding PriceToolTip}" />
                                         <TextBlock Text="{Binding EconomicRate}" Foreground="{StaticResource MutedBrush}" FontSize="9" Margin="0,3,0,0"
-                                                   ToolTip="{Binding EconomicRateToolTip}"
+                                                   ToolTip="{Binding PriceToolTip}"
                                                    AutomationProperties.Name="Estimated economic rate" />
                                         <TextBlock Text="{Binding CreditSummary}" Foreground="{StaticResource GoldBrush}" FontSize="9" Margin="0,2,0,0">
                                             <TextBlock.Style>
