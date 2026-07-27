@@ -56,6 +56,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<MoneyMakingCalculator>();
         services.AddSingleton<IEhpCatalogue, MainEhpCatalogue>();
         services.AddSingleton<TrainingPlanCalculator>();
+        services.AddSingleton<TrainingMoneyMakingCalculator>();
 
         if (trainingPlanOptions is not null)
         {

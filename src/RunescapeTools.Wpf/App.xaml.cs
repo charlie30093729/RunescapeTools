@@ -118,6 +118,7 @@ public partial class App : System.Windows.Application
         builder.Services.AddSingleton<ProfileViewModel>();
         builder.Services.AddSingleton<DashboardViewModel>();
         builder.Services.AddSingleton<FavouritesViewModel>();
+        builder.Services.AddSingleton<MoneyMakerSelectionContext>();
         builder.Services.AddSingleton<MoneyMakersViewModel>();
         builder.Services.AddSingleton<XpPlannerViewModel>();
         builder.Services.AddSingleton<ShellViewModel>();

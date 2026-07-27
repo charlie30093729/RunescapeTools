@@ -25,10 +25,13 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
 {
     private readonly MoneyMakingCalculator calculator;
     private readonly IMarketDataService marketData;
+    private readonly MoneyMakerSelectionContext selectionContext;
     private CancellationTokenSource? calculationCancellation;
     private bool initialized;
+    private bool synchronizingSelection;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSelectedMethod))]
     private MoneyMethodRow? selectedMethod;
 
     [ObservableProperty]
@@ -38,13 +41,14 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
     private string? errorMessage;
 
     [ObservableProperty]
-    private string methodKicker = string.Empty;
+    private string methodKicker = "NO METHOD SELECTED";
 
     [ObservableProperty]
-    private string methodName = string.Empty;
+    private string methodName = "Select a money maker";
 
     [ObservableProperty]
-    private string methodDescription = string.Empty;
+    private string methodDescription =
+        "Choose a method from the list to price it and make it available to the XP Planner.";
 
     [ObservableProperty]
     private string profitAllAccounts = "Unavailable";
@@ -73,10 +77,13 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
     public MoneyMakersViewModel(
         IEnumerable<IMoneyMakingMethod> methods,
         MoneyMakingCalculator calculator,
-        IMarketDataService marketData)
+        IMarketDataService marketData,
+        MoneyMakerSelectionContext selectionContext)
     {
         this.calculator = calculator;
         this.marketData = marketData;
+        this.selectionContext = selectionContext;
+        selectionContext.SelectionChanged += OnSharedSelectionChanged;
         var index = 1;
         foreach (var method in methods.OrderBy(method => method.Definition.Name))
             Methods.Add(new MoneyMethodRow(method, index++.ToString("00")));
@@ -85,12 +92,19 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
     public ObservableCollection<MoneyMethodRow> Methods { get; } = [];
     public ObservableCollection<MoneyFlowRow> FlowRows { get; } = [];
     public bool HasMethods => Methods.Count > 0;
+    public bool HasSelectedMethod => SelectedMethod is not null;
 
     public async Task LoadAsync(CancellationToken cancellationToken = default)
     {
         if (!initialized)
         {
-            SelectedMethod = Methods.FirstOrDefault();
+            var selectedSlug = selectionContext.Current?.Slug;
+            synchronizingSelection = true;
+            SelectedMethod = selectedSlug is null
+                ? null
+                : Methods.FirstOrDefault(row =>
+                    row.Method.Definition.Slug.Equals(selectedSlug, StringComparison.OrdinalIgnoreCase));
+            synchronizingSelection = false;
             initialized = true;
         }
 
@@ -100,11 +114,27 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
 
     partial void OnSelectedMethodChanged(MoneyMethodRow? value)
     {
-        if (!initialized || value is null)
+        if (synchronizingSelection || !initialized)
             return;
 
         calculationCancellation?.Cancel();
         calculationCancellation?.Dispose();
+        if (value is null)
+        {
+            selectionContext.Clear();
+            ResetMethodDisplay();
+            return;
+        }
+
+        if (!value.Method.Definition.Slug.Equals(
+                selectionContext.Current?.Slug,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            synchronizingSelection = true;
+            selectionContext.Clear();
+            synchronizingSelection = false;
+        }
+
         calculationCancellation = new CancellationTokenSource();
         _ = PriceMethodAsync(value, calculationCancellation.Token);
     }
@@ -138,6 +168,11 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
             ProfitPerAccount = DisplayFormat.Gp(result.ProfitPerAccount);
             AccountSummary = $"across {result.Method.Accounts} accounts";
             HasMissingPrices = result.HasMissingPrices;
+            selectionContext.Select(
+                result.Method.Slug,
+                result.Method.Name,
+                result.ProfitPerAccount,
+                result.HasMissingPrices);
 
             foreach (var line in result.Lines.OrderBy(line => line.Item.Direction))
             {
@@ -164,5 +199,37 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
             if (!cancellationToken.IsCancellationRequested)
                 IsLoading = false;
         }
+    }
+
+    private void OnSharedSelectionChanged(object? sender, EventArgs eventArgs)
+    {
+        if (synchronizingSelection || selectionContext.Current is not null)
+            return;
+
+        calculationCancellation?.Cancel();
+        calculationCancellation?.Dispose();
+        calculationCancellation = null;
+        synchronizingSelection = true;
+        SelectedMethod = null;
+        synchronizingSelection = false;
+        ResetMethodDisplay();
+    }
+
+    private void ResetMethodDisplay()
+    {
+        MethodKicker = "NO METHOD SELECTED";
+        MethodName = "Select a money maker";
+        MethodDescription =
+            "Choose a method from the list to price it and make it available to the XP Planner.";
+        ProfitAllAccounts = "Unavailable";
+        IsProfitPositive = true;
+        GrossSales = "Unavailable";
+        Tax = "Unavailable";
+        Supplies = "Unavailable";
+        ProfitPerAccount = "Unavailable";
+        AccountSummary = string.Empty;
+        HasMissingPrices = false;
+        ErrorMessage = null;
+        FlowRows.Clear();
     }
 }
