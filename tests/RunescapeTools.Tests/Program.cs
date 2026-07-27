@@ -17,6 +17,7 @@ using RunescapeTools.Infrastructure.Persistence;
 using RunescapeTools.Infrastructure.Profiles;
 using RunescapeTools.Infrastructure.Training;
 using RunescapeTools.Wpf.ViewModels;
+using RunescapeTools.Wpf.Views;
 
 var tests = new (string Name, Func<Task> Run)[]
 {
@@ -39,7 +40,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("profile context preserves valid state on failure and publishes refreshes", ProfileContextStateFlow),
     ("dashboard view-model loads and reports failures", DashboardViewModelStates),
     ("favourites view-model searches, adds, selects, and removes", FavouritesViewModelFlow),
-    ("money-maker view-model reprices the complete ledger", MoneyMakerViewModelFlow),
+    ("money-maker view-model shares and resets the priced selection", MoneyMakerViewModelFlow),
     ("profile view-model loads defaults and keeps valid data on errors", ProfileViewModelFlow),
     ("EHP catalogue covers every skill and ordered rate band", () => RunSync(EhpCatalogueCoverage)),
     ("training definitions support stable default and alternative methods", () => RunSync(TrainingMethodSelection)),
@@ -55,9 +56,12 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Construction route reproduces Main EHP hours and live-price economics", () => RunSync(ConstructionTrainingCalculation)),
     ("training rate overrides scale hours without changing total resources", () => RunSync(TrainingRateOverride)),
     ("hourly training costs respond to personal rate overrides", () => RunSync(HourlyTrainingEconomics)),
+    ("money-maker profit applies only to selected non-negative skill hours", () => RunSync(TrainingMoneyMakerAllocation)),
     ("training plans persist independently per RSN", TrainingPlanPersistence),
-    ("XP planner loads profile goals and construction pricing", XpPlannerViewModelFlow),
-    ("shell navigation loads the requested page", ShellNavigation)
+    ("XP planner allocates money-maker profit to selected skill hours", XpPlannerViewModelFlow),
+    ("XP planner remains usable when live prices fail", XpPlannerPriceFailure),
+    ("shell navigation loads the requested page", ShellNavigation),
+    ("WPF profile and XP Planner views construct successfully", WpfViewsConstruct)
 };
 
 var failures = new List<string>();
@@ -474,17 +478,29 @@ static async Task FavouritesViewModelFlow()
 static async Task MoneyMakerViewModelFlow()
 {
     var method = new VyrewatchMethod();
+    var selection = new MoneyMakerSelectionContext();
     var market = new FakeMarketDataService
     {
         Latest = method.Definition.RequiredItemIds.ToDictionary(id => id, id => Quote(id, 1_000))
     };
-    var viewModel = new MoneyMakersViewModel([method], new MoneyMakingCalculator(), market);
+    var viewModel = new MoneyMakersViewModel(
+        [method],
+        new MoneyMakingCalculator(),
+        market,
+        selection);
 
     await viewModel.LoadAsync();
+    True(viewModel.SelectedMethod is null, "money maker should require an explicit selection");
+    viewModel.SelectedMethod = viewModel.Methods.Single();
 
     Equal(method.Definition.Items.Count, viewModel.FlowRows.Count, "money-making ledger rows");
     True(viewModel.ProfitAllAccounts.EndsWith(" gp", StringComparison.Ordinal), "formatted total profit");
     True(!viewModel.HasMissingPrices, "complete pricing state");
+    Equal(method.Definition.Slug, selection.Current?.Slug ?? string.Empty, "shared money-maker selection");
+
+    selection.Clear();
+    True(viewModel.SelectedMethod is null, "external reset clears Money Makers selection");
+    Equal(0, viewModel.FlowRows.Count, "external reset clears displayed ledger");
 }
 
 static async Task ProfileViewModelFlow()
@@ -1205,6 +1221,18 @@ static void HourlyTrainingEconomics()
     EqualDecimal(-550m, doubled.NetGp ?? 0m, "doubled hourly-method cost");
 }
 
+static void TrainingMoneyMakerAllocation()
+{
+    var calculator = new TrainingMoneyMakingCalculator();
+    var result = calculator.Calculate(2_400_000m, [10m, 2.5m, -4m]);
+    EqualDecimal(12.5m, result.SelectedHours, "selected money-making hours");
+    EqualDecimal(30_000_000m, result.NetGp, "selected money-making GP");
+
+    var noMethod = calculator.Calculate(null, [12.5m]);
+    EqualDecimal(12.5m, noMethod.SelectedHours, "selected hours remain visible without a method");
+    EqualDecimal(0m, noMethod.NetGp, "no method contributes zero GP");
+}
+
 static TrainingRateBand TrainingBand(MainEhpCatalogue catalogue, string skill, long startExperience) =>
     catalogue.Skills.Single(definition => definition.Skill == skill)
         .Bands.Single(band => band.StartExperience == startExperience);
@@ -1252,7 +1280,9 @@ static async Task TrainingPlanPersistence()
     {
         var path = Path.Combine(directory, "training-plans.json");
         var store = new JsonTrainingPlanStore(new TrainingPlanOptions { FilePath = path });
-        await store.SaveAsync("Player One", [new TrainingSkillPreference("Construction", 200_000_000, 0, 1_070_000)]);
+        await store.SaveAsync(
+            "Player One",
+            [new TrainingSkillPreference("Construction", 200_000_000, 0, 1_070_000, true)]);
         await store.SaveAsync("Player Two", [new TrainingSkillPreference("Construction", 13_034_431)]);
 
         var first = await store.GetAsync(" player one ");
@@ -1260,6 +1290,7 @@ static async Task TrainingPlanPersistence()
         Equal(200_000_000L, first["Construction"].TargetExperience, "first profile goal");
         Equal(13_034_431L, second["Construction"].TargetExperience, "second profile goal");
         True(first["Construction"].StartExperienceOverride == 0, "explicit zero-XP override persists");
+        True(first["Construction"].IsMoneyMakingSelected, "money-making skill allocation persists");
     }
     finally
     {
@@ -1281,9 +1312,11 @@ static async Task XpPlannerViewModelFlow()
     var viewModel = new XpPlannerViewModel(
         new MainEhpCatalogue(),
         new TrainingPlanCalculator(),
+        new TrainingMoneyMakingCalculator(),
         market,
         new MemoryTrainingPlanStore(),
-        context);
+        context,
+        new MoneyMakerSelectionContext());
 
     await viewModel.LoadAsync();
     Equal(21, viewModel.Rows.Count, "XP planner row count");
@@ -1303,6 +1336,38 @@ static async Task XpPlannerViewModelFlow()
     EqualDecimal(54_700m, construction.PersonalRate, "reset current method rate");
     Equal("142.8", construction.Hours, "reset restores catalogue hours");
 
+    var moneyMakerSelection = new MoneyMakerSelectionContext();
+    var allocatedViewModel = new XpPlannerViewModel(
+        new MainEhpCatalogue(),
+        new TrainingPlanCalculator(),
+        new TrainingMoneyMakingCalculator(),
+        market,
+        new MemoryTrainingPlanStore(),
+        context,
+        moneyMakerSelection);
+    await allocatedViewModel.LoadAsync();
+    var allocatedConstruction = allocatedViewModel.Rows.Single(row => row.Skill == "Construction");
+    allocatedConstruction.StartExperience = 0;
+    allocatedConstruction.IsMoneyMakingSelected = true;
+    moneyMakerSelection.Select("vyrewatch-sentinels", "Vyrewatch Sentinels", 2_400_000m, false);
+    EqualDecimal(
+        allocatedConstruction.Result.Hours,
+        allocatedViewModel.SelectedMoneyMakingHours,
+        "only selected skill hours receive money-maker profit");
+    EqualDecimal(
+        allocatedConstruction.Result.Hours * 2_400_000m,
+        allocatedViewModel.MoneyMakerGpContribution,
+        "money-maker contribution");
+    var zeroTimeRanged = allocatedViewModel.Rows.Single(row => row.Skill == "Ranged");
+    zeroTimeRanged.IsMoneyMakingSelected = true;
+    EqualDecimal(
+        allocatedConstruction.Result.Hours,
+        allocatedViewModel.SelectedMoneyMakingHours,
+        "zero-time selected skills do not add money-making hours");
+    allocatedViewModel.ResetMoneyMakerCommand.Execute(null);
+    True(moneyMakerSelection.Current is null, "XP Planner reset clears shared money maker");
+    EqualDecimal(0m, allocatedViewModel.MoneyMakerGpContribution, "reset removes money-maker contribution");
+
     var slayer = viewModel.Rows.Single(row => row.Skill == "Slayer");
     var magic = viewModel.Rows.Single(row => row.Skill == "Magic");
     slayer.StartExperience = 0;
@@ -1321,7 +1386,12 @@ static async Task ShellNavigation()
     var market = new FakeMarketDataService();
     var dashboard = new DashboardViewModel(store, market, [new VyrewatchMethod()]);
     var favourites = new FavouritesViewModel(store, market, TimeProvider.System);
-    var money = new MoneyMakersViewModel([new VyrewatchMethod()], new MoneyMakingCalculator(), market);
+    var moneyMakerSelection = new MoneyMakerSelectionContext();
+    var money = new MoneyMakersViewModel(
+        [new VyrewatchMethod()],
+        new MoneyMakingCalculator(),
+        market,
+        moneyMakerSelection);
     var profileContext = new CurrentProfileContext(
         new FakeHiscoreClient(),
         new HiscoreParser(TimeProvider.System),
@@ -1330,9 +1400,11 @@ static async Task ShellNavigation()
     var xpPlanner = new XpPlannerViewModel(
         new MainEhpCatalogue(),
         new TrainingPlanCalculator(),
+        new TrainingMoneyMakingCalculator(),
         market,
         new MemoryTrainingPlanStore(),
-        profileContext);
+        profileContext,
+        moneyMakerSelection);
     var shell = new ShellViewModel(profile, dashboard, favourites, money, xpPlanner);
 
     await shell.InitializeAsync();
@@ -1341,6 +1413,96 @@ static async Task ShellNavigation()
 
     Equal(PageKind.Favourites, shell.CurrentPageKind, "selected page");
     True(ReferenceEquals(favourites, shell.CurrentPage), "active page instance");
+
+    await shell.NavigateCommand.ExecuteAsync("XpPlanner");
+
+    Equal(PageKind.XpPlanner, shell.CurrentPageKind, "XP Planner selected page");
+    True(ReferenceEquals(xpPlanner, shell.CurrentPage), "XP Planner active page instance");
+    True(xpPlanner.Rows.Count > 0, "XP Planner rows loaded through shell navigation");
+}
+
+static async Task XpPlannerPriceFailure()
+{
+    var market = new FakeMarketDataService
+    {
+        Failure = new HttpRequestException("Market unavailable")
+    };
+    var profileContext = new CurrentProfileContext(
+        new FakeHiscoreClient(),
+        new HiscoreParser(TimeProvider.System),
+        new MemoryProfilePreferenceStore("bottleo"));
+    var viewModel = new XpPlannerViewModel(
+        new MainEhpCatalogue(),
+        new TrainingPlanCalculator(),
+        new TrainingMoneyMakingCalculator(),
+        market,
+        new MemoryTrainingPlanStore(),
+        profileContext,
+        new MoneyMakerSelectionContext());
+
+    await viewModel.LoadAsync();
+
+    True(viewModel.Rows.Count > 0, "catalogue rows remain available");
+    True(viewModel.ErrorMessage?.Contains("prices", StringComparison.OrdinalIgnoreCase) == true, "price warning is shown");
+    True(viewModel.Rows.Any(row => row.TotalGp == "Not priced"), "affected economics remain visibly unpriced");
+}
+
+static Task WpfViewsConstruct()
+{
+    Exception? failure = null;
+    var thread = new Thread(() =>
+    {
+        RunescapeTools.Wpf.App? application = null;
+        try
+        {
+            application = new RunescapeTools.Wpf.App();
+            application.InitializeComponent();
+            var market = new FakeMarketDataService();
+            var profileContext = new CurrentProfileContext(
+                new FakeHiscoreClient(),
+                new HiscoreParser(TimeProvider.System),
+                new MemoryProfilePreferenceStore("bottleo"));
+            var viewModel = new XpPlannerViewModel(
+                new MainEhpCatalogue(),
+                new TrainingPlanCalculator(),
+                new TrainingMoneyMakingCalculator(),
+                market,
+                new MemoryTrainingPlanStore(),
+                profileContext,
+                new MoneyMakerSelectionContext());
+            viewModel.LoadAsync().GetAwaiter().GetResult();
+
+            _ = new ProfileView();
+            var plannerView = new XpPlannerView { DataContext = viewModel };
+            var window = new System.Windows.Window
+            {
+                Content = plannerView,
+                Width = 1280,
+                Height = 800,
+                ShowInTaskbar = false,
+                WindowStyle = System.Windows.WindowStyle.None
+            };
+            window.Show();
+            plannerView.UpdateLayout();
+            window.Close();
+        }
+        catch (Exception exception)
+        {
+            failure = exception;
+        }
+        finally
+        {
+            application?.Shutdown();
+        }
+    });
+    thread.SetApartmentState(ApartmentState.STA);
+    thread.Start();
+    thread.Join();
+
+    if (failure is not null)
+        throw new InvalidOperationException("WPF view construction failed.", failure);
+
+    return Task.CompletedTask;
 }
 
 static string HiscoreResponse(int skillLevel = 99)

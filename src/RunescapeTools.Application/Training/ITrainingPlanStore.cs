@@ -4,7 +4,8 @@ public sealed record TrainingSkillPreference(
     string Skill,
     long TargetExperience,
     long? StartExperienceOverride = null,
-    decimal? ExperiencePerHourOverride = null);
+    decimal? ExperiencePerHourOverride = null,
+    bool IsMoneyMakingSelected = false);
 
 public interface ITrainingPlanStore
 {

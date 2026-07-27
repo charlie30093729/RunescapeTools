@@ -204,6 +204,12 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | FR-XP-026 | Slayer supplies and loot shall use an explicit reviewed break-even assumption of 0 GP/XP while retaining active hours and pending Magic XP. |
 | FR-XP-027 | Farming tree-run bands from level 38 onward shall live-price the highest unlocked regular, fruit, hardwood, and special-tree saplings plus their protection payments and gardener clearing fees. |
 | FR-XP-028 | Farming economics shall assume one six-tree and six-fruit-tree run per day, normalize four hardwood patches and the redwood patch by growth time, complete calquat and celastrus daily once unlocked, and exclude unharvested fruit, bark, and logs from output value. Quest XP shall remain visibly unpriced. |
+| FR-XP-029 | The fourth XP Planner summary card shall display the successfully priced method currently selected in Money Makers and navigate to Money Makers when clicked. |
+| FR-XP-030 | The selected money-maker card shall provide a Reset action that clears the shared selection and deselects the corresponding Money Makers row without clearing skill allocations. |
+| FR-XP-031 | The XP Planner shall provide a horizontal clickable bar of its OSRS skill icons under the instruction `Select skills to money make during`; selected icons shall be visually distinct. |
+| FR-XP-032 | Money-maker income shall equal the selected method's per-account GP/hour multiplied only by the active planner hours of selected skills and shall be added to Priced Net GP. Zero-time skills shall add no money-making hours. |
+| FR-XP-033 | Per-skill money-making allocations shall persist per RSN with training goals, starts, and personal rates. The selected method shall remain session state and shall not be silently restored after application restart. |
+| FR-XP-034 | Opening Money Makers without a shared selection shall not automatically select a default method; only a successfully priced explicit selection shall become available to the XP Planner. |
 | FR-XP-029 | Herblore potion economics shall include the average Prescription goggles secondary saving, Alchemist's amulet extra-dose output, and the Amulets of chemistry consumed to recharge it by default; ineligible future potion routes shall opt out explicitly. |
 
 ### 6.8 Method modularity

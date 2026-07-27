@@ -1,6 +1,7 @@
 <UserControl x:Class="RunescapeTools.Wpf.Views.ProfileView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:RunescapeTools.Wpf.Controls">
     <ScrollViewer>
         <StackPanel Margin="32,28,32,34">
             <Grid Margin="0,0,0,22">
@@ -116,9 +117,10 @@
                                                    FontWeight="Bold" FontSize="11" Foreground="{StaticResource GoldDarkBrush}" />
                                     </Border>
                                     <Border Background="{StaticResource PaperLightBrush}" Width="42" Height="42">
-                                        <Image Source="{Binding IconUrl}" Width="34" Height="34" Stretch="Uniform"
-                                               RenderOptions.BitmapScalingMode="HighQuality"
-                                               ImageFailed="SkillIconFailed" />
+                                        <controls:SafeImage Source="{Binding IconUrl}" Width="34" Height="34"
+                                                            Stretch="Uniform"
+                                                            RenderOptions.BitmapScalingMode="HighQuality"
+                                                            CollapseParentOnFailure="True" />
                                     </Border>
                                 </Grid>
                                 <StackPanel Grid.Column="1" MinWidth="0">
