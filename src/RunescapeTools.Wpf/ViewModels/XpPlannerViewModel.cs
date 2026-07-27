@@ -322,7 +322,20 @@ public partial class XpPlannerViewModel : ObservableObject, IPageViewModel
                 .SelectMany(band => band.Economics!.Resources)
                 .Select(resource => resource.ItemId)
                 .Distinct();
-            prices = await marketData.GetLatestForAsync(itemIds, cancellationToken);
+            var priceLoadFailed = false;
+            try
+            {
+                prices = await marketData.GetLatestForAsync(itemIds, cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception)
+            {
+                prices = new Dictionary<int, ItemPrice>();
+                priceLoadFailed = true;
+            }
 
             suppressRowChanges = true;
             Rows.Clear();
@@ -343,6 +356,8 @@ public partial class XpPlannerViewModel : ObservableObject, IPageViewModel
             ProfileName = profile.Rsn;
             initialized = true;
             RecalculateSummary();
+            if (priceLoadFailed)
+                ErrorMessage = "Live GE prices are temporarily unavailable; the planner remains usable and affected methods are shown as unpriced.";
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
