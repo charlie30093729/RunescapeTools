@@ -58,6 +58,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("money-maker profit applies only to selected non-negative skill hours", () => RunSync(TrainingMoneyMakerAllocation)),
     ("training plans persist independently per RSN", TrainingPlanPersistence),
     ("XP planner allocates money-maker profit to selected skill hours", XpPlannerViewModelFlow),
+    ("XP planner remains usable when live prices fail", XpPlannerPriceFailure),
     ("shell navigation loads the requested page", ShellNavigation)
 };
 
@@ -1410,6 +1411,38 @@ static async Task ShellNavigation()
 
     Equal(PageKind.Favourites, shell.CurrentPageKind, "selected page");
     True(ReferenceEquals(favourites, shell.CurrentPage), "active page instance");
+
+    await shell.NavigateCommand.ExecuteAsync("XpPlanner");
+
+    Equal(PageKind.XpPlanner, shell.CurrentPageKind, "XP Planner selected page");
+    True(ReferenceEquals(xpPlanner, shell.CurrentPage), "XP Planner active page instance");
+    True(xpPlanner.Rows.Count > 0, "XP Planner rows loaded through shell navigation");
+}
+
+static async Task XpPlannerPriceFailure()
+{
+    var market = new FakeMarketDataService
+    {
+        Failure = new HttpRequestException("Market unavailable")
+    };
+    var profileContext = new CurrentProfileContext(
+        new FakeHiscoreClient(),
+        new HiscoreParser(TimeProvider.System),
+        new MemoryProfilePreferenceStore("bottleo"));
+    var viewModel = new XpPlannerViewModel(
+        new MainEhpCatalogue(),
+        new TrainingPlanCalculator(),
+        new TrainingMoneyMakingCalculator(),
+        market,
+        new MemoryTrainingPlanStore(),
+        profileContext,
+        new MoneyMakerSelectionContext());
+
+    await viewModel.LoadAsync();
+
+    True(viewModel.Rows.Count > 0, "catalogue rows remain available");
+    True(viewModel.ErrorMessage?.Contains("prices", StringComparison.OrdinalIgnoreCase) == true, "price warning is shown");
+    True(viewModel.Rows.Any(row => row.TotalGp == "Not priced"), "affected economics remain visibly unpriced");
 }
 
 static string HiscoreResponse(int skillLevel = 99)
