@@ -73,6 +73,7 @@ internal static class TrainingItemIds
     public const int SuperiorDragonBones = 22124;
     public const int TeakSapling = 21477;
     public const int ToadflaxPotionUnfinished = 3002;
+    public const int UncutOnyx = 6571;
     public const int Watermelon = 5982;
     public const int WhiteBerries = 239;
     public const int WillowSapling = 5371;

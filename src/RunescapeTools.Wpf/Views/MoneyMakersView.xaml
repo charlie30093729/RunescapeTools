@@ -87,6 +87,26 @@
                                         <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Foreground" Value="#E0897C" /><Style.Triggers><DataTrigger Binding="{Binding IsProfitPositive}" Value="True"><Setter Property="Foreground" Value="#77CEA0" /></DataTrigger></Style.Triggers></Style></TextBlock.Style>
                                     </TextBlock>
                                     <TextBlock Text="{Binding AccountSummary}" Foreground="#ADB4AD" FontSize="11" />
+                                    <StackPanel Orientation="Horizontal" Margin="0,13,0,0" VerticalAlignment="Center">
+                                        <TextBlock Text="ACCOUNTS" Foreground="#ADB4AD" FontSize="9" FontWeight="Bold"
+                                                   VerticalAlignment="Center" Margin="0,0,10,0" />
+                                        <RepeatButton Content="▼" Command="{Binding DecreaseAccountCountCommand}"
+                                                      IsEnabled="{Binding CanDecreaseAccountCount}"
+                                                      Width="30" Height="26" Padding="0" Background="#3A4435"
+                                                      Foreground="#E8C57E" BorderBrush="#697269"
+                                                      AutomationProperties.Name="Decrease account quantity" />
+                                        <Border Background="#1D211E" BorderBrush="#697269" BorderThickness="1,0"
+                                                MinWidth="48" Height="26">
+                                            <TextBlock Text="{Binding AccountCount}" Foreground="White" FontSize="13"
+                                                       FontWeight="SemiBold" HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center" />
+                                        </Border>
+                                        <RepeatButton Content="▲" Command="{Binding IncreaseAccountCountCommand}"
+                                                      IsEnabled="{Binding CanIncreaseAccountCount}"
+                                                      Width="30" Height="26" Padding="0" Background="#3A4435"
+                                                      Foreground="#E8C57E" BorderBrush="#697269"
+                                                      AutomationProperties.Name="Increase account quantity" />
+                                    </StackPanel>
                                 </StackPanel>
                                 <Grid Grid.Column="1" Margin="20,0,0,0">
                                     <Grid.RowDefinitions><RowDefinition /><RowDefinition /></Grid.RowDefinitions><Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition /></Grid.ColumnDefinitions>

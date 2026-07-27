@@ -4,7 +4,11 @@ public sealed record SelectedMoneyMaker(
     string Slug,
     string Name,
     decimal ProfitPerAccountPerHour,
-    bool HasMissingPrices);
+    int AccountCount,
+    bool HasMissingPrices)
+{
+    public decimal TotalProfitPerHour => ProfitPerAccountPerHour * AccountCount;
+}
 
 public sealed class MoneyMakerSelectionContext
 {
@@ -16,12 +20,17 @@ public sealed class MoneyMakerSelectionContext
         string slug,
         string name,
         decimal profitPerAccountPerHour,
+        int accountCount,
         bool hasMissingPrices)
     {
+        if (accountCount < 1)
+            throw new ArgumentOutOfRangeException(nameof(accountCount), "Account count must be at least one.");
+
         var next = new SelectedMoneyMaker(
             slug,
             name,
             profitPerAccountPerHour,
+            accountCount,
             hasMissingPrices);
         if (next == Current)
             return;

@@ -61,7 +61,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("XP planner allocates money-maker profit to selected skill hours", XpPlannerViewModelFlow),
     ("XP planner remains usable when live prices fail", XpPlannerPriceFailure),
     ("shell navigation loads the requested page", ShellNavigation),
-    ("WPF profile and XP Planner views construct successfully", WpfViewsConstruct)
+    ("WPF profile, Money Makers, and XP Planner views construct successfully", WpfViewsConstruct)
 };
 
 var failures = new List<string>();
@@ -106,6 +106,10 @@ static void GenericFlowCalculation()
     EqualDecimal(300m, result.InputCostPerAccount, "input cost");
     EqualDecimal(4_600m, result.ProfitPerAccount, "profit per account");
     EqualDecimal(9_200m, result.ProfitAllAccounts, "profit for all accounts");
+
+    var fourAccounts = new MoneyMakingCalculator().Calculate(method, prices, 4);
+    Equal(4, fourAccounts.Method.Accounts, "manual account quantity");
+    EqualDecimal(18_400m, fourAccounts.ProfitAllAccounts, "manual account total profit");
 }
 
 static void VyrewatchMatchesLegacyFormula()
@@ -478,25 +482,48 @@ static async Task FavouritesViewModelFlow()
 static async Task MoneyMakerViewModelFlow()
 {
     var method = new VyrewatchMethod();
+    var secondMethod = new ZulrahMethod();
     var selection = new MoneyMakerSelectionContext();
     var market = new FakeMarketDataService
     {
-        Latest = method.Definition.RequiredItemIds.ToDictionary(id => id, id => Quote(id, 1_000))
+        Latest = method.Definition.RequiredItemIds
+            .Concat(secondMethod.Definition.RequiredItemIds)
+            .Distinct()
+            .ToDictionary(id => id, id => Quote(id, 1_000))
     };
     var viewModel = new MoneyMakersViewModel(
-        [method],
+        [method, secondMethod],
         new MoneyMakingCalculator(),
         market,
         selection);
 
     await viewModel.LoadAsync();
     True(viewModel.SelectedMethod is null, "money maker should require an explicit selection");
-    viewModel.SelectedMethod = viewModel.Methods.Single();
+    var primaryRow = viewModel.Methods.Single(row => row.Method.Definition.Slug == method.Definition.Slug);
+    var secondaryRow = viewModel.Methods.Single(row => row.Method.Definition.Slug == secondMethod.Definition.Slug);
+    viewModel.SelectedMethod = primaryRow;
 
     Equal(method.Definition.Items.Count, viewModel.FlowRows.Count, "money-making ledger rows");
     True(viewModel.ProfitAllAccounts.EndsWith(" gp", StringComparison.Ordinal), "formatted total profit");
     True(!viewModel.HasMissingPrices, "complete pricing state");
     Equal(method.Definition.Slug, selection.Current?.Slug ?? string.Empty, "shared money-maker selection");
+    Equal(method.Definition.Accounts, viewModel.AccountCount, "method default account quantity");
+    Equal(method.Definition.Accounts, selection.Current?.AccountCount ?? 0, "shared default account quantity");
+
+    var profitPerAccount = selection.Current?.ProfitPerAccountPerHour ?? 0m;
+    viewModel.IncreaseAccountCountCommand.Execute(null);
+    Equal(method.Definition.Accounts + 1, viewModel.AccountCount, "account quantity increments");
+    Equal(method.Definition.Accounts + 1, selection.Current?.AccountCount ?? 0, "shared account quantity increments");
+    EqualDecimal(
+        profitPerAccount * (method.Definition.Accounts + 1),
+        selection.Current?.TotalProfitPerHour ?? 0m,
+        "shared all-account profit");
+    viewModel.SelectedMethod = secondaryRow;
+    Equal(secondMethod.Definition.Accounts, viewModel.AccountCount, "second method uses its own account quantity");
+    viewModel.SelectedMethod = primaryRow;
+    Equal(method.Definition.Accounts + 1, viewModel.AccountCount, "account quantity is retained per method");
+    viewModel.DecreaseAccountCountCommand.Execute(null);
+    Equal(method.Definition.Accounts, viewModel.AccountCount, "account quantity decrements");
 
     selection.Clear();
     True(viewModel.SelectedMethod is null, "external reset clears Money Makers selection");
@@ -886,7 +913,12 @@ static void PhaseThreeMethodCatalogue()
     var thieving = TrainingBand(catalogue, "Thieving", 0);
     EqualDecimal(260_000m, thieving.ExperiencePerHour, "Gem knights rate");
     Equal("Gem knights", thieving.Method, "Thieving method");
-    True(thieving.Economics is null, "Gem knights should remain unpriced");
+    EqualDecimal(
+        (182m / 195m) * 5m * 1.8m / 260_000m / 103.4m,
+        Resource(thieving, 6571).QuantityPerExperience,
+        "Gem knights Tokkul-to-onyx output per XP");
+    Equal(1, thieving.Economics?.Resources.Count ?? 0, "Gem knights price only Tokkul conversion");
+    True(thieving.Economics is { IsComplete: true }, "Gem knights Tokkul projection should be priced");
 
     var farming = TrainingBand(catalogue, "Farming", 6_517_253);
     Equal(
@@ -986,9 +1018,20 @@ static void PhaseThreeTrainingCalculations()
         catalogue.Skills.Single(skill => skill.Skill == "Thieving"),
         0,
         TrainingPlanCalculator.MaximumExperience,
-        new Dictionary<int, ItemPrice>());
+        new Dictionary<int, ItemPrice> { [6571] = Quote(6571, 2_600_000) });
     EqualDecimal(769.2308m, thieving.Hours, "Gem knights 0-200m hours", 0.0001m);
-    True(thieving.NetGp is null, "Gem knights GP should remain visibly unpriced");
+    var expectedTokkul = TrainingPlanCalculator.MaximumExperience
+                         / 103.4m
+                         * (182m / 195m)
+                         * 5m
+                         * 1.8m;
+    var expectedOnyx = expectedTokkul / 260_000m;
+    EqualDecimal(
+        expectedOnyx * 2_548_000m,
+        thieving.NetGp ?? 0m,
+        "Gem knights Tokkul-to-onyx value",
+        0.01m);
+    True(thieving.IsFullyPriced, "Gem knights Tokkul projection should be fully priced");
 
     var prices = new Dictionary<int, ItemPrice>
     {
@@ -1349,15 +1392,15 @@ static async Task XpPlannerViewModelFlow()
     var allocatedConstruction = allocatedViewModel.Rows.Single(row => row.Skill == "Construction");
     allocatedConstruction.StartExperience = 0;
     allocatedConstruction.IsMoneyMakingSelected = true;
-    moneyMakerSelection.Select("vyrewatch-sentinels", "Vyrewatch Sentinels", 2_400_000m, false);
+    moneyMakerSelection.Select("vyrewatch-sentinels", "Vyrewatch Sentinels", 2_400_000m, 3, false);
     EqualDecimal(
         allocatedConstruction.Result.Hours,
         allocatedViewModel.SelectedMoneyMakingHours,
         "only selected skill hours receive money-maker profit");
     EqualDecimal(
-        allocatedConstruction.Result.Hours * 2_400_000m,
+        allocatedConstruction.Result.Hours * 2_400_000m * 3m,
         allocatedViewModel.MoneyMakerGpContribution,
-        "money-maker contribution");
+        "all-account money-maker contribution");
     var zeroTimeRanged = allocatedViewModel.Rows.Single(row => row.Skill == "Ranged");
     zeroTimeRanged.IsMoneyMakingSelected = true;
     EqualDecimal(
@@ -1471,9 +1514,15 @@ static Task WpfViewsConstruct()
                 profileContext,
                 new MoneyMakerSelectionContext());
             viewModel.LoadAsync().GetAwaiter().GetResult();
+            var moneyViewModel = new MoneyMakersViewModel(
+                [new VyrewatchMethod()],
+                new MoneyMakingCalculator(),
+                market,
+                new MoneyMakerSelectionContext());
 
             _ = new ProfileView();
             var plannerView = new XpPlannerView { DataContext = viewModel };
+            var moneyView = new MoneyMakersView { DataContext = moneyViewModel };
             var window = new System.Windows.Window
             {
                 Content = plannerView,
@@ -1484,6 +1533,8 @@ static Task WpfViewsConstruct()
             };
             window.Show();
             plannerView.UpdateLayout();
+            window.Content = moneyView;
+            moneyView.UpdateLayout();
             window.Close();
         }
         catch (Exception exception)
