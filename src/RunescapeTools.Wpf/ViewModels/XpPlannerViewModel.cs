@@ -53,9 +53,6 @@ public partial class XpPlannerRowViewModel : ObservableObject
     [ObservableProperty]
     private bool isProfit;
 
-    [ObservableProperty]
-    private bool isMoneyMakingSelected;
-
     public XpPlannerRowViewModel(
         TrainingSkillDefinition definition,
         TrainingPlanCalculator calculator,
@@ -71,7 +68,6 @@ public partial class XpPlannerRowViewModel : ObservableObject
         ProfileExperience = Math.Max(0, profileExperience);
         startExperience = preference?.StartExperienceOverride ?? ProfileExperience;
         targetExperience = preference?.TargetExperience ?? TrainingPlanCalculator.MaximumExperience;
-        isMoneyMakingSelected = preference?.IsMoneyMakingSelected ?? false;
 
         var baseline = calculator.Calculate(definition, startExperience, targetExperience, prices);
         personalRate = preference?.ExperiencePerHourOverride ?? baseline.BaseRate;
@@ -95,8 +91,7 @@ public partial class XpPlannerRowViewModel : ObservableObject
             Skill,
             TargetExperience,
             StartExperience == ProfileExperience ? null : StartExperience,
-            rateOverride,
-            IsMoneyMakingSelected);
+            rateOverride);
     }
 
     public void UpdatePrices(IReadOnlyDictionary<int, ItemPrice> value)
@@ -159,7 +154,6 @@ public partial class XpPlannerRowViewModel : ObservableObject
     }
     partial void OnTargetExperienceChanged(long value) => ChangedAndRecalculate();
     partial void OnPersonalRateChanged(decimal value) => ChangedAndRecalculate();
-    partial void OnIsMoneyMakingSelectedChanged(bool value) => changed();
 
     private void ChangedAndRecalculate()
     {
@@ -222,11 +216,9 @@ public partial class XpPlannerViewModel : ObservableObject, IPageViewModel
     private const long Level99Experience = 13_034_431;
     private readonly IEhpCatalogue catalogue;
     private readonly TrainingPlanCalculator calculator;
-    private readonly TrainingMoneyMakingCalculator moneyMakingCalculator;
     private readonly IMarketDataService marketData;
     private readonly ITrainingPlanStore store;
     private readonly ICurrentProfileContext profileContext;
-    private readonly MoneyMakerSelectionContext moneyMakerSelection;
     private CancellationTokenSource? saveCancellation;
     private IReadOnlyDictionary<int, ItemPrice> prices = new Dictionary<int, ItemPrice>();
     private bool initialized;
@@ -254,48 +246,21 @@ public partial class XpPlannerViewModel : ObservableObject, IPageViewModel
     private string pricedCoverage = "0%";
 
     [ObservableProperty]
-    private bool hasSelectedMoneyMaker;
-
-    [ObservableProperty]
-    private string selectedMoneyMakerName = "Choose a method";
-
-    [ObservableProperty]
-    private string selectedMoneyMakerRate = "Open Money Makers";
-
-    [ObservableProperty]
-    private string moneyMakerContributionSummary = "No money maker selected";
-
-    [ObservableProperty]
-    private bool isMoneyMakerProfitPositive = true;
-
-    [ObservableProperty]
-    private decimal selectedMoneyMakingHours;
-
-    [ObservableProperty]
-    private decimal moneyMakerGpContribution;
-
-    [ObservableProperty]
     private string saveStatus = string.Empty;
 
     public XpPlannerViewModel(
         IEhpCatalogue catalogue,
         TrainingPlanCalculator calculator,
-        TrainingMoneyMakingCalculator moneyMakingCalculator,
         IMarketDataService marketData,
         ITrainingPlanStore store,
-        ICurrentProfileContext profileContext,
-        MoneyMakerSelectionContext moneyMakerSelection)
+        ICurrentProfileContext profileContext)
     {
         this.catalogue = catalogue;
         this.calculator = calculator;
-        this.moneyMakingCalculator = moneyMakingCalculator;
         this.marketData = marketData;
         this.store = store;
         this.profileContext = profileContext;
-        this.moneyMakerSelection = moneyMakerSelection;
         profileContext.ProfileChanged += (_, _) => initialized = false;
-        moneyMakerSelection.SelectionChanged += OnMoneyMakerSelectionChanged;
-        UpdateMoneyMakerDisplay();
     }
 
     public ObservableCollection<XpPlannerRowViewModel> Rows { get; } = [];
@@ -417,9 +382,6 @@ public partial class XpPlannerViewModel : ObservableObject, IPageViewModel
     [RelayCommand]
     private Task SaveAsync(CancellationToken cancellationToken) => SaveNowAsync(cancellationToken);
 
-    [RelayCommand]
-    private void ResetMoneyMaker() => moneyMakerSelection.Clear();
-
     private void SetAllTargets(long target)
     {
         suppressRowChanges = true;
@@ -444,24 +406,10 @@ public partial class XpPlannerViewModel : ObservableObject, IPageViewModel
         var hours = Rows.Sum(row => row.Result.Hours);
         var pricedExperience = Rows.Sum(row => row.Result.PricedExperience);
         var gp = Rows.Where(row => row.Result.NetGp.HasValue).Sum(row => row.Result.NetGp ?? 0m);
-        var moneyMaking = moneyMakingCalculator.Calculate(
-            moneyMakerSelection.Current?.ProfitPerAccountPerHour,
-            Rows.Where(row => row.IsMoneyMakingSelected)
-                .Select(row => row.Result.Hours));
-        SelectedMoneyMakingHours = moneyMaking.SelectedHours;
-        MoneyMakerGpContribution = moneyMaking.NetGp;
-        gp += MoneyMakerGpContribution;
         TotalExperienceRemaining = DisplayFormat.Compact(experience);
         TotalHours = $"{hours:N1} h";
-        TotalNetGp = pricedExperience > 0 || MoneyMakerGpContribution != 0m
-            ? DisplayFormat.Gp(gp)
-            : "Not priced";
+        TotalNetGp = pricedExperience > 0 ? DisplayFormat.Gp(gp) : "Not priced";
         PricedCoverage = experience > 0 ? $"{(decimal)pricedExperience / experience:P0}" : "100%";
-        MoneyMakerContributionSummary = moneyMakerSelection.Current is null
-            ? "No money maker selected"
-            : SelectedMoneyMakingHours <= 0m
-                ? "Select skills below to apply this rate"
-                : $"{DisplayFormat.Gp(MoneyMakerGpContribution)} over {SelectedMoneyMakingHours:N1} selected h";
     }
 
     private void ApplyExperienceDependencies()
@@ -474,31 +422,6 @@ public partial class XpPlannerViewModel : ObservableObject, IPageViewModel
         var generatedMagic = slayer?.Result.GeneratedExperience
             .GetValueOrDefault("Magic") ?? 0m;
         magic.SetPendingExperienceCredit((long)Math.Floor(generatedMagic));
-    }
-
-    private void OnMoneyMakerSelectionChanged(object? sender, EventArgs eventArgs)
-    {
-        UpdateMoneyMakerDisplay();
-        RecalculateSummary();
-    }
-
-    private void UpdateMoneyMakerDisplay()
-    {
-        var selection = moneyMakerSelection.Current;
-        HasSelectedMoneyMaker = selection is not null;
-        SelectedMoneyMakerName = selection?.Name ?? "Choose a method";
-        SelectedMoneyMakerRate = selection is null
-            ? "Open Money Makers"
-            : DisplayFormat.GpPerHour(selection.ProfitPerAccountPerHour)
-              + (selection.HasMissingPrices ? " | partial prices" : " per account");
-        IsMoneyMakerProfitPositive =
-            selection is null || selection.ProfitPerAccountPerHour >= 0m;
-        if (selection is null)
-        {
-            SelectedMoneyMakingHours = 0m;
-            MoneyMakerGpContribution = 0m;
-            MoneyMakerContributionSummary = "No money maker selected";
-        }
     }
 
     private void ScheduleSave()
