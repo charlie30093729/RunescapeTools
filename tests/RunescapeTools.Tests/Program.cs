@@ -23,6 +23,7 @@ var tests = new (string Name, Func<Task> Run)[]
 {
     ("generic flow calculation", () => RunSync(GenericFlowCalculation)),
     ("Vyrewatch matches the legacy formula", () => RunSync(VyrewatchMatchesLegacyFormula)),
+    ("Vyrewatch supports the no-regen configuration", () => RunSync(VyrewatchNoRegenConfiguration)),
     ("Vyrewatch exposes every required item once", () => RunSync(VyrewatchItemIdsAreDistinct)),
     ("mid price falls back to the available quote", () => RunSync(MidPriceFallback)),
     ("latest prices are cached and missing prices are omitted", LatestPricesAreCached),
@@ -128,6 +129,23 @@ static void VyrewatchMatchesLegacyFormula()
     EqualDecimal(expectedSupplies, result.InputCostPerAccount, "legacy hourly supplies");
     EqualDecimal(expectedProfit, result.ProfitPerAccount, "legacy profit", 0.0001m);
     EqualDecimal(expectedProfit * 5m, result.ProfitAllAccounts, "legacy multi-account profit", 0.0001m);
+}
+
+static void VyrewatchNoRegenConfiguration()
+{
+    var method = VyrewatchMethod.CreateDefinition(usingRegenPotions: false);
+    var prices = new VyrewatchMethod().Definition.RequiredItemIds
+        .ToDictionary(id => id, id => Quote(id, 1_000));
+    var result = new MoneyMakingCalculator().Calculate(method, prices);
+
+    EqualDecimal(88m, method.ActionsPerHour, "no-regen kills per hour");
+    True(
+        method.Items.All(item => item.ItemId != 30125),
+        "no-regen configuration removes prayer regeneration potions");
+    EqualDecimal(2_000m, result.InputCostPerAccount, "no-regen hourly supplies");
+    True(
+        result.Lines.All(line => line.Item.ItemId != 30125),
+        "no-regen ledger excludes prayer regeneration potions");
 }
 
 static void VyrewatchItemIdsAreDistinct()
@@ -510,11 +528,25 @@ static async Task MoneyMakerViewModelFlow()
     Equal(method.Definition.Slug, selection.Current?.Slug ?? string.Empty, "shared money-maker selection");
     Equal(method.Definition.Accounts, viewModel.AccountCount, "method default account quantity");
     Equal(method.Definition.Accounts, selection.Current?.AccountCount ?? 0, "shared default account quantity");
+    True(viewModel.ShowRegenPotionOption, "Vyrewatch exposes the regen-potion option");
+    True(viewModel.UsingRegenPotions, "Vyrewatch defaults to the current regen configuration");
+
+    viewModel.UsingRegenPotions = false;
+    Equal(9, viewModel.FlowRows.Count, "no-regen ledger removes the prayer regeneration potion");
+    True(
+        viewModel.FlowRows.All(row => row.Name != "Prayer regeneration potion(4)"),
+        "no-regen ledger contains no prayer regeneration potion row");
+    True(
+        viewModel.MethodKicker.StartsWith("88 actions / hour", StringComparison.Ordinal),
+        "no-regen selection uses 88 kills per hour");
 
     var profitPerAccount = selection.Current?.ProfitPerAccountPerHour ?? 0m;
     viewModel.IncreaseAccountCountCommand.Execute(null);
     Equal(method.Definition.Accounts + 1, viewModel.AccountCount, "account quantity increments");
     Equal(method.Definition.Accounts + 1, selection.Current?.AccountCount ?? 0, "shared account quantity increments");
+    True(
+        viewModel.MethodKicker.StartsWith("88 actions / hour", StringComparison.Ordinal),
+        "account changes preserve the no-regen configuration");
     EqualDecimal(
         profitPerAccount * (method.Definition.Accounts + 1),
         selection.Current?.TotalProfitPerHour ?? 0m,

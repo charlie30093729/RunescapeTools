@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 using RunescapeTools.Application.Market;
 using RunescapeTools.Core.Market;
 using RunescapeTools.Core.MoneyMaking;
+using RunescapeTools.Core.MoneyMaking.Methods;
 
 namespace RunescapeTools.Wpf.ViewModels;
 
@@ -81,6 +82,9 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
     [ObservableProperty]
     private bool hasMissingPrices;
 
+    [ObservableProperty]
+    private bool usingRegenPotions = true;
+
     public MoneyMakersViewModel(
         IEnumerable<IMoneyMakingMethod> methods,
         MoneyMakingCalculator calculator,
@@ -103,6 +107,7 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
     public ObservableCollection<MoneyFlowRow> FlowRows { get; } = [];
     public bool HasMethods => Methods.Count > 0;
     public bool HasSelectedMethod => SelectedMethod is not null;
+    public bool ShowRegenPotionOption => SelectedMethod?.Method is VyrewatchMethod;
     public bool CanDecreaseAccountCount => HasSelectedMethod && AccountCount > 1;
     public bool CanIncreaseAccountCount => HasSelectedMethod && AccountCount < int.MaxValue;
 
@@ -132,6 +137,7 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
 
     partial void OnSelectedMethodChanged(MoneyMethodRow? value)
     {
+        OnPropertyChanged(nameof(ShowRegenPotionOption));
         OnPropertyChanged(nameof(CanDecreaseAccountCount));
         OnPropertyChanged(nameof(CanIncreaseAccountCount));
         if (synchronizingSelection || !initialized)
@@ -185,7 +191,7 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
                 return;
 
             currentPrices = prices;
-            ApplyResult(definition, prices);
+            ApplyResult(GetEffectiveDefinition(selected), prices);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -225,7 +231,15 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
 
         accountCounts[SelectedMethod.Method.Definition.Slug] = value;
         if (currentPrices is not null)
-            ApplyResult(SelectedMethod.Method.Definition, currentPrices);
+            ApplyResult(GetEffectiveDefinition(SelectedMethod), currentPrices);
+    }
+
+    partial void OnUsingRegenPotionsChanged(bool value)
+    {
+        if (SelectedMethod?.Method is not VyrewatchMethod || currentPrices is null)
+            return;
+
+        ApplyResult(GetEffectiveDefinition(SelectedMethod), currentPrices);
     }
 
     private void ApplyResult(
@@ -268,6 +282,11 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
                 prefix + DisplayFormat.Gp(line.GrossValuePerHour)));
         }
     }
+
+    private MoneyMakingMethodDefinition GetEffectiveDefinition(MoneyMethodRow selected) =>
+        selected.Method is VyrewatchMethod
+            ? VyrewatchMethod.CreateDefinition(UsingRegenPotions)
+            : selected.Method.Definition;
 
     private void OnSharedSelectionChanged(object? sender, EventArgs eventArgs)
     {
