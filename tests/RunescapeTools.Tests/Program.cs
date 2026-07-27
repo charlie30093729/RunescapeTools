@@ -17,6 +17,7 @@ using RunescapeTools.Infrastructure.Persistence;
 using RunescapeTools.Infrastructure.Profiles;
 using RunescapeTools.Infrastructure.Training;
 using RunescapeTools.Wpf.ViewModels;
+using RunescapeTools.Wpf.Views;
 
 var tests = new (string Name, Func<Task> Run)[]
 {
@@ -59,7 +60,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("training plans persist independently per RSN", TrainingPlanPersistence),
     ("XP planner allocates money-maker profit to selected skill hours", XpPlannerViewModelFlow),
     ("XP planner remains usable when live prices fail", XpPlannerPriceFailure),
-    ("shell navigation loads the requested page", ShellNavigation)
+    ("shell navigation loads the requested page", ShellNavigation),
+    ("WPF profile and XP Planner views construct successfully", WpfViewsConstruct)
 };
 
 var failures = new List<string>();
@@ -1443,6 +1445,64 @@ static async Task XpPlannerPriceFailure()
     True(viewModel.Rows.Count > 0, "catalogue rows remain available");
     True(viewModel.ErrorMessage?.Contains("prices", StringComparison.OrdinalIgnoreCase) == true, "price warning is shown");
     True(viewModel.Rows.Any(row => row.TotalGp == "Not priced"), "affected economics remain visibly unpriced");
+}
+
+static Task WpfViewsConstruct()
+{
+    Exception? failure = null;
+    var thread = new Thread(() =>
+    {
+        RunescapeTools.Wpf.App? application = null;
+        try
+        {
+            application = new RunescapeTools.Wpf.App();
+            application.InitializeComponent();
+            var market = new FakeMarketDataService();
+            var profileContext = new CurrentProfileContext(
+                new FakeHiscoreClient(),
+                new HiscoreParser(TimeProvider.System),
+                new MemoryProfilePreferenceStore("bottleo"));
+            var viewModel = new XpPlannerViewModel(
+                new MainEhpCatalogue(),
+                new TrainingPlanCalculator(),
+                new TrainingMoneyMakingCalculator(),
+                market,
+                new MemoryTrainingPlanStore(),
+                profileContext,
+                new MoneyMakerSelectionContext());
+            viewModel.LoadAsync().GetAwaiter().GetResult();
+
+            _ = new ProfileView();
+            var plannerView = new XpPlannerView { DataContext = viewModel };
+            var window = new System.Windows.Window
+            {
+                Content = plannerView,
+                Width = 1280,
+                Height = 800,
+                ShowInTaskbar = false,
+                WindowStyle = System.Windows.WindowStyle.None
+            };
+            window.Show();
+            plannerView.UpdateLayout();
+            window.Close();
+        }
+        catch (Exception exception)
+        {
+            failure = exception;
+        }
+        finally
+        {
+            application?.Shutdown();
+        }
+    });
+    thread.SetApartmentState(ApartmentState.STA);
+    thread.Start();
+    thread.Join();
+
+    if (failure is not null)
+        throw new InvalidOperationException("WPF view construction failed.", failure);
+
+    return Task.CompletedTask;
 }
 
 static string HiscoreResponse(int skillLevel = 99)
