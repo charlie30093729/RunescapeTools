@@ -193,9 +193,9 @@ public sealed class TrainingPlanCalculator
                         break;
                     }
 
-                    var unitPrice = SelectPrice(resource.Direction, quote, out var fallback);
-                    segmentFallback |= fallback;
-                    if (!unitPrice.HasValue)
+                    var marketPrice = TrainingMarketPricing.Select(resource.Direction, quote);
+                    segmentFallback |= marketPrice.UsedFallbackPrice;
+                    if (!marketPrice.UnitPrice.HasValue)
                     {
                         segmentMissing = true;
                         break;
@@ -205,7 +205,7 @@ public sealed class TrainingPlanCalculator
                     if (resource.QuantityPerHour != 0m && effectiveBandRate > 0m)
                         quantityPerExperience += resource.QuantityPerHour / effectiveBandRate;
 
-                    var value = unitPrice.Value * quantityPerExperience;
+                    var value = marketPrice.UnitPrice.Value * quantityPerExperience;
                     if (resource.Direction == TrainingFlowDirection.Input)
                     {
                         gpPerExperience -= value;
@@ -214,7 +214,9 @@ public sealed class TrainingPlanCalculator
                     {
                         if (resource.SubjectToGeTax)
                         {
-                            var taxPerItem = Math.Min(Math.Floor(unitPrice.Value * GeTaxRate), GeTaxCapPerItem);
+                            var taxPerItem = Math.Min(
+                                Math.Floor(marketPrice.UnitPrice.Value * GeTaxRate),
+                                GeTaxCapPerItem);
                             value -= taxPerItem * quantityPerExperience;
                         }
 
@@ -269,18 +271,4 @@ public sealed class TrainingPlanCalculator
             generatedExperience);
     }
 
-    private static decimal? SelectPrice(
-        TrainingFlowDirection direction,
-        ItemPrice quote,
-        out bool usedFallback)
-    {
-        if (direction == TrainingFlowDirection.Input)
-        {
-            usedFallback = quote.High is null && quote.Low is not null;
-            return quote.High ?? quote.Low;
-        }
-
-        usedFallback = quote.Low is null && quote.High is not null;
-        return quote.Low ?? quote.High;
-    }
 }
