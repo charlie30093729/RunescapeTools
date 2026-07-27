@@ -460,7 +460,7 @@ public partial class XpPlannerViewModel : ObservableObject, IPageViewModel
         var pricedExperience = Rows.Sum(row => row.Result.PricedExperience);
         var gp = Rows.Where(row => row.Result.NetGp.HasValue).Sum(row => row.Result.NetGp ?? 0m);
         var moneyMaking = moneyMakingCalculator.Calculate(
-            moneyMakerSelection.Current?.ProfitPerAccountPerHour,
+            moneyMakerSelection.Current?.TotalProfitPerHour,
             Rows.Where(row => row.IsMoneyMakingSelected)
                 .Select(row => row.Result.Hours));
         SelectedMoneyMakingHours = moneyMaking.SelectedHours;
@@ -504,10 +504,14 @@ public partial class XpPlannerViewModel : ObservableObject, IPageViewModel
         SelectedMoneyMakerName = selection?.Name ?? "Choose a method";
         SelectedMoneyMakerRate = selection is null
             ? "Open Money Makers"
-            : DisplayFormat.GpPerHour(selection.ProfitPerAccountPerHour)
-              + (selection.HasMissingPrices ? " | partial prices" : " per account");
+            : DisplayFormat.GpPerHour(selection.TotalProfitPerHour)
+              + (selection.HasMissingPrices
+                  ? $" | {selection.AccountCount} accounts | partial prices"
+                  : selection.AccountCount == 1
+                      ? " | 1 account"
+                      : $" | {selection.AccountCount} accounts");
         IsMoneyMakerProfitPositive =
-            selection is null || selection.ProfitPerAccountPerHour >= 0m;
+            selection is null || selection.TotalProfitPerHour >= 0m;
         if (selection is null)
         {
             SelectedMoneyMakingHours = 0m;

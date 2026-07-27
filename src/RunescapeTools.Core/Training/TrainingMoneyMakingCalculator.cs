@@ -7,13 +7,13 @@ public sealed record TrainingMoneyMakingResult(
 public sealed class TrainingMoneyMakingCalculator
 {
     public TrainingMoneyMakingResult Calculate(
-        decimal? profitPerAccountPerHour,
+        decimal? totalProfitPerHour,
         IEnumerable<decimal> selectedSkillHours)
     {
         ArgumentNullException.ThrowIfNull(selectedSkillHours);
 
         var hours = selectedSkillHours.Sum(value => Math.Max(0m, value));
-        var netGp = hours * (profitPerAccountPerHour ?? 0m);
+        var netGp = hours * (totalProfitPerHour ?? 0m);
         return new TrainingMoneyMakingResult(hours, netGp);
     }
 }

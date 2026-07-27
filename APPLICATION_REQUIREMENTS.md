@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Document version | 1.2 |
+| Document version | 1.3 |
 | Application | RunescapeTools / GE Ledger |
 | Status | WPF MVP baseline |
 | Date | 21 July 2026 |
@@ -167,10 +167,11 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | FR-CALC-006 | Gross revenue shall equal the sum of hourly output quantity multiplied by midpoint price. |
 | FR-CALC-007 | GE tax shall apply only to taxable output value. |
 | FR-CALC-008 | Profit per account shall equal gross revenue minus output tax and input cost. |
-| FR-CALC-009 | Total profit shall equal profit per account multiplied by the configured account count. |
+| FR-CALC-009 | Total profit shall equal profit per account multiplied by the user-selected account count, initialized from the method default. |
 | FR-CALC-010 | A missing item price shall be visibly reported and shall contribute zero GP to the estimate. |
 | FR-CALC-011 | The calculation view shall display a line-by-line ledger for every input and output. |
 | FR-CALC-012 | The calculation model shall support optional experience rewards without requiring a GP formula rewrite. |
+| FR-CALC-013 | Money Makers shall provide account-quantity increase and decrease controls, retain the chosen quantity per method for the current session, and prevent quantities below one. |
 
 ### 6.7 XP Planner
 
@@ -194,7 +195,7 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | FR-XP-016 | The method subtitle shall identify counted methods as `gp/hr` and zero-time methods as `gp/xp`; negative values represent cost and positive values represent profit. |
 | FR-XP-017 | Every skill definition shall expose a stable default method ID and support additional named method routes without changing the calculator contract. |
 | FR-XP-018 | The reviewed Gwenith Glide projection shall use a rosewood hull at 240,000 Sailing XP/hour, exclude multiskilling, and live-price the conversion of generated crystal shards into divine super combat potions after GE tax. |
-| FR-XP-019 | Gem knights shall remain visibly unpriced until its complete input and output ledger has been reviewed. |
+| FR-XP-019 | Gem Knights shall price only expected Tokkul output, using the official 182/195 chance at an average five Tokkul, an expected 1.8x yield from four rogue pieces, and conversion to live-priced uncut onyx at 260,000 Tokkul each. Gems, Rocky, variable consumables, banking time, and unlock requirements shall remain explicitly excluded. |
 | FR-XP-020 | The reviewed Hallowed Sepulchre projection shall apply 98,500 Agility XP/hour across the selected range, loot only the Floor 5 Grand Hallowed Coffin, price its expected tradeable loot and coin output, consume one stamina potion(4) per two coffins, and exclude Hallowed marks and elite clues from GP. |
 | FR-XP-021 | Defence shall use Black Chinchompas & Cannon - Defensive at 405,000 XP/hour and price 1,500 black chinchompas plus 6,000 cannonballs per active hour. |
 | FR-XP-022 | Ranged shall use Black Chinchompas & Cannon at 1,150,000 XP/hour for supply conversion and GP/XP, while contributing zero active hours; the projection shall price 1,866 black chinchompas plus 6,000 cannonballs per calculation hour. |
@@ -207,8 +208,8 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | FR-XP-029 | The fourth XP Planner summary card shall display the successfully priced method currently selected in Money Makers and navigate to Money Makers when clicked. |
 | FR-XP-030 | The selected money-maker card shall provide a Reset action that clears the shared selection and deselects the corresponding Money Makers row without clearing skill allocations. |
 | FR-XP-031 | The XP Planner shall provide a horizontal clickable bar of its OSRS skill icons under the instruction `Select skills to money make during`; selected icons shall be visually distinct. |
-| FR-XP-032 | Money-maker income shall equal the selected method's per-account GP/hour multiplied only by the active planner hours of selected skills and shall be added to Priced Net GP. Zero-time skills shall add no money-making hours. |
-| FR-XP-033 | Per-skill money-making allocations shall persist per RSN with training goals, starts, and personal rates. The selected method shall remain session state and shall not be silently restored after application restart. |
+| FR-XP-032 | Money-maker income shall equal the selected method's combined GP/hour across the chosen account quantity multiplied only by the active planner hours of selected skills and shall be added to Priced Net GP. Zero-time skills shall add no money-making hours. |
+| FR-XP-033 | Per-skill money-making allocations shall persist per RSN with training goals, starts, and personal rates. The selected method and its per-method account quantities shall remain session state and shall not be silently restored after application restart. |
 | FR-XP-034 | Opening Money Makers without a shared selection shall not automatically select a default method; only a successfully priced explicit selection shall become available to the XP Planner. |
 | FR-XP-029 | Herblore potion economics shall include the average Prescription goggles secondary saving, Alchemist's amulet extra-dose output, and the Amulets of chemistry consumed to recharge it by default; ineligible future potion routes shall opt out explicitly. |
 

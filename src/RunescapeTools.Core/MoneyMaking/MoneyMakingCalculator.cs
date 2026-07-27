@@ -6,12 +6,20 @@ public sealed class MoneyMakingCalculator
 {
     public MoneyMakingResult Calculate(
         MoneyMakingMethodDefinition method,
-        IReadOnlyDictionary<int, ItemPrice> prices)
+        IReadOnlyDictionary<int, ItemPrice> prices,
+        int? accountCount = null)
     {
         ArgumentNullException.ThrowIfNull(method);
         ArgumentNullException.ThrowIfNull(prices);
 
-        var lines = method.Items.Select(item => CalculateLine(method, item, prices)).ToArray();
+        var effectiveAccounts = accountCount ?? method.Accounts;
+        if (effectiveAccounts < 1)
+            throw new ArgumentOutOfRangeException(nameof(accountCount), "Account count must be at least one.");
+
+        var effectiveMethod = method with { Accounts = effectiveAccounts };
+        var lines = effectiveMethod.Items
+            .Select(item => CalculateLine(effectiveMethod, item, prices))
+            .ToArray();
 
         var grossRevenue = lines
             .Where(line => line.Item.Direction == ItemFlowDirection.Output)
@@ -22,19 +30,19 @@ public sealed class MoneyMakingCalculator
             .Sum(line => line.GrossValuePerHour);
         var profitPerAccount = grossRevenue - tax - inputCost;
 
-        var experience = (method.ExperienceRewards ?? [])
+        var experience = (effectiveMethod.ExperienceRewards ?? [])
             .Select(reward => new ExperiencePerHourResult(
                 reward.Skill,
-                reward.ExperiencePerAction * method.ActionsPerHour))
+                reward.ExperiencePerAction * effectiveMethod.ActionsPerHour))
             .ToArray();
 
         return new MoneyMakingResult(
-            method,
+            effectiveMethod,
             grossRevenue,
             tax,
             inputCost,
             profitPerAccount,
-            profitPerAccount * method.Accounts,
+            profitPerAccount * effectiveAccounts,
             lines,
             experience);
     }

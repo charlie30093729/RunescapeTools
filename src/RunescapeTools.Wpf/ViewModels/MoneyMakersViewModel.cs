@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using RunescapeTools.Application.Market;
+using RunescapeTools.Core.Market;
 using RunescapeTools.Core.MoneyMaking;
 
 namespace RunescapeTools.Wpf.ViewModels;
@@ -26,8 +27,11 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
     private readonly MoneyMakingCalculator calculator;
     private readonly IMarketDataService marketData;
     private readonly MoneyMakerSelectionContext selectionContext;
+    private readonly Dictionary<string, int> accountCounts = new(StringComparer.OrdinalIgnoreCase);
     private CancellationTokenSource? calculationCancellation;
+    private IReadOnlyDictionary<int, ItemPrice>? currentPrices;
     private bool initialized;
+    private bool synchronizingAccountCount;
     private bool synchronizingSelection;
 
     [ObservableProperty]
@@ -72,6 +76,9 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
     private string accountSummary = string.Empty;
 
     [ObservableProperty]
+    private int accountCount = 1;
+
+    [ObservableProperty]
     private bool hasMissingPrices;
 
     public MoneyMakersViewModel(
@@ -86,25 +93,36 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
         selectionContext.SelectionChanged += OnSharedSelectionChanged;
         var index = 1;
         foreach (var method in methods.OrderBy(method => method.Definition.Name))
+        {
             Methods.Add(new MoneyMethodRow(method, index++.ToString("00")));
+            accountCounts[method.Definition.Slug] = Math.Max(1, method.Definition.Accounts);
+        }
     }
 
     public ObservableCollection<MoneyMethodRow> Methods { get; } = [];
     public ObservableCollection<MoneyFlowRow> FlowRows { get; } = [];
     public bool HasMethods => Methods.Count > 0;
     public bool HasSelectedMethod => SelectedMethod is not null;
+    public bool CanDecreaseAccountCount => HasSelectedMethod && AccountCount > 1;
+    public bool CanIncreaseAccountCount => HasSelectedMethod && AccountCount < int.MaxValue;
 
     public async Task LoadAsync(CancellationToken cancellationToken = default)
     {
         if (!initialized)
         {
-            var selectedSlug = selectionContext.Current?.Slug;
+            var existingSelection = selectionContext.Current;
+            var selectedSlug = existingSelection?.Slug;
             synchronizingSelection = true;
             SelectedMethod = selectedSlug is null
                 ? null
                 : Methods.FirstOrDefault(row =>
                     row.Method.Definition.Slug.Equals(selectedSlug, StringComparison.OrdinalIgnoreCase));
             synchronizingSelection = false;
+            if (SelectedMethod is not null && existingSelection is not null)
+            {
+                accountCounts[SelectedMethod.Method.Definition.Slug] = existingSelection.AccountCount;
+                SetAccountCount(existingSelection.AccountCount);
+            }
             initialized = true;
         }
 
@@ -114,17 +132,26 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
 
     partial void OnSelectedMethodChanged(MoneyMethodRow? value)
     {
+        OnPropertyChanged(nameof(CanDecreaseAccountCount));
+        OnPropertyChanged(nameof(CanIncreaseAccountCount));
         if (synchronizingSelection || !initialized)
             return;
 
         calculationCancellation?.Cancel();
         calculationCancellation?.Dispose();
+        currentPrices = null;
         if (value is null)
         {
             selectionContext.Clear();
             ResetMethodDisplay();
             return;
         }
+
+        SetAccountCount(accountCounts.GetValueOrDefault(
+            value.Method.Definition.Slug,
+            Math.Max(1, value.Method.Definition.Accounts)));
+        FlowRows.Clear();
+        ErrorMessage = null;
 
         if (!value.Method.Definition.Slug.Equals(
                 selectionContext.Current?.Slug,
@@ -150,54 +177,95 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
     {
         IsLoading = true;
         ErrorMessage = null;
-        FlowRows.Clear();
         try
         {
             var definition = selected.Method.Definition;
             var prices = await marketData.GetLatestForAsync(definition.RequiredItemIds, cancellationToken);
-            var result = calculator.Calculate(definition, prices);
+            if (!ReferenceEquals(selected, SelectedMethod) || cancellationToken.IsCancellationRequested)
+                return;
 
-            MethodKicker = $"{result.Method.ActionsPerHour:N0} actions / hour · {result.Method.Accounts} accounts";
-            MethodName = result.Method.Name;
-            MethodDescription = result.Method.Description;
-            ProfitAllAccounts = DisplayFormat.Gp(result.ProfitAllAccounts);
-            IsProfitPositive = result.ProfitAllAccounts >= 0;
-            GrossSales = DisplayFormat.Gp(result.GrossRevenuePerAccount);
-            Tax = $"− {DisplayFormat.Gp(result.TaxPerAccount)}";
-            Supplies = $"− {DisplayFormat.Gp(result.InputCostPerAccount)}";
-            ProfitPerAccount = DisplayFormat.Gp(result.ProfitPerAccount);
-            AccountSummary = $"across {result.Method.Accounts} accounts";
-            HasMissingPrices = result.HasMissingPrices;
-            selectionContext.Select(
-                result.Method.Slug,
-                result.Method.Name,
-                result.ProfitPerAccount,
-                result.HasMissingPrices);
-
-            foreach (var line in result.Lines.OrderBy(line => line.Item.Direction))
-            {
-                var prefix = line.Item.Direction == ItemFlowDirection.Input ? "− " : "+ ";
-                FlowRows.Add(new MoneyFlowRow(
-                    line.Item.Name,
-                    $"Item {line.Item.ItemId}",
-                    line.Item.Direction.ToString(),
-                    line.Item.Direction == ItemFlowDirection.Output,
-                    DisplayFormat.Quantity(line.QuantityPerHour),
-                    DisplayFormat.Gp(line.UnitPrice),
-                    prefix + DisplayFormat.Gp(line.GrossValuePerHour)));
-            }
+            currentPrices = prices;
+            ApplyResult(definition, prices);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
         }
         catch (Exception)
         {
-            ErrorMessage = "The method could not be priced because the Wiki market service is unavailable.";
+            if (ReferenceEquals(selected, SelectedMethod))
+                ErrorMessage = "The method could not be priced because the Wiki market service is unavailable.";
         }
         finally
         {
-            if (!cancellationToken.IsCancellationRequested)
+            if (!cancellationToken.IsCancellationRequested && ReferenceEquals(selected, SelectedMethod))
                 IsLoading = false;
+        }
+    }
+
+    [RelayCommand]
+    private void IncreaseAccountCount()
+    {
+        if (CanIncreaseAccountCount)
+            AccountCount++;
+    }
+
+    [RelayCommand]
+    private void DecreaseAccountCount()
+    {
+        if (CanDecreaseAccountCount)
+            AccountCount--;
+    }
+
+    partial void OnAccountCountChanged(int value)
+    {
+        OnPropertyChanged(nameof(CanDecreaseAccountCount));
+        OnPropertyChanged(nameof(CanIncreaseAccountCount));
+        if (synchronizingAccountCount || SelectedMethod is null)
+            return;
+
+        accountCounts[SelectedMethod.Method.Definition.Slug] = value;
+        if (currentPrices is not null)
+            ApplyResult(SelectedMethod.Method.Definition, currentPrices);
+    }
+
+    private void ApplyResult(
+        MoneyMakingMethodDefinition definition,
+        IReadOnlyDictionary<int, ItemPrice> prices)
+    {
+        var result = calculator.Calculate(definition, prices, AccountCount);
+
+        MethodKicker = $"{result.Method.ActionsPerHour:N0} actions / hour · {result.Method.Accounts} accounts";
+        MethodName = result.Method.Name;
+        MethodDescription = result.Method.Description;
+        ProfitAllAccounts = DisplayFormat.Gp(result.ProfitAllAccounts);
+        IsProfitPositive = result.ProfitAllAccounts >= 0;
+        GrossSales = DisplayFormat.Gp(result.GrossRevenuePerAccount);
+        Tax = $"− {DisplayFormat.Gp(result.TaxPerAccount)}";
+        Supplies = $"− {DisplayFormat.Gp(result.InputCostPerAccount)}";
+        ProfitPerAccount = DisplayFormat.Gp(result.ProfitPerAccount);
+        AccountSummary = result.Method.Accounts == 1
+            ? "across 1 account"
+            : $"across {result.Method.Accounts} accounts";
+        HasMissingPrices = result.HasMissingPrices;
+        selectionContext.Select(
+            result.Method.Slug,
+            result.Method.Name,
+            result.ProfitPerAccount,
+            result.Method.Accounts,
+            result.HasMissingPrices);
+
+        FlowRows.Clear();
+        foreach (var line in result.Lines.OrderBy(line => line.Item.Direction))
+        {
+            var prefix = line.Item.Direction == ItemFlowDirection.Input ? "− " : "+ ";
+            FlowRows.Add(new MoneyFlowRow(
+                line.Item.Name,
+                $"Item {line.Item.ItemId}",
+                line.Item.Direction.ToString(),
+                line.Item.Direction == ItemFlowDirection.Output,
+                DisplayFormat.Quantity(line.QuantityPerHour),
+                DisplayFormat.Gp(line.UnitPrice),
+                prefix + DisplayFormat.Gp(line.GrossValuePerHour)));
         }
     }
 
@@ -209,6 +277,7 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
         calculationCancellation?.Cancel();
         calculationCancellation?.Dispose();
         calculationCancellation = null;
+        currentPrices = null;
         synchronizingSelection = true;
         SelectedMethod = null;
         synchronizingSelection = false;
@@ -228,8 +297,17 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
         Supplies = "Unavailable";
         ProfitPerAccount = "Unavailable";
         AccountSummary = string.Empty;
+        SetAccountCount(1);
+        IsLoading = false;
         HasMissingPrices = false;
         ErrorMessage = null;
         FlowRows.Clear();
+    }
+
+    private void SetAccountCount(int value)
+    {
+        synchronizingAccountCount = true;
+        AccountCount = Math.Max(1, value);
+        synchronizingAccountCount = false;
     }
 }
