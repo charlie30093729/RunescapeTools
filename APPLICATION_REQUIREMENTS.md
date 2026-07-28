@@ -2,10 +2,10 @@
 
 | Field | Value |
 | --- | --- |
-| Document version | 1.4 |
+| Document version | 1.5 |
 | Application | RunescapeTools / GE Ledger |
 | Status | WPF MVP baseline |
-| Date | 27 July 2026 |
+| Date | 28 July 2026 |
 | Target platform | Windows 10 2004+ x64; .NET 8 WPF desktop application |
 
 ## 1. Purpose
@@ -212,6 +212,9 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | FR-XP-033 | Per-skill money-making allocations shall persist per RSN with training goals, starts, and personal rates. The selected method and its per-method account quantities shall remain session state and shall not be silently restored after application restart. |
 | FR-XP-034 | Opening Money Makers without a shared selection shall not automatically select a default method; only a successfully priced explicit selection shall become available to the XP Planner. |
 | FR-XP-035 | Every XP Planner skill tooltip shall list the active method's live market resources, suggest input purchases at the same high price used by the calculator, suggest output sales at the same low price used by the calculator, show the selected quote timestamp, identify fallback or unavailable prices, and disclose that recent completed trades do not guarantee offer execution. |
+| FR-XP-036 | Every XP Planner skill row shall provide a dropdown containing each registered training route for that skill; selecting a route shall recalculate its active rate bands, hours, economics, generated XP, and live-price requirements. |
+| FR-XP-037 | The selected training-route ID shall persist per RSN in the training plan and shall fall back safely to the skill's registered default when a saved route is unavailable. |
+| FR-XP-038 | A per-skill reset shall preserve the currently selected training route, restore start XP from the loaded profile, restore the 200m goal, restore the selected route's catalogue XP rate at that start XP, and clear that skill's money-making allocation. |
 | FR-XP-029 | Herblore potion economics shall include the average Prescription goggles secondary saving, Alchemist's amulet extra-dose output, and the Amulets of chemistry consumed to recharge it by default; ineligible future potion routes shall opt out explicitly. |
 
 ### 6.8 Method modularity
@@ -235,7 +238,7 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | FR-DATA-006 | The first-run seed shall never replace an existing desktop favourites file. |
 | FR-DATA-007 | When the renamed desktop data file does not yet exist, the host shall preserve an existing legacy favourites file by copying it to the new LocalAppData location before applying the seed. |
 | FR-DATA-008 | The selected RSN shall persist atomically in `%LocalAppData%\RunescapeTools\data\profile.json`. |
-| FR-DATA-009 | XP goals and overrides shall persist atomically per normalized RSN in `%LocalAppData%\RunescapeTools\data\training-plans.json`. |
+| FR-DATA-009 | XP goals, overrides, selected training-route IDs, and money-making skill allocations shall persist atomically per normalized RSN in `%LocalAppData%\RunescapeTools\data\training-plans.json`. |
 | FR-ERR-001 | Item search, latest-price, history, and calculator failures shall produce user-readable messages. |
 | FR-ERR-002 | Temporary API failures shall not delete or overwrite stored favourites. |
 | FR-ERR-003 | HTTP 429 and server-error responses shall be retried up to three attempts with a delay. |
