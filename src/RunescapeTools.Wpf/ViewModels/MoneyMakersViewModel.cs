@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using RunescapeTools.Application.Market;
+using RunescapeTools.Application.MoneyMaking;
 using RunescapeTools.Core.Market;
 using RunescapeTools.Core.MoneyMaking;
 using RunescapeTools.Core.MoneyMaking.Methods;
@@ -11,7 +12,7 @@ namespace RunescapeTools.Wpf.ViewModels;
 public sealed record MoneyMethodRow(IMoneyMakingMethod Method, string Index)
 {
     public string Name => Method.Definition.Name;
-    public string Actions => $"{Method.Definition.ActionsPerHour:N0} actions / hour";
+    public string Actions => $"{Method.Definition.ActionsPerHour:#,##0.##} default actions / hour";
 }
 
 public sealed record MoneyFlowRow(
@@ -27,13 +28,18 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
 {
     private readonly MoneyMakingCalculator calculator;
     private readonly IMarketDataService marketData;
+    private readonly IMoneyMakingPreferenceStore preferenceStore;
     private readonly MoneyMakerSelectionContext selectionContext;
     private readonly Dictionary<string, int> accountCounts = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, decimal> actionRateOverrides =
+        new(StringComparer.OrdinalIgnoreCase);
     private CancellationTokenSource? calculationCancellation;
     private IReadOnlyDictionary<int, ItemPrice>? currentPrices;
     private bool initialized;
     private bool synchronizingAccountCount;
+    private bool synchronizingActionsPerHour;
     private bool synchronizingSelection;
+    private decimal lastValidActionsPerHour = 1m;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasSelectedMethod))]
@@ -85,14 +91,25 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
     [ObservableProperty]
     private bool usingRegenPotions = true;
 
+    [ObservableProperty]
+    private decimal actionsPerHour = 1m;
+
+    [ObservableProperty]
+    private string defaultActionsPerHourText = string.Empty;
+
+    [ObservableProperty]
+    private bool isActionsPerHourOverridden;
+
     public MoneyMakersViewModel(
         IEnumerable<IMoneyMakingMethod> methods,
         MoneyMakingCalculator calculator,
         IMarketDataService marketData,
+        IMoneyMakingPreferenceStore preferenceStore,
         MoneyMakerSelectionContext selectionContext)
     {
         this.calculator = calculator;
         this.marketData = marketData;
+        this.preferenceStore = preferenceStore;
         this.selectionContext = selectionContext;
         selectionContext.SelectionChanged += OnSharedSelectionChanged;
         var index = 1;
@@ -115,6 +132,24 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
     {
         if (!initialized)
         {
+            try
+            {
+                var persistedOverrides =
+                    await preferenceStore.GetActionsPerHourOverridesAsync(cancellationToken);
+                actionRateOverrides.Clear();
+                foreach (var pair in persistedOverrides.Where(pair => pair.Value > 0m))
+                    actionRateOverrides[pair.Key] = pair.Value;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception)
+            {
+                ErrorMessage =
+                    "Saved action-rate settings could not be loaded; method defaults are being used.";
+            }
+
             var existingSelection = selectionContext.Current;
             var selectedSlug = existingSelection?.Slug;
             synchronizingSelection = true;
@@ -127,6 +162,7 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
             {
                 accountCounts[SelectedMethod.Method.Definition.Slug] = existingSelection.AccountCount;
                 SetAccountCount(existingSelection.AccountCount);
+                ConfigureActionsPerHour(SelectedMethod);
             }
             initialized = true;
         }
@@ -156,6 +192,7 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
         SetAccountCount(accountCounts.GetValueOrDefault(
             value.Method.Definition.Slug,
             Math.Max(1, value.Method.Definition.Accounts)));
+        ConfigureActionsPerHour(value);
         FlowRows.Clear();
         ErrorMessage = null;
 
@@ -236,10 +273,60 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
 
     partial void OnUsingRegenPotionsChanged(bool value)
     {
-        if (SelectedMethod?.Method is not VyrewatchMethod || currentPrices is null)
+        if (SelectedMethod?.Method is not VyrewatchMethod)
             return;
 
-        ApplyResult(GetEffectiveDefinition(SelectedMethod), currentPrices);
+        var slug = SelectedMethod.Method.Definition.Slug;
+        if (!actionRateOverrides.ContainsKey(slug))
+            SetActionsPerHour(GetBaseDefinition(SelectedMethod).ActionsPerHour);
+        UpdateActionsPerHourDisplay(SelectedMethod);
+
+        if (currentPrices is not null)
+            ApplyResult(GetEffectiveDefinition(SelectedMethod), currentPrices);
+    }
+
+    partial void OnActionsPerHourChanged(decimal value)
+    {
+        if (synchronizingActionsPerHour || SelectedMethod is null)
+            return;
+
+        if (value <= 0m)
+        {
+            ErrorMessage = "Actions per hour must be greater than zero.";
+            SetActionsPerHour(lastValidActionsPerHour);
+            return;
+        }
+
+        if (ErrorMessage == "Actions per hour must be greater than zero.")
+            ErrorMessage = null;
+        lastValidActionsPerHour = value;
+        var slug = SelectedMethod.Method.Definition.Slug;
+        var defaultRate = GetBaseDefinition(SelectedMethod).ActionsPerHour;
+        decimal? persistedOverride = value == defaultRate ? null : value;
+        if (persistedOverride.HasValue)
+            actionRateOverrides[slug] = persistedOverride.Value;
+        else
+            actionRateOverrides.Remove(slug);
+
+        UpdateActionsPerHourDisplay(SelectedMethod);
+        if (currentPrices is not null)
+            ApplyResult(GetEffectiveDefinition(SelectedMethod), currentPrices);
+        _ = PersistActionsPerHourOverrideAsync(slug, persistedOverride);
+    }
+
+    [RelayCommand]
+    private void ResetActionsPerHour()
+    {
+        if (SelectedMethod is null)
+            return;
+
+        var slug = SelectedMethod.Method.Definition.Slug;
+        actionRateOverrides.Remove(slug);
+        SetActionsPerHour(GetBaseDefinition(SelectedMethod).ActionsPerHour);
+        UpdateActionsPerHourDisplay(SelectedMethod);
+        if (currentPrices is not null)
+            ApplyResult(GetEffectiveDefinition(SelectedMethod), currentPrices);
+        _ = PersistActionsPerHourOverrideAsync(slug, null);
     }
 
     private void ApplyResult(
@@ -248,7 +335,8 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
     {
         var result = calculator.Calculate(definition, prices, AccountCount);
 
-        MethodKicker = $"{result.Method.ActionsPerHour:N0} actions / hour · {result.Method.Accounts} accounts";
+        MethodKicker =
+            $"{result.Method.ActionsPerHour:#,##0.##} actions / hour · {result.Method.Accounts} accounts";
         MethodName = result.Method.Name;
         MethodDescription = result.Method.Description;
         ProfitAllAccounts = DisplayFormat.Gp(result.ProfitAllAccounts);
@@ -283,10 +371,55 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
         }
     }
 
-    private MoneyMakingMethodDefinition GetEffectiveDefinition(MoneyMethodRow selected) =>
+    private MoneyMakingMethodDefinition GetBaseDefinition(MoneyMethodRow selected) =>
         selected.Method is VyrewatchMethod
             ? VyrewatchMethod.CreateDefinition(UsingRegenPotions)
             : selected.Method.Definition;
+
+    private MoneyMakingMethodDefinition GetEffectiveDefinition(MoneyMethodRow selected)
+    {
+        var definition = GetBaseDefinition(selected);
+        return definition with
+        {
+            ActionsPerHour = ActionsPerHour > 0m
+                ? ActionsPerHour
+                : definition.ActionsPerHour
+        };
+    }
+
+    private void ConfigureActionsPerHour(MoneyMethodRow selected)
+    {
+        var definition = GetBaseDefinition(selected);
+        var rate = actionRateOverrides.GetValueOrDefault(
+            definition.Slug,
+            definition.ActionsPerHour);
+        SetActionsPerHour(rate);
+        UpdateActionsPerHourDisplay(selected);
+    }
+
+    private void UpdateActionsPerHourDisplay(MoneyMethodRow selected)
+    {
+        var definition = GetBaseDefinition(selected);
+        DefaultActionsPerHourText =
+            $"Default: {definition.ActionsPerHour:#,##0.##} / hour";
+        IsActionsPerHourOverridden =
+            actionRateOverrides.ContainsKey(definition.Slug);
+    }
+
+    private async Task PersistActionsPerHourOverrideAsync(
+        string slug,
+        decimal? actionsPerHour)
+    {
+        try
+        {
+            await preferenceStore.SetActionsPerHourOverrideAsync(slug, actionsPerHour);
+        }
+        catch (Exception)
+        {
+            ErrorMessage =
+                "The action-rate override is active for this session but could not be saved.";
+        }
+    }
 
     private void OnSharedSelectionChanged(object? sender, EventArgs eventArgs)
     {
@@ -317,6 +450,9 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
         ProfitPerAccount = "Unavailable";
         AccountSummary = string.Empty;
         SetAccountCount(1);
+        SetActionsPerHour(1m);
+        DefaultActionsPerHourText = string.Empty;
+        IsActionsPerHourOverridden = false;
         IsLoading = false;
         HasMissingPrices = false;
         ErrorMessage = null;
@@ -328,5 +464,13 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
         synchronizingAccountCount = true;
         AccountCount = Math.Max(1, value);
         synchronizingAccountCount = false;
+    }
+
+    private void SetActionsPerHour(decimal value)
+    {
+        synchronizingActionsPerHour = true;
+        ActionsPerHour = value > 0m ? value : 1m;
+        lastValidActionsPerHour = ActionsPerHour;
+        synchronizingActionsPerHour = false;
     }
 }

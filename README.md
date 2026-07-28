@@ -10,7 +10,7 @@ The WPF executable is the active front end. The original Razor/Blazor applicatio
 - Shared Profile Dashboard with normal-account OSRS Hiscores lookup, all 24 current skills (including Sailing), refresh, and last-profile restore.
 - Debounced Grand Exchange item search with add, select, and remove favourite actions.
 - Seven days of hourly Wiki price history rendered with LiveCharts2, including local-time tooltips, weekly change, and volume.
-- Automatically discovered money-making methods with live repricing, adjustable per-method account quantities, and a complete input/output ledger.
+- Automatically discovered money-making methods with live repricing, persistent per-method actions/hour overrides, adjustable account quantities, and a complete input/output ledger.
 - XP Planner with 21 planned skills, level-banded Main EHP rates, per-skill method dropdowns, current-profile start XP, 99/200m goals, editable personal rates, active-hour totals, and per-RSN persistence. Method changes immediately reprice the route and are saved with the plan. Skill tooltips show the active method's suggested ingredient buys at the latest high price and output sales at the latest low price, including trade timestamps and visible fallback states. A selected Money Makers method can be allocated to specific skill hours through the clickable icon bar and included in Priced Net GP. Attack, Strength, and Hitpoints remain visible in profiles but are omitted from the planner as zero-time skills.
 - Live GP/XP economics with explicit coverage states and reviewed processing, gathering, combat, Runecraft, Hunter, Construction, and Gwenith Glide routes.
 - Shared Herblore potion economics include Prescription goggles, charged Alchemist's amulet output, and the live cost of Amulets of chemistry used for charges; reviewed Saradomin brews use this model.
@@ -55,6 +55,14 @@ XP goals, start overrides, selected training methods, personal rates, and money-
 %LocalAppData%\RunescapeTools\data\training-plans.json
 ```
 
+Custom money-maker actions/hour values are stored by stable method slug at:
+
+```text
+%LocalAppData%\RunescapeTools\data\money-making-preferences.json
+```
+
+Each money maker starts at its coded default. The Actions/hour field reprices per-action outputs and experience immediately, and its reset control removes the saved override. Vyrewatch defaults to 102 kills/hour with prayer regeneration potions and 88 without them; a custom override remains active when that checkbox changes until it is reset.
+
 The same training-plan file stores which skill hours are allocated to money making. The selected Money Makers method itself is session state: choose a successfully priced method in Money Makers, use its account arrows to set the currently running quantity, click the XP Planner summary card to change it, or use the card's Reset action to deselect it. Planner income uses the selected method's combined GP/hour across all chosen accounts and applies it exclusively to the active hours of highlighted skills.
 
 The bundled EHP catalogue is a dated snapshot. Its level bands calculate the complete path from the selected start XP to the goal; GP totals clearly report how much of that path has reviewed economic data rather than treating unknown costs as zero.
@@ -98,6 +106,6 @@ Its data remains under `src\RunescapeTools.Web\data` and is separate from deskto
 
 ## Add a money-making method
 
-Create a class under `src\RunescapeTools.Core\MoneyMaking\Methods` that implements `IMoneyMakingMethod`. Describe each consumed or produced item with an `ItemFlow`; shared dependency registration discovers concrete methods automatically and the calculator handles current prices, quantities, tax, and per-account totals.
+Create a class under `src\RunescapeTools.Core\MoneyMaking\Methods` that implements `IMoneyMakingMethod`. Describe each consumed or produced item with an `ItemFlow`; shared dependency registration discovers concrete methods automatically and the calculator handles current prices, quantities, tax, per-account totals, and the persistent actions/hour override keyed by the method slug.
 
 See [APPLICATION_REQUIREMENTS.md](APPLICATION_REQUIREMENTS.md) for the full product and technical requirements.
