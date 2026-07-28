@@ -11,8 +11,8 @@ public sealed class MarketDataService(
     private readonly TimeProvider clock = timeProvider ?? TimeProvider.System;
     private readonly SemaphoreSlim latestGate = new(1, 1);
     private readonly SemaphoreSlim mappingGate = new(1, 1);
-    private readonly ConcurrentDictionary<int, SemaphoreSlim> historyGates = new();
-    private readonly ConcurrentDictionary<int, HistoryCacheEntry> weeklyHistory = new();
+    private readonly ConcurrentDictionary<HistoryCacheKey, SemaphoreSlim> historyGates = new();
+    private readonly ConcurrentDictionary<HistoryCacheKey, HistoryCacheEntry> history = new();
     private IReadOnlyDictionary<int, ItemPrice>? latest;
     private DateTimeOffset latestFetchedAt;
     private IReadOnlyList<ItemMapping>? mapping;
@@ -66,38 +66,52 @@ public sealed class MarketDataService(
             .ToArray();
     }
 
-    public async Task<IReadOnlyList<PricePoint>> GetWeeklyHistoryAsync(
+    public async Task<IReadOnlyList<PricePoint>> GetHistoryAsync(
         int itemId,
+        PriceTimeStep timeStep,
+        TimeSpan window,
         CancellationToken cancellationToken = default)
     {
         if (itemId <= 0)
             throw new ArgumentOutOfRangeException(nameof(itemId));
+        if (window <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(window));
 
-        var gate = historyGates.GetOrAdd(itemId, _ => new SemaphoreSlim(1, 1));
+        var key = new HistoryCacheKey(itemId, timeStep);
+        var gate = historyGates.GetOrAdd(key, _ => new SemaphoreSlim(1, 1));
         await gate.WaitAsync(cancellationToken);
         try
         {
             var now = clock.GetUtcNow();
-            if (!weeklyHistory.TryGetValue(itemId, out var cached)
+            if (!history.TryGetValue(key, out var cached)
                 || now - cached.FetchedAt > options.HistoryCacheDuration)
             {
-                var points = await client.GetTimeSeriesAsync(itemId, PriceTimeStep.OneHour, cancellationToken);
-                var cutoff = now - options.HistoryWindow;
+                var points = await client.GetTimeSeriesAsync(itemId, timeStep, cancellationToken);
                 cached = new HistoryCacheEntry(
                     now,
-                    points.Where(point => point.Timestamp >= cutoff)
-                        .OrderBy(point => point.Timestamp)
-                        .ToArray());
-                weeklyHistory[itemId] = cached;
+                    points.OrderBy(point => point.Timestamp).ToArray());
+                history[key] = cached;
             }
 
-            return cached.Points;
+            var cutoff = now - window;
+            return cached.Points
+                .Where(point => point.Timestamp >= cutoff && point.Timestamp <= now)
+                .ToArray();
         }
         finally
         {
             gate.Release();
         }
     }
+
+    public Task<IReadOnlyList<PricePoint>> GetWeeklyHistoryAsync(
+        int itemId,
+        CancellationToken cancellationToken = default) =>
+        GetHistoryAsync(
+            itemId,
+            PriceTimeStep.OneHour,
+            options.HistoryWindow,
+            cancellationToken);
 
     private async Task<IReadOnlyList<ItemMapping>> GetMappingAsync(CancellationToken cancellationToken)
     {
@@ -122,4 +136,8 @@ public sealed class MarketDataService(
     private sealed record HistoryCacheEntry(
         DateTimeOffset FetchedAt,
         IReadOnlyList<PricePoint> Points);
+
+    private readonly record struct HistoryCacheKey(
+        int ItemId,
+        PriceTimeStep TimeStep);
 }

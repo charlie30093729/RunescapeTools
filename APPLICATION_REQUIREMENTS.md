@@ -19,7 +19,7 @@ The application provides a focused personal workspace for Old School RuneScape G
 The application shall:
 
 1. Let a user maintain a small list of favourite Grand Exchange items.
-2. Show current prices and seven days of hourly history without operating a continuous data collector.
+2. Show current prices and selectable one-day, three-day, seven-day, and one-month history without operating a continuous data collector.
 3. Calculate GP per hour from explicit item inputs and outputs using current market prices.
 4. Make money-making methods modular so that adding or removing a method does not require navigation or calculator rewrites.
 5. Keep application, infrastructure, persistence, and calculation logic independent from both front ends.
@@ -48,7 +48,7 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 - Profile, Dashboard, Favourites, Money Makers, and XP Planner navigation areas.
 - JSON-backed favourite persistence.
 - OSRS Wiki item mapping, latest-price, and time-series integration.
-- Seven-day hourly history graphs.
+- Price-history graphs with one-day, three-day, seven-day, and one-month windows.
 - Shared item-flow GP-per-hour calculator.
 - Automatic discovery of concrete money-making method classes.
 - Vyrewatch Sentinels as the first registered method.
@@ -81,7 +81,7 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | Per action | A quantity multiplied by the method's configured actions per hour. |
 | Per hour | A quantity already expressed as an hourly amount. |
 | GE tax | The configured percentage deducted from taxable output value. |
-| Weekly history | Price points from the latest seven-day window using one-hour API data. |
+| History window | A discrete graph range of one day, three days, seven days, or one month; seven days is the default. |
 | EHP rate band | A dated skill XP/hour rate beginning at a configured XP threshold and ending at the next band. |
 | Economic coverage | The portion of remaining XP whose resource inputs, outputs, and fixed costs have been reviewed. |
 
@@ -119,7 +119,7 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | FR-FAV-006 | Duplicate favourite item IDs shall not be persisted. |
 | FR-FAV-007 | The user shall be able to remove a favourite independently from selecting it. |
 | FR-FAV-008 | The favourite list shall remain sorted by item name, ignoring case. |
-| FR-FAV-009 | Adding an item shall select it and load its current price and weekly history. |
+| FR-FAV-009 | Adding an item shall select it and load its current price and graph history. |
 | FR-FAV-010 | Removing the selected item shall select the first remaining favourite when one exists. |
 | FR-FAV-011 | Favourite selection and removal controls shall have distinct accessible names and keyboard actions. |
 
@@ -131,13 +131,16 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | FR-MKT-002 | The application shall retrieve the latest high, low, and timestamp values for priced items. |
 | FR-MKT-003 | The application shall calculate a midpoint from available high and low values. |
 | FR-MKT-004 | Requests for current prices shall return only the item IDs required by the calling view or method. |
-| FR-HIST-001 | The application shall request one-hour time-series data for a selected favourite. |
-| FR-HIST-002 | The application shall restrict the displayed history to points within the latest seven days. |
+| FR-HIST-001 | The application shall request one-hour time-series data for one-day, three-day, and seven-day favourite views. |
+| FR-HIST-002 | The application shall request six-hour time-series data for the one-month favourite view. |
 | FR-HIST-003 | The history view shall display the weekly percentage change when at least two valid midpoint values exist. |
 | FR-HIST-004 | The history view shall display current midpoint, instant-buy price, instant-sell price, point count, and tracked volume. |
 | FR-HIST-005 | The application shall render a graph only when at least two valid midpoint points exist. |
 | FR-HIST-006 | Graph points shall expose local timestamp and GP value details. |
 | FR-HIST-007 | The application shall warm latest prices and weekly history for persisted favourites during startup. |
+| FR-HIST-008 | A selected favourite shall default to the seven-day graph window. |
+| FR-HIST-009 | Scrolling up over the graph shall zoom through seven days, three days, and one day; scrolling down shall zoom through one day, three days, seven days, and one month. |
+| FR-HIST-010 | Graph zoom shall stop at the one-day and one-month boundaries. |
 
 ### 6.5 Profile dashboard and shared profile state
 
@@ -256,7 +259,7 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | BR-002 | When only one market side exists, midpoint equals the available value. |
 | BR-003 | When neither market side exists, the item is treated as missing a price. |
 | BR-004 | Weekly change = `(last midpoint - first midpoint) / first midpoint × 100`; it is omitted when fewer than two values exist or the first value is zero. |
-| BR-005 | Tracked volume is the sum of high-side and low-side volume across displayed history points. |
+| BR-005 | Tracked volume is the sum of high-side and low-side volume across the latest seven-day hourly history, independent of the visible graph window. |
 | BR-006 | The MVP Vyrewatch method defaults to 102 actions per hour with prayer regeneration potions or 88 without them, uses five accounts, and applies a 2% output tax; a positive persisted user override supersedes either action-rate default until reset. |
 | BR-007 | The MVP prices calculations using the current high/low midpoint, so results are estimates rather than guaranteed realized profit. |
 
@@ -270,7 +273,8 @@ The application depends on these logical operations under the OSRS endpoint:
 | --- | --- |
 | `mapping` | Searchable item IDs and metadata. |
 | `latest` | Current high, low, and update timestamps. |
-| `timeseries?id={itemId}&timestep=1h` | Hourly price and volume history for a selected item. |
+| `timeseries?id={itemId}&timestep=1h` | Hourly price and volume history for one-day, three-day, and seven-day views. |
+| `timeseries?id={itemId}&timestep=6h` | Six-hour price and volume history for the one-month view. |
 
 Requirements:
 
@@ -296,7 +300,7 @@ Requirements:
 - The active interface shall be a native WPF application targeting `net8.0-windows10.0.19041.0`.
 - The default window shall be approximately 1280 × 800 with a 1100 × 720 minimum.
 - Feature behavior shall reside in CommunityToolkit.Mvvm view-models; code-behind shall be limited to initialization and application lifetime.
-- Weekly history shall be rendered with LiveCharts2 WPF, with tooltip timestamps converted to local time.
+- Favourite history shall be rendered with LiveCharts2 WPF, with discrete mouse-wheel windows and tooltip timestamps converted to local time.
 - The Razor application shall remain in the solution as a buildable, parked front end and shall consume the same shared services.
 
 ## 9. Data requirements
@@ -340,7 +344,7 @@ Requirements:
 | --- | --- |
 | NFR-CACHE-001 | Latest-price data shall be cached for approximately one minute. |
 | NFR-CACHE-002 | Item mapping data shall be cached for approximately twelve hours. |
-| NFR-CACHE-003 | Weekly history shall be cached per item for approximately fifteen minutes. |
+| NFR-CACHE-003 | History shall be cached per item and time-series resolution for approximately fifteen minutes. |
 | NFR-CACHE-004 | Concurrent cache refreshes of the same category shall be serialized within the application process. |
 | NFR-CACHE-005 | Startup warming shall use bounded parallelism; the MVP maximum is three history requests at once. |
 
@@ -435,9 +439,9 @@ The MVP is accepted when all of the following are true:
 1. The solution builds successfully with no compiler errors.
 2. The calculation regression harness passes all included checks.
 3. The dashboard loads persisted favourites and live midpoint prices when the Wiki service is available.
-4. The user can search for an item, add it, select it, see weekly history, and remove it.
+4. The user can search for an item, add it, select it, inspect one-day through one-month history, and remove it.
 5. Favourite changes persist across application restarts.
-6. Weekly history contains only the latest seven-day window and renders at least two valid points when data is available.
+6. Favourite history defaults to seven days, uses hourly data through seven days, uses six-hour data for one month, and follows the discrete mouse-wheel zoom sequence.
 7. The Vyrewatch method displays live-priced inputs, outputs, tax, per-account profit, and total five-account profit.
 8. Adding another `IMoneyMakingMethod` implementation makes it available without a manual navigation registration.
 9. Market-service failures display understandable fallback messages without deleting favourites.

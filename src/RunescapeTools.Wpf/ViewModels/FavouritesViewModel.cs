@@ -33,12 +33,25 @@ public partial class FavouritesViewModel(
     IMarketDataService marketData,
     TimeProvider timeProvider) : ObservableObject, IPageViewModel
 {
+    private const int DefaultHistoryWindowIndex = 2;
+    private static readonly HistoryWindowDefinition[] HistoryWindows =
+    [
+        new("1 DAY", TimeSpan.FromDays(1), PriceTimeStep.OneHour, TimeSpan.FromHours(4), "h tt", 6),
+        new("3 DAYS", TimeSpan.FromDays(3), PriceTimeStep.OneHour, TimeSpan.FromHours(12), "ddd h tt", 5),
+        new("7 DAYS", TimeSpan.FromDays(7), PriceTimeStep.OneHour, TimeSpan.FromDays(1), "ddd", 4),
+        new("1 MONTH", TimeSpan.FromDays(30), PriceTimeStep.SixHours, TimeSpan.FromDays(5), "d MMM", 2)
+    ];
+
     private readonly TimeProvider clock = timeProvider;
     private CancellationTokenSource? searchCancellation;
     private CancellationTokenSource? selectionCancellation;
     private bool suppressSelectionLoad;
+    private bool monthlyHistoryLoadFailed;
+    private int historyWindowIndex = DefaultHistoryWindowIndex;
     private IReadOnlyList<FavouriteItem> favourites = [];
     private IReadOnlyDictionary<int, ItemPrice> latest = new Dictionary<int, ItemPrice>();
+    private IReadOnlyList<PricePoint> hourlyHistory = [];
+    private IReadOnlyList<PricePoint>? monthlyHistory;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(FavouriteCountText))]
@@ -86,20 +99,20 @@ public partial class FavouritesViewModel(
     [ObservableProperty]
     private IEnumerable<ISeries> chartSeries = Array.Empty<ISeries>();
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HistoryAutomationName))]
+    private string historyWindowLabel = HistoryWindows[DefaultHistoryWindowIndex].Label;
+
+    [ObservableProperty]
+    private IEnumerable<Axis> xAxes =
+        CreateXAxis(HistoryWindows[DefaultHistoryWindowIndex], DateTimeOffset.UtcNow);
+
     public ObservableCollection<FavouriteRow> FavouriteRows { get; } = [];
     public ObservableCollection<SearchResultRow> SearchResults { get; } = [];
     public string FavouriteCountText => $"{FavouriteCount} favourite{(FavouriteCount == 1 ? string.Empty : "s")}";
     public bool HasFavourites => FavouriteRows.Count > 0;
     public bool HasSearchResults => SearchResults.Count > 0;
-    public IEnumerable<Axis> XAxes { get; } =
-    [
-        new DateTimeAxis(TimeSpan.FromDays(1), date => date.ToLocalTime().ToString("ddd"))
-        {
-            TextSize = 12,
-            LabelsPaint = new SolidColorPaint(new SKColor(107, 100, 88)),
-            SeparatorsPaint = new SolidColorPaint(new SKColor(226, 217, 198)) { StrokeThickness = 1 }
-        }
-    ];
+    public string HistoryAutomationName => $"{HistoryWindowLabel} midpoint price history";
     public IEnumerable<Axis> YAxes { get; } =
     [
         new Axis
@@ -200,6 +213,32 @@ public partial class FavouritesViewModel(
     [RelayCommand]
     private Task RefreshAsync(CancellationToken cancellationToken) => LoadAsync(cancellationToken);
 
+    [RelayCommand]
+    private void ZoomHistory(int wheelDelta)
+    {
+        if (wheelDelta == 0 || hourlyHistory.Count == 0)
+            return;
+
+        var direction = wheelDelta > 0 ? -1 : 1;
+        var targetIndex = Math.Clamp(
+            historyWindowIndex + direction,
+            0,
+            HistoryWindows.Length - 1);
+        if (targetIndex == historyWindowIndex)
+            return;
+
+        if (HistoryWindows[targetIndex].TimeStep == PriceTimeStep.SixHours
+            && monthlyHistory is null)
+        {
+            if (monthlyHistoryLoadFailed)
+                ErrorMessage = "One-month history could not be loaded from the Wiki price service.";
+            return;
+        }
+
+        historyWindowIndex = targetIndex;
+        ApplyHistoryWindow();
+    }
+
     private async Task ReloadAfterMutationAsync(int? selectedId, CancellationToken cancellationToken)
     {
         favourites = await favouriteStore.GetAllAsync(cancellationToken);
@@ -245,16 +284,28 @@ public partial class FavouritesViewModel(
         IsLoadingHistory = true;
         ErrorMessage = null;
         ChartSeries = Array.Empty<ISeries>();
+        ResetHistoryWindow();
 
         latest.TryGetValue(row.ItemId, out var price);
         CurrentMidpoint = DisplayFormat.Gp(price?.MidPrice);
         InstantBuy = DisplayFormat.Gp(price?.High);
         InstantSell = DisplayFormat.Gp(price?.Low);
 
+        var monthlyTask = marketData.GetHistoryAsync(
+            row.ItemId,
+            PriceTimeStep.SixHours,
+            TimeSpan.FromDays(30),
+            cancellationToken);
+
         try
         {
-            var history = await marketData.GetWeeklyHistoryAsync(row.ItemId, cancellationToken);
-            SetHistory(history);
+            hourlyHistory = await marketData.GetHistoryAsync(
+                row.ItemId,
+                PriceTimeStep.OneHour,
+                TimeSpan.FromDays(7),
+                cancellationToken);
+            SetWeeklyMetrics(hourlyHistory);
+            ApplyHistoryWindow();
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -267,9 +318,24 @@ public partial class FavouritesViewModel(
         {
             IsLoadingHistory = false;
         }
+
+        try
+        {
+            monthlyHistory = await monthlyTask;
+            monthlyHistoryLoadFailed = false;
+            if (HistoryWindows[historyWindowIndex].TimeStep == PriceTimeStep.SixHours)
+                ApplyHistoryWindow();
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        catch (Exception)
+        {
+            monthlyHistoryLoadFailed = true;
+        }
     }
 
-    private void SetHistory(IReadOnlyList<PricePoint> history)
+    private void SetWeeklyMetrics(IReadOnlyList<PricePoint> history)
     {
         var points = history
             .Where(point => point.MidPrice.HasValue)
@@ -294,7 +360,27 @@ public partial class FavouritesViewModel(
             IsWeeklyChangePositive = true;
             WeeklyChange = "No weekly change";
         }
+    }
 
+    private void ApplyHistoryWindow()
+    {
+        var definition = HistoryWindows[historyWindowIndex];
+        var history = definition.TimeStep == PriceTimeStep.SixHours
+            ? monthlyHistory ?? []
+            : hourlyHistory;
+        var now = clock.GetUtcNow();
+        var cutoff = now - definition.Duration;
+        var points = history
+            .Where(point => point.Timestamp >= cutoff
+                            && point.Timestamp <= now
+                            && point.MidPrice.HasValue)
+            .Select(point => new DateTimePoint(
+                point.Timestamp.UtcDateTime,
+                (double?)point.MidPrice))
+            .ToArray();
+
+        HistoryWindowLabel = definition.Label;
+        XAxes = CreateXAxis(definition, now);
         ChartSeries =
         [
             new LineSeries<DateTimePoint>
@@ -302,7 +388,7 @@ public partial class FavouritesViewModel(
                 Name = "Mid price",
                 Values = points,
                 LineSmoothness = 0.35,
-                GeometrySize = 7,
+                GeometrySize = definition.GeometrySize,
                 Stroke = new SolidColorPaint(new SKColor(158, 111, 33), 3),
                 GeometryStroke = new SolidColorPaint(new SKColor(158, 111, 33), 2),
                 GeometryFill = new SolidColorPaint(new SKColor(252, 248, 238)),
@@ -314,6 +400,40 @@ public partial class FavouritesViewModel(
                     chartPoint.Model?.DateTime.ToLocalTime().ToString("ddd d MMM, h:mm tt") ?? string.Empty,
                 YToolTipLabelFormatter = chartPoint =>
                     chartPoint.Model?.Value is { } value ? $"{value:N0} gp" : "Unavailable"
+            }
+        ];
+    }
+
+    private void ResetHistoryWindow()
+    {
+        historyWindowIndex = DefaultHistoryWindowIndex;
+        hourlyHistory = [];
+        monthlyHistory = null;
+        monthlyHistoryLoadFailed = false;
+        var definition = HistoryWindows[historyWindowIndex];
+        HistoryWindowLabel = definition.Label;
+        XAxes = CreateXAxis(definition, clock.GetUtcNow());
+    }
+
+    private static IEnumerable<Axis> CreateXAxis(
+        HistoryWindowDefinition definition,
+        DateTimeOffset now)
+    {
+        var cutoff = now - definition.Duration;
+        return
+        [
+            new DateTimeAxis(
+                definition.AxisStep,
+                date => date.ToLocalTime().ToString(definition.AxisLabelFormat))
+            {
+                MinLimit = cutoff.UtcDateTime.Ticks,
+                MaxLimit = now.UtcDateTime.Ticks,
+                TextSize = 12,
+                LabelsPaint = new SolidColorPaint(new SKColor(107, 100, 88)),
+                SeparatorsPaint = new SolidColorPaint(new SKColor(226, 217, 198))
+                {
+                    StrokeThickness = 1
+                }
             }
         ];
     }
@@ -367,5 +487,14 @@ public partial class FavouritesViewModel(
         WeeklyPoints = "0";
         TrackedVolume = "0";
         ChartSeries = Array.Empty<ISeries>();
+        ResetHistoryWindow();
     }
+
+    private sealed record HistoryWindowDefinition(
+        string Label,
+        TimeSpan Duration,
+        PriceTimeStep TimeStep,
+        TimeSpan AxisStep,
+        string AxisLabelFormat,
+        double GeometrySize);
 }
