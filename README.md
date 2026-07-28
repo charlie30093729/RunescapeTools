@@ -11,7 +11,7 @@ The WPF executable is the active front end. The original Razor/Blazor applicatio
 - Debounced Grand Exchange item search with add, select, and remove favourite actions.
 - Seven days of hourly Wiki price history rendered with LiveCharts2, including local-time tooltips, weekly change, and volume.
 - Automatically discovered money-making methods with live repricing, adjustable per-method account quantities, and a complete input/output ledger.
-- XP Planner with 21 planned skills, level-banded Main EHP rates, current-profile start XP, 99/200m goals, editable personal rates, active-hour totals, and per-RSN persistence. Skill tooltips show the active method's suggested ingredient buys at the latest high price and output sales at the latest low price, including trade timestamps and visible fallback states. A selected Money Makers method can be allocated to specific skill hours through the clickable icon bar and included in Priced Net GP. Attack, Strength, and Hitpoints remain visible in profiles but are omitted from the planner as zero-time skills.
+- XP Planner with 21 planned skills, level-banded Main EHP rates, per-skill method dropdowns, current-profile start XP, 99/200m goals, editable personal rates, active-hour totals, and per-RSN persistence. Method changes immediately reprice the route and are saved with the plan. Skill tooltips show the active method's suggested ingredient buys at the latest high price and output sales at the latest low price, including trade timestamps and visible fallback states. A selected Money Makers method can be allocated to specific skill hours through the clickable icon bar and included in Priced Net GP. Attack, Strength, and Hitpoints remain visible in profiles but are omitted from the planner as zero-time skills.
 - Live GP/XP economics with explicit coverage states and reviewed processing, gathering, combat, Runecraft, Hunter, Construction, and Gwenith Glide routes.
 - Shared Herblore potion economics include Prescription goggles, charged Alchemist's amulet output, and the live cost of Amulets of chemistry used for charges; reviewed Saradomin brews use this model.
 - Vyrewatch Sentinels method with supplies, output tax, per-account profit, and an adjustable all-account total.
@@ -49,7 +49,7 @@ The last successfully loaded RSN is stored separately at:
 %LocalAppData%\RunescapeTools\data\profile.json
 ```
 
-XP goals, start overrides, and personal rates are stored per RSN at:
+XP goals, start overrides, selected training methods, personal rates, and money-making skill allocations are stored per RSN at:
 
 ```text
 %LocalAppData%\RunescapeTools\data\training-plans.json
@@ -65,7 +65,7 @@ The Slayer route contributes a pending Magic XP credit to the plan and uses an e
 
 Farming economics buy the highest unlocked tree-run saplings and protection payments at live high prices and include gardener clearing fees. The reviewed schedule assumes one six-tree and six-fruit-tree run per day, four hardwood patches normalized by growth time, daily calquat and celastrus trees once unlocked, and the redwood patch normalized by its growth time. Efficient runs do not harvest or value fruit, bark, or logs; early quest XP remains visibly unpriced.
 
-Each skill owns a catalogue file under `src\RunescapeTools.Infrastructure\Training\Skills`. `MainEhpCatalogue` only composes those definitions in canonical Hiscores order, while shared item IDs and construction helpers remain centralized. Training definitions expose a stable default method ID and can accept additional named method routes without returning to a monolithic catalogue.
+Each skill owns a catalogue file under `src\RunescapeTools.Infrastructure\Training\Skills`. `MainEhpCatalogue` only composes those definitions in canonical Hiscores order, while shared item IDs and construction helpers remain centralized. Training definitions expose a stable default method ID and can accept additional named method routes without returning to a monolithic catalogue. Every registered route appears in that skill's dropdown, and all route-specific market items are included when the planner refreshes prices.
 
 The first Profile visit creates this preference with `bottleo` when no saved RSN exists. A new RSN is persisted only after its complete hiscore response has been fetched and parsed successfully.
 

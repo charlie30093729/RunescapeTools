@@ -45,6 +45,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("profile view-model loads defaults and keeps valid data on errors", ProfileViewModelFlow),
     ("EHP catalogue covers every skill and ordered rate band", () => RunSync(EhpCatalogueCoverage)),
     ("training definitions support stable default and alternative methods", () => RunSync(TrainingMethodSelection)),
+    ("XP Planner rows select and persist training methods", () => RunSync(XpPlannerRowMethodSelection)),
     ("approved deterministic methods expose reviewed rates and economics", () => RunSync(DeterministicMethodCatalogue)),
     ("Herblore brews include prescription goggles and alchemist amulet", () => RunSync(HerbloreEquipmentEconomics)),
     ("phase-two methods expose reviewed unlocks, rates, and item flows", () => RunSync(PhaseTwoMethodCatalogue)),
@@ -642,6 +643,70 @@ static void TrainingMethodSelection()
     EqualDecimal(10m, defaultResult.Hours, "default method hours");
     Equal("alternative", alternativeResult.Method.Id, "resolved alternative method");
     EqualDecimal(5m, alternativeResult.Hours, "alternative method hours");
+}
+
+static void XpPlannerRowMethodSelection()
+{
+    var main = new TrainingMethodDefinition(
+        "main",
+        "Main route",
+        [new TrainingRateBand(0, 100m, "Main training method")]);
+    var alternative = new TrainingMethodDefinition(
+        "alternative",
+        "Alternative route",
+        [new TrainingRateBand(0, 200m, "Alternative training method")]);
+    var definition = new TrainingSkillDefinition(
+        "Method test",
+        main.Bands,
+        Methods: [main, alternative],
+        DefaultMethodId: main.Id);
+    var changes = 0;
+    var row = new XpPlannerRowViewModel(
+        definition,
+        new TrainingPlanCalculator(),
+        0,
+        null,
+        new Dictionary<int, ItemPrice>(),
+        () => changes++);
+
+    Equal("main", row.SelectedMethodOption?.Id ?? string.Empty, "row default method");
+    Equal("Main training method", row.SelectedMethodOption?.Name ?? string.Empty, "active method label");
+    EqualDecimal(100m, row.PersonalRate, "default method rate");
+
+    row.SelectedMethodOption = row.MethodOptions.Single(option => option.Id == "alternative");
+
+    Equal("alternative", row.Result.Method.Id, "selected calculation method");
+    Equal("Alternative training method", row.Method, "selected active band label");
+    EqualDecimal(200m, row.PersonalRate, "selected method resets to its catalogue rate");
+    EqualDecimal(1m, changes, "method selection change notification");
+    Equal("alternative", row.ToPreference().TrainingMethodId ?? string.Empty, "selected method preference");
+
+    row.StartExperience = 1_000;
+    row.TargetExperience = 10_000;
+    row.PersonalRate = 321m;
+    row.IsMoneyMakingSelected = true;
+    row.ResetSkillCommand.Execute(null);
+
+    Equal(0L, row.StartExperience, "skill reset restores profile XP");
+    Equal(TrainingPlanCalculator.MaximumExperience, row.TargetExperience, "skill reset restores 200m goal");
+    EqualDecimal(200m, row.PersonalRate, "skill reset uses selected method catalogue rate");
+    True(!row.IsMoneyMakingSelected, "skill reset clears money-making allocation");
+    Equal("alternative", row.SelectedMethodOption?.Id ?? string.Empty, "skill reset preserves selected method");
+
+    var restoredRow = new XpPlannerRowViewModel(
+        definition,
+        new TrainingPlanCalculator(),
+        0,
+        new TrainingSkillPreference(
+            definition.Skill,
+            TrainingPlanCalculator.MaximumExperience,
+            TrainingMethodId: alternative.Id),
+        new Dictionary<int, ItemPrice>(),
+        () => { });
+    Equal(
+        "alternative",
+        restoredRow.SelectedMethodOption?.Id ?? string.Empty,
+        "saved method selection restores");
 }
 
 static void ConstructionTrainingCalculation()
@@ -1429,7 +1494,13 @@ static async Task TrainingPlanPersistence()
         var store = new JsonTrainingPlanStore(new TrainingPlanOptions { FilePath = path });
         await store.SaveAsync(
             "Player One",
-            [new TrainingSkillPreference("Construction", 200_000_000, 0, 1_070_000, true)]);
+            [new TrainingSkillPreference(
+                "Construction",
+                200_000_000,
+                0,
+                1_070_000,
+                true,
+                "mahogany-benches")]);
         await store.SaveAsync("Player Two", [new TrainingSkillPreference("Construction", 13_034_431)]);
 
         var first = await store.GetAsync(" player one ");
@@ -1438,6 +1509,10 @@ static async Task TrainingPlanPersistence()
         Equal(13_034_431L, second["Construction"].TargetExperience, "second profile goal");
         True(first["Construction"].StartExperienceOverride == 0, "explicit zero-XP override persists");
         True(first["Construction"].IsMoneyMakingSelected, "money-making skill allocation persists");
+        Equal(
+            "mahogany-benches",
+            first["Construction"].TrainingMethodId ?? string.Empty,
+            "training method selection persists");
     }
     finally
     {
@@ -1479,9 +1554,13 @@ static async Task XpPlannerViewModelFlow()
     Equal(1, construction.AvailableMethods.Count, "current catalogue exposes its default route");
     construction.PersonalRate = 100_000m;
     True(construction.Hours != "142.8", "personal rate changes displayed hours");
-    construction.ResetRateCommand.Execute(null);
-    EqualDecimal(54_700m, construction.PersonalRate, "reset current method rate");
-    Equal("142.8", construction.Hours, "reset restores catalogue hours");
+    construction.ResetSkillCommand.Execute(null);
+    Equal(construction.ProfileExperience, construction.StartExperience, "reset restores profile start XP");
+    Equal(TrainingPlanCalculator.MaximumExperience, construction.TargetExperience, "reset restores 200m goal");
+    EqualDecimal(
+        construction.Result.BaseRate,
+        construction.PersonalRate,
+        "reset restores the selected method rate at profile XP");
 
     var moneyMakerSelection = new MoneyMakerSelectionContext();
     var allocatedViewModel = new XpPlannerViewModel(
