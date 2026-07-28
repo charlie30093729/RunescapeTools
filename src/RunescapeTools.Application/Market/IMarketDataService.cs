@@ -13,6 +13,12 @@ public interface IMarketDataService
         int take = 8,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<PricePoint>> GetHistoryAsync(
+        int itemId,
+        PriceTimeStep timeStep,
+        TimeSpan window,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<PricePoint>> GetWeeklyHistoryAsync(
         int itemId,
         CancellationToken cancellationToken = default);

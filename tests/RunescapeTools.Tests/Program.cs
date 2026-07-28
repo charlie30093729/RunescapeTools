@@ -28,7 +28,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Vyrewatch exposes every required item once", () => RunSync(VyrewatchItemIdsAreDistinct)),
     ("mid price falls back to the available quote", () => RunSync(MidPriceFallback)),
     ("latest prices are cached and missing prices are omitted", LatestPricesAreCached),
-    ("weekly history is filtered and cached", WeeklyHistoryIsFilteredAndCached),
+    ("history windows are filtered and cached by resolution", HistoryWindowsAreFilteredAndCached),
     ("search favours prefix matches and respects limits", SearchOrdering),
     ("favourite warmup requests every saved history", FavouriteWarmup),
     ("Wiki client retries transient responses", WikiClientRetries),
@@ -42,6 +42,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("profile context preserves valid state on failure and publishes refreshes", ProfileContextStateFlow),
     ("dashboard view-model loads and reports failures", DashboardViewModelStates),
     ("favourites view-model searches, adds, selects, and removes", FavouritesViewModelFlow),
+    ("favourites chart uses discrete one-day to one-month zoom", FavouritesChartZoomFlow),
     ("money-maker view-model shares and resets the priced selection", MoneyMakerViewModelFlow),
     ("money-maker action-rate overrides persist atomically", MoneyMakingPreferencePersistence),
     ("profile view-model loads defaults and keeps valid data on errors", ProfileViewModelFlow),
@@ -66,7 +67,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("XP planner allocates money-maker profit to selected skill hours", XpPlannerViewModelFlow),
     ("XP planner remains usable when live prices fail", XpPlannerPriceFailure),
     ("shell navigation loads the requested page", ShellNavigation),
-    ("WPF profile, Money Makers, and XP Planner views construct successfully", WpfViewsConstruct)
+    ("WPF profile, Favourites, Money Makers, and XP Planner views construct successfully", WpfViewsConstruct)
 };
 
 var failures = new List<string>();
@@ -178,26 +179,49 @@ static async Task LatestPricesAreCached()
     EqualDecimal(100m, second[1].MidPrice ?? 0, "cached quote");
 }
 
-static async Task WeeklyHistoryIsFilteredAndCached()
+static async Task HistoryWindowsAreFilteredAndCached()
 {
     var now = new DateTimeOffset(2026, 7, 13, 12, 0, 0, TimeSpan.Zero);
     var client = new FakePriceClient
     {
-        History =
-        [
-            Point(now.AddDays(-8), 10),
-            Point(now.AddDays(-6), 20),
-            Point(now.AddHours(-1), 30)
-        ]
+        HistoryByTimeStep = new Dictionary<PriceTimeStep, IReadOnlyList<PricePoint>>
+        {
+            [PriceTimeStep.OneHour] =
+            [
+                Point(now.AddDays(-8), 10),
+                Point(now.AddDays(-6), 20),
+                Point(now.AddHours(-1), 30)
+            ],
+            [PriceTimeStep.SixHours] =
+            [
+                Point(now.AddDays(-31), 40),
+                Point(now.AddDays(-29), 50),
+                Point(now.AddHours(-6), 60)
+            ]
+        }
     };
     var service = CreateMarketService(client, now);
 
-    var first = await service.GetWeeklyHistoryAsync(1);
-    var second = await service.GetWeeklyHistoryAsync(1);
+    var weeklyFirst = await service.GetWeeklyHistoryAsync(1);
+    var weeklySecond = await service.GetWeeklyHistoryAsync(1);
+    var monthlyFirst = await service.GetHistoryAsync(
+        1,
+        PriceTimeStep.SixHours,
+        TimeSpan.FromDays(30));
+    var monthlySecond = await service.GetHistoryAsync(
+        1,
+        PriceTimeStep.SixHours,
+        TimeSpan.FromDays(30));
 
-    Equal(2, first.Count, "filtered history count");
-    Equal(1, client.HistoryCalls, "history API call count");
-    Equal(first.Count, second.Count, "cached history count");
+    Equal(2, weeklyFirst.Count, "filtered weekly history count");
+    Equal(weeklyFirst.Count, weeklySecond.Count, "cached weekly history count");
+    Equal(2, monthlyFirst.Count, "filtered monthly history count");
+    Equal(monthlyFirst.Count, monthlySecond.Count, "cached monthly history count");
+    Equal(2, client.HistoryCalls, "one API call per history resolution");
+    True(
+        client.HistoryTimeSteps.SequenceEqual(
+            [PriceTimeStep.OneHour, PriceTimeStep.SixHours]),
+        "history resolutions are cached independently");
 }
 
 static async Task SearchOrdering()
@@ -499,6 +523,59 @@ static async Task FavouritesViewModelFlow()
     await viewModel.RemoveFavouriteCommand.ExecuteAsync(viewModel.SelectedFavourite);
     Equal(1, viewModel.FavouriteCount, "favourite removed");
     Equal(1, viewModel.SelectedFavourite?.ItemId ?? 0, "selection moved after removal");
+}
+
+static async Task FavouritesChartZoomFlow()
+{
+    var now = new DateTimeOffset(2026, 7, 28, 12, 0, 0, TimeSpan.Zero);
+    var store = new MemoryFavouriteStore(
+        new FavouriteItem(1, "Rune bar", now));
+    var market = new FakeMarketDataService
+    {
+        Latest = new Dictionary<int, ItemPrice> { [1] = Quote(1, 500) },
+        HistoryByTimeStep = new Dictionary<PriceTimeStep, IReadOnlyList<PricePoint>>
+        {
+            [PriceTimeStep.OneHour] =
+            [
+                Point(now.AddDays(-6), 400),
+                Point(now.AddDays(-3), 450),
+                Point(now.AddHours(-12), 500)
+            ],
+            [PriceTimeStep.SixHours] =
+            [
+                Point(now.AddDays(-29), 300),
+                Point(now.AddDays(-14), 400),
+                Point(now.AddHours(-6), 500)
+            ]
+        }
+    };
+    var viewModel = new FavouritesViewModel(
+        store,
+        market,
+        new TestTimeProvider(now));
+
+    await viewModel.LoadAsync();
+
+    Equal("7 DAYS", viewModel.HistoryWindowLabel, "default history window");
+    viewModel.ZoomHistoryCommand.Execute(120);
+    Equal("3 DAYS", viewModel.HistoryWindowLabel, "first zoom-in window");
+    viewModel.ZoomHistoryCommand.Execute(120);
+    Equal("1 DAY", viewModel.HistoryWindowLabel, "second zoom-in window");
+    viewModel.ZoomHistoryCommand.Execute(120);
+    Equal("1 DAY", viewModel.HistoryWindowLabel, "minimum history window");
+
+    viewModel.ZoomHistoryCommand.Execute(-120);
+    Equal("3 DAYS", viewModel.HistoryWindowLabel, "first zoom-out window");
+    viewModel.ZoomHistoryCommand.Execute(-120);
+    Equal("7 DAYS", viewModel.HistoryWindowLabel, "default zoom-out window");
+    viewModel.ZoomHistoryCommand.Execute(-120);
+    Equal("1 MONTH", viewModel.HistoryWindowLabel, "maximum history window");
+    viewModel.ZoomHistoryCommand.Execute(-120);
+    Equal("1 MONTH", viewModel.HistoryWindowLabel, "clamped maximum history window");
+    True(
+        market.HistoryTimeSteps.SequenceEqual(
+            [PriceTimeStep.SixHours, PriceTimeStep.OneHour]),
+        "favourites loads hourly and monthly resolutions");
 }
 
 static async Task MoneyMakerViewModelFlow()
@@ -1790,6 +1867,13 @@ static Task WpfViewsConstruct()
             _ = new ProfileView();
             var plannerView = new XpPlannerView { DataContext = viewModel };
             var moneyView = new MoneyMakersView { DataContext = moneyViewModel };
+            var favouritesView = new FavouritesView
+            {
+                DataContext = new FavouritesViewModel(
+                    new MemoryFavouriteStore(),
+                    market,
+                    TimeProvider.System)
+            };
             var window = new System.Windows.Window
             {
                 Content = plannerView,
@@ -1802,6 +1886,8 @@ static Task WpfViewsConstruct()
             plannerView.UpdateLayout();
             window.Content = moneyView;
             moneyView.UpdateLayout();
+            window.Content = favouritesView;
+            favouritesView.UpdateLayout();
             window.Close();
         }
         catch (Exception exception)
@@ -1896,9 +1982,12 @@ sealed class FakePriceClient : IOsrsPriceClient
     public IReadOnlyList<ItemMapping> Mapping { get; init; } = [];
     public IReadOnlyDictionary<int, ItemPrice> Latest { get; init; } = new Dictionary<int, ItemPrice>();
     public IReadOnlyList<PricePoint> History { get; init; } = [];
+    public IReadOnlyDictionary<PriceTimeStep, IReadOnlyList<PricePoint>> HistoryByTimeStep { get; init; } =
+        new Dictionary<PriceTimeStep, IReadOnlyList<PricePoint>>();
     public int MappingCalls { get; private set; }
     public int LatestCalls { get; private set; }
     public int HistoryCalls { get; private set; }
+    public List<PriceTimeStep> HistoryTimeSteps { get; } = [];
 
     public Task<IReadOnlyList<ItemMapping>> GetMappingAsync(CancellationToken cancellationToken = default)
     {
@@ -1915,7 +2004,11 @@ sealed class FakePriceClient : IOsrsPriceClient
     public Task<IReadOnlyList<PricePoint>> GetTimeSeriesAsync(int itemId, PriceTimeStep timeStep, CancellationToken cancellationToken = default)
     {
         HistoryCalls++;
-        return Task.FromResult(History);
+        HistoryTimeSteps.Add(timeStep);
+        return Task.FromResult(
+            HistoryByTimeStep.TryGetValue(timeStep, out var history)
+                ? history
+                : History);
     }
 }
 
@@ -2024,7 +2117,10 @@ sealed class FakeMarketDataService : IMarketDataService
     public IReadOnlyDictionary<int, ItemPrice> Latest { get; init; } = new Dictionary<int, ItemPrice>();
     public IReadOnlyList<ItemMapping> SearchResults { get; init; } = [];
     public IReadOnlyList<PricePoint> History { get; init; } = [];
+    public IReadOnlyDictionary<PriceTimeStep, IReadOnlyList<PricePoint>> HistoryByTimeStep { get; init; } =
+        new Dictionary<PriceTimeStep, IReadOnlyList<PricePoint>>();
     public List<int> HistoryRequests { get; } = [];
+    public List<PriceTimeStep> HistoryTimeSteps { get; } = [];
     public Exception? Failure { get; set; }
 
     public Task<IReadOnlyDictionary<int, ItemPrice>> GetLatestForAsync(IEnumerable<int> itemIds, CancellationToken cancellationToken = default)
@@ -2039,11 +2135,28 @@ sealed class FakeMarketDataService : IMarketDataService
     public Task<IReadOnlyList<ItemMapping>> SearchItemsAsync(string query, int take = 8, CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<ItemMapping>>(SearchResults.Take(take).ToArray());
 
-    public Task<IReadOnlyList<PricePoint>> GetWeeklyHistoryAsync(int itemId, CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<PricePoint>> GetHistoryAsync(
+        int itemId,
+        PriceTimeStep timeStep,
+        TimeSpan window,
+        CancellationToken cancellationToken = default)
     {
         HistoryRequests.Add(itemId);
-        return Task.FromResult(History);
+        HistoryTimeSteps.Add(timeStep);
+        return Task.FromResult(
+            HistoryByTimeStep.TryGetValue(timeStep, out var history)
+                ? history
+                : History);
     }
+
+    public Task<IReadOnlyList<PricePoint>> GetWeeklyHistoryAsync(
+        int itemId,
+        CancellationToken cancellationToken = default) =>
+        GetHistoryAsync(
+            itemId,
+            PriceTimeStep.OneHour,
+            TimeSpan.FromDays(7),
+            cancellationToken);
 }
 
 sealed class SequenceHandler(params HttpResponseMessage[] responses) : HttpMessageHandler
