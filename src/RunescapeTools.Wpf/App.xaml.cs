@@ -105,6 +105,10 @@ public partial class App : System.Windows.Application
             trainingPlanOptions: new TrainingPlanOptions
             {
                 FilePath = Path.Combine(localData, "data", "training-plans.json")
+            },
+            moneyMakingPreferenceOptions: new MoneyMakingPreferenceOptions
+            {
+                FilePath = Path.Combine(localData, "data", "money-making-preferences.json")
             });
 
         builder.Services.AddSingleton(new ProfilePreferenceOptions

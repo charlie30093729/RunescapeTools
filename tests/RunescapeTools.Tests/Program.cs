@@ -3,6 +3,7 @@ using System.Text;
 using Microsoft.Extensions.Logging.Abstractions;
 using RunescapeTools.Application.Favourites;
 using RunescapeTools.Application.Market;
+using RunescapeTools.Application.MoneyMaking;
 using RunescapeTools.Application.Profiles;
 using RunescapeTools.Application.Training;
 using RunescapeTools.Core.Favourites;
@@ -42,6 +43,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("dashboard view-model loads and reports failures", DashboardViewModelStates),
     ("favourites view-model searches, adds, selects, and removes", FavouritesViewModelFlow),
     ("money-maker view-model shares and resets the priced selection", MoneyMakerViewModelFlow),
+    ("money-maker action-rate overrides persist atomically", MoneyMakingPreferencePersistence),
     ("profile view-model loads defaults and keeps valid data on errors", ProfileViewModelFlow),
     ("EHP catalogue covers every skill and ordered rate band", () => RunSync(EhpCatalogueCoverage)),
     ("training definitions support stable default and alternative methods", () => RunSync(TrainingMethodSelection)),
@@ -504,6 +506,7 @@ static async Task MoneyMakerViewModelFlow()
     var method = new VyrewatchMethod();
     var secondMethod = new ZulrahMethod();
     var selection = new MoneyMakerSelectionContext();
+    var preferences = new MemoryMoneyMakingPreferenceStore();
     var market = new FakeMarketDataService
     {
         Latest = method.Definition.RequiredItemIds
@@ -515,6 +518,7 @@ static async Task MoneyMakerViewModelFlow()
         [method, secondMethod],
         new MoneyMakingCalculator(),
         market,
+        preferences,
         selection);
 
     await viewModel.LoadAsync();
@@ -531,6 +535,27 @@ static async Task MoneyMakerViewModelFlow()
     Equal(method.Definition.Accounts, selection.Current?.AccountCount ?? 0, "shared default account quantity");
     True(viewModel.ShowRegenPotionOption, "Vyrewatch exposes the regen-potion option");
     True(viewModel.UsingRegenPotions, "Vyrewatch defaults to the current regen configuration");
+    EqualDecimal(102m, viewModel.ActionsPerHour, "Vyrewatch regen default action rate");
+    True(!viewModel.IsActionsPerHourOverridden, "default action rate is not an override");
+
+    viewModel.ActionsPerHour = 95m;
+    EqualDecimal(95m, viewModel.ActionsPerHour, "custom action rate");
+    EqualDecimal(
+        95m,
+        preferences.Overrides[method.Definition.Slug],
+        "custom action rate persisted by method slug");
+    var customResult = new MoneyMakingCalculator().Calculate(
+        method.Definition with { ActionsPerHour = 95m },
+        market.Latest,
+        method.Definition.Accounts);
+    EqualDecimal(
+        customResult.ProfitPerAccount,
+        selection.Current?.ProfitPerAccountPerHour ?? 0m,
+        "custom action rate updates the shared XP Planner profit rate");
+    True(viewModel.IsActionsPerHourOverridden, "custom action rate indicator");
+    True(
+        viewModel.MethodKicker.StartsWith("95 actions / hour", StringComparison.Ordinal),
+        "custom action rate reprices the method");
 
     viewModel.UsingRegenPotions = false;
     Equal(9, viewModel.FlowRows.Count, "no-regen ledger removes the prayer regeneration potion");
@@ -538,8 +563,14 @@ static async Task MoneyMakerViewModelFlow()
         viewModel.FlowRows.All(row => row.Name != "Prayer regeneration potion(4)"),
         "no-regen ledger contains no prayer regeneration potion row");
     True(
-        viewModel.MethodKicker.StartsWith("88 actions / hour", StringComparison.Ordinal),
-        "no-regen selection uses 88 kills per hour");
+        viewModel.MethodKicker.StartsWith("95 actions / hour", StringComparison.Ordinal),
+        "custom action rate survives a Vyrewatch configuration change");
+    viewModel.ResetActionsPerHourCommand.Execute(null);
+    EqualDecimal(88m, viewModel.ActionsPerHour, "no-regen reset action rate");
+    True(
+        !preferences.Overrides.ContainsKey(method.Definition.Slug),
+        "reset removes the persisted override");
+    True(!viewModel.IsActionsPerHourOverridden, "reset clears custom action indicator");
 
     var profitPerAccount = selection.Current?.ProfitPerAccountPerHour ?? 0m;
     viewModel.IncreaseAccountCountCommand.Execute(null);
@@ -554,14 +585,65 @@ static async Task MoneyMakerViewModelFlow()
         "shared all-account profit");
     viewModel.SelectedMethod = secondaryRow;
     Equal(secondMethod.Definition.Accounts, viewModel.AccountCount, "second method uses its own account quantity");
+    EqualDecimal(31m, viewModel.ActionsPerHour, "second method uses its own default action rate");
+    viewModel.ActionsPerHour = 25m;
+    EqualDecimal(
+        25m,
+        preferences.Overrides[secondMethod.Definition.Slug],
+        "generic method action rate persisted");
     viewModel.SelectedMethod = primaryRow;
     Equal(method.Definition.Accounts + 1, viewModel.AccountCount, "account quantity is retained per method");
+    EqualDecimal(88m, viewModel.ActionsPerHour, "Vyrewatch retains its current default independently");
+    viewModel.SelectedMethod = secondaryRow;
+    EqualDecimal(25m, viewModel.ActionsPerHour, "generic method override retained across selection changes");
+    viewModel.SelectedMethod = primaryRow;
     viewModel.DecreaseAccountCountCommand.Execute(null);
     Equal(method.Definition.Accounts, viewModel.AccountCount, "account quantity decrements");
 
     selection.Clear();
     True(viewModel.SelectedMethod is null, "external reset clears Money Makers selection");
     Equal(0, viewModel.FlowRows.Count, "external reset clears displayed ledger");
+
+    var restoredViewModel = new MoneyMakersViewModel(
+        [method, secondMethod],
+        new MoneyMakingCalculator(),
+        market,
+        preferences,
+        new MoneyMakerSelectionContext());
+    await restoredViewModel.LoadAsync();
+    restoredViewModel.SelectedMethod = restoredViewModel.Methods.Single(
+        row => row.Method.Definition.Slug == secondMethod.Definition.Slug);
+    EqualDecimal(25m, restoredViewModel.ActionsPerHour, "saved generic override restores after restart");
+}
+
+static async Task MoneyMakingPreferencePersistence()
+{
+    var directory = CreateTempDirectory();
+    try
+    {
+        var path = Path.Combine(directory, "money-making-preferences.json");
+        var store = new JsonMoneyMakingPreferenceStore(
+            new MoneyMakingPreferenceOptions { FilePath = path });
+
+        await store.SetActionsPerHourOverrideAsync("Vyrewatch-Sentinels", 95m);
+        await store.SetActionsPerHourOverrideAsync("zulrah", 27.5m);
+
+        var saved = await store.GetActionsPerHourOverridesAsync();
+        EqualDecimal(95m, saved["vyrewatch-sentinels"], "persisted Vyrewatch override");
+        EqualDecimal(27.5m, saved["ZULRAH"], "case-insensitive persisted override");
+
+        await store.SetActionsPerHourOverrideAsync("zulrah", null);
+        var afterReset = await store.GetActionsPerHourOverridesAsync();
+        True(!afterReset.ContainsKey("zulrah"), "reset removes persisted override");
+        True(!File.Exists(path + ".tmp"), "atomic preference replacement leaves no temporary file");
+        await ThrowsAsync<ArgumentOutOfRangeException>(
+            () => store.SetActionsPerHourOverrideAsync("vyrewatch-sentinels", 0m),
+            "non-positive action rate");
+    }
+    finally
+    {
+        Directory.Delete(directory, true);
+    }
 }
 
 static async Task ProfileViewModelFlow()
@@ -1617,6 +1699,7 @@ static async Task ShellNavigation()
         [new VyrewatchMethod()],
         new MoneyMakingCalculator(),
         market,
+        new MemoryMoneyMakingPreferenceStore(),
         moneyMakerSelection);
     var profileContext = new CurrentProfileContext(
         new FakeHiscoreClient(),
@@ -1701,6 +1784,7 @@ static Task WpfViewsConstruct()
                 [new VyrewatchMethod()],
                 new MoneyMakingCalculator(),
                 market,
+                new MemoryMoneyMakingPreferenceStore(),
                 new MoneyMakerSelectionContext());
 
             _ = new ProfileView();
@@ -1887,6 +1971,29 @@ sealed class MemoryTrainingPlanStore : ITrainingPlanStore
         CancellationToken cancellationToken = default)
     {
         profiles[rsn.Trim()] = preferences.ToDictionary(value => value.Skill, StringComparer.OrdinalIgnoreCase);
+        return Task.CompletedTask;
+    }
+}
+
+sealed class MemoryMoneyMakingPreferenceStore : IMoneyMakingPreferenceStore
+{
+    public Dictionary<string, decimal> Overrides { get; } =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    public Task<IReadOnlyDictionary<string, decimal>> GetActionsPerHourOverridesAsync(
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyDictionary<string, decimal>>(
+            new Dictionary<string, decimal>(Overrides, StringComparer.OrdinalIgnoreCase));
+
+    public Task SetActionsPerHourOverrideAsync(
+        string methodSlug,
+        decimal? actionsPerHour,
+        CancellationToken cancellationToken = default)
+    {
+        if (actionsPerHour.HasValue)
+            Overrides[methodSlug] = actionsPerHour.Value;
+        else
+            Overrides.Remove(methodSlug);
         return Task.CompletedTask;
     }
 }

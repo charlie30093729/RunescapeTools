@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using RunescapeTools.Application.Favourites;
 using RunescapeTools.Application.Market;
+using RunescapeTools.Application.MoneyMaking;
 using RunescapeTools.Application.Profiles;
 using RunescapeTools.Application.Training;
 using RunescapeTools.Core.Favourites;
@@ -24,7 +25,8 @@ public static class ServiceCollectionExtensions
         FavouriteStoreOptions favouriteOptions,
         MarketDataOptions? marketOptions = null,
         OsrsHiscoreOptions? hiscoreOptions = null,
-        TrainingPlanOptions? trainingPlanOptions = null)
+        TrainingPlanOptions? trainingPlanOptions = null,
+        MoneyMakingPreferenceOptions? moneyMakingPreferenceOptions = null)
     {
         hiscoreOptions ??= new OsrsHiscoreOptions { UserAgent = wikiOptions.UserAgent };
         services.AddSingleton(wikiOptions);
@@ -62,6 +64,12 @@ public static class ServiceCollectionExtensions
         {
             services.AddSingleton(trainingPlanOptions);
             services.AddSingleton<ITrainingPlanStore, JsonTrainingPlanStore>();
+        }
+
+        if (moneyMakingPreferenceOptions is not null)
+        {
+            services.AddSingleton(moneyMakingPreferenceOptions);
+            services.AddSingleton<IMoneyMakingPreferenceStore, JsonMoneyMakingPreferenceStore>();
         }
 
         var methodTypes = typeof(IMoneyMakingMethod).Assembly

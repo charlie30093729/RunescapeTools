@@ -89,6 +89,54 @@
                                         </Style>
                                     </CheckBox.Style>
                                 </CheckBox>
+                                <StackPanel Margin="0,12,0,0">
+                                    <StackPanel.Style>
+                                        <Style TargetType="StackPanel">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding HasSelectedMethod}" Value="True">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </StackPanel.Style>
+                                    <TextBlock Text="ACTIONS / HOUR" Style="{StaticResource Kicker}" FontSize="9" />
+                                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0" VerticalAlignment="Center">
+                                        <TextBox Text="{Binding ActionsPerHour, UpdateSourceTrigger=LostFocus, StringFormat=0.##}"
+                                                 Style="{StaticResource Input}"
+                                                 Width="112"
+                                                 Padding="9,5"
+                                                 FontSize="12"
+                                                 VerticalContentAlignment="Center"
+                                                 AutomationProperties.Name="Actions per hour" />
+                                        <Button Content="↺"
+                                                Command="{Binding ResetActionsPerHourCommand}"
+                                                Style="{StaticResource TextButton}"
+                                                Margin="5,0,8,0"
+                                                Padding="3,0"
+                                                FontSize="16"
+                                                ToolTip="Reset actions per hour to this method's current default"
+                                                AutomationProperties.Name="Reset actions per hour" />
+                                        <TextBlock Text="{Binding DefaultActionsPerHourText}"
+                                                   Foreground="{StaticResource MutedBrush}"
+                                                   FontSize="10"
+                                                   VerticalAlignment="Center" />
+                                        <Border Background="#F4E9D3" CornerRadius="8" Padding="7,2" Margin="8,0,0,0">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsActionsPerHourOverridden}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <TextBlock Text="CUSTOM" Foreground="{StaticResource GoldDarkBrush}"
+                                                       FontSize="8" FontWeight="Bold" />
+                                        </Border>
+                                    </StackPanel>
+                                </StackPanel>
                             </StackPanel>
                             <Border HorizontalAlignment="Right" VerticalAlignment="Top" Background="#E1F0E5" CornerRadius="12" Padding="12,5">
                                 <TextBlock Text="LIVE CALCULATION" Foreground="{StaticResource PositiveBrush}" FontSize="9" FontWeight="Bold" />

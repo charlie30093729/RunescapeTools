@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Document version | 1.5 |
+| Document version | 1.6 |
 | Application | RunescapeTools / GE Ledger |
 | Status | WPF MVP baseline |
 | Date | 28 July 2026 |
@@ -172,6 +172,9 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | FR-CALC-011 | The calculation view shall display a line-by-line ledger for every input and output. |
 | FR-CALC-012 | The calculation model shall support optional experience rewards without requiring a GP formula rewrite. |
 | FR-CALC-013 | Money Makers shall provide account-quantity increase and decrease controls, retain the chosen quantity per method for the current session, and prevent quantities below one. |
+| FR-CALC-014 | Every current and future money-making method shall expose an editable positive actions/hour value initialized from its method definition. |
+| FR-CALC-015 | An actions/hour override shall immediately reprice per-action item flows, experience rewards, per-account profit, all-account profit, and the shared rate supplied to the XP Planner. Per-hour item flows shall remain unchanged. |
+| FR-CALC-016 | The user shall be able to reset actions/hour to the method's current configured default, removing the persisted override. Vyrewatch shall use 102 with prayer regeneration potions and 88 without them when no override is active. |
 
 ### 6.7 XP Planner
 
@@ -239,6 +242,7 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | FR-DATA-007 | When the renamed desktop data file does not yet exist, the host shall preserve an existing legacy favourites file by copying it to the new LocalAppData location before applying the seed. |
 | FR-DATA-008 | The selected RSN shall persist atomically in `%LocalAppData%\RunescapeTools\data\profile.json`. |
 | FR-DATA-009 | XP goals, overrides, selected training-route IDs, and money-making skill allocations shall persist atomically per normalized RSN in `%LocalAppData%\RunescapeTools\data\training-plans.json`. |
+| FR-DATA-010 | Positive money-maker actions/hour overrides shall persist atomically by stable method slug in `%LocalAppData%\RunescapeTools\data\money-making-preferences.json` and shall apply across application restarts. |
 | FR-ERR-001 | Item search, latest-price, history, and calculator failures shall produce user-readable messages. |
 | FR-ERR-002 | Temporary API failures shall not delete or overwrite stored favourites. |
 | FR-ERR-003 | HTTP 429 and server-error responses shall be retried up to three attempts with a delay. |
@@ -253,7 +257,7 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | BR-003 | When neither market side exists, the item is treated as missing a price. |
 | BR-004 | Weekly change = `(last midpoint - first midpoint) / first midpoint × 100`; it is omitted when fewer than two values exist or the first value is zero. |
 | BR-005 | Tracked volume is the sum of high-side and low-side volume across displayed history points. |
-| BR-006 | The MVP Vyrewatch method uses 102 actions per hour, five accounts, and a 2% output tax. |
+| BR-006 | The MVP Vyrewatch method defaults to 102 actions per hour with prayer regeneration potions or 88 without them, uses five accounts, and applies a 2% output tax; a positive persisted user override supersedes either action-rate default until reset. |
 | BR-007 | The MVP prices calculations using the current high/low midpoint, so results are estimates rather than guaranteed realized profit. |
 
 ## 8. External interface requirements
@@ -413,6 +417,7 @@ Requirements:
 | `FavouriteStoreOptions.SeedJson` | Supplies optional first-run seed content. | WPF passes the embedded snapshot; Web passes no seed. |
 | `MarketDataOptions` | Controls latest, mapping, history, window, and warmup cache behavior. | Shared defaults. |
 | `TrainingPlanOptions.FilePath` | Selects the per-RSN XP Planner JSON file. | WPF uses the LocalAppData data directory. |
+| `MoneyMakingPreferenceOptions.FilePath` | Selects the JSON file for actions/hour overrides keyed by method slug. | WPF uses the LocalAppData data directory. |
 
 ### 12.1 Release packaging
 
@@ -444,6 +449,7 @@ The MVP is accepted when all of the following are true:
 15. Runtime data-protection keys and build outputs remain ignored by Git.
 16. XP Planner hours span every applicable level band and reproduce the reviewed Construction 0-to-200m benchmark within rounding tolerance.
 17. Unpriced training segments remain visible through economic-coverage states, and per-RSN goals survive restart.
+18. A money-maker actions/hour override reprices the method and XP Planner contribution, survives restart, remains independent per method, and returns to the active configured default when reset.
 
 ## 14. Risks and dependencies
 
