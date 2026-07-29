@@ -32,12 +32,14 @@ internal static class TrainingItemIds
     public const int DragonfruitSapling = 22866;
     public const int EarthRune = 557;
     public const int EnhancedCrystalTeleportSeed = 23959;
+    public const int ExtendedSuperAntifire4 = 22209;
     public const int Feather = 314;
     public const int ForestersRation = 28157;
     public const int GoldBar = 2357;
     public const int GoldOre = 444;
     public const int IronwoodSapling = 31505;
     public const int LawRune = 563;
+    public const int LavaScaleShard = 11994;
     public const int LimpwurtRoot = 225;
     public const int MagicSapling = 5374;
     public const int MahoganyPlank = 8782;
@@ -57,6 +59,7 @@ internal static class TrainingItemIds
     public const int PureEssence = 7936;
     public const int RanarrSeed = 5295;
     public const int RawSummerPie = 7216;
+    public const int RedSpidersEggs = 223;
     public const int RedwoodSapling = 22859;
     public const int RingOfEnduranceUncharged = 24844;
     public const int RosewoodLogs = 32910;
@@ -65,10 +68,13 @@ internal static class TrainingItemIds
     public const int RunePlatebody = 1127;
     public const int RuniteBolts = 9144;
     public const int SanfewSerum4 = 10925;
-    public const int SaradominBrew3 = 6687;
+    public const int SaradominBrew4 = 6685;
+    public const int SnapdragonPotionUnfinished = 3004;
     public const int SoulRune = 566;
     public const int StaminaPotion4 = 12625;
+    public const int SuperAntifirePotion4 = 21978;
     public const int SuperCombatPotion4 = 12695;
+    public const int SuperRestore4 = 3024;
     public const int SummerPie = 7218;
     public const int SuperiorDragonBones = 22124;
     public const int TeakSapling = 21477;

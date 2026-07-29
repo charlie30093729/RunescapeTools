@@ -50,7 +50,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("training definitions support stable default and alternative methods", () => RunSync(TrainingMethodSelection)),
     ("XP Planner rows select and persist training methods", () => RunSync(XpPlannerRowMethodSelection)),
     ("approved deterministic methods expose reviewed rates and economics", () => RunSync(DeterministicMethodCatalogue)),
-    ("Herblore brews include prescription goggles and alchemist amulet", () => RunSync(HerbloreEquipmentEconomics)),
+    ("Herblore methods use shared equipment and four-dose economics", () => RunSync(HerbloreEquipmentEconomics)),
+    ("Herblore alternatives preserve unlock routes and reviewed rates", () => RunSync(HerbloreAlternativeMethods)),
     ("phase-two methods expose reviewed unlocks, rates, and item flows", () => RunSync(PhaseTwoMethodCatalogue)),
     ("phase-two calculations reproduce reviewed resource totals and pricing", () => RunSync(PhaseTwoTrainingCalculations)),
     ("phase-three methods expose reviewed rates and Sailing item flows", () => RunSync(PhaseThreeMethodCatalogue)),
@@ -767,7 +768,8 @@ static void EhpCatalogueCoverage()
         var ordered = skill.Bands.OrderBy(band => band.StartExperience).ToArray();
         Equal(ordered.Length, ordered.Select(band => band.StartExperience).Distinct().Count(), $"{skill.Skill} band starts");
         Equal(string.Join('|', ordered.Select(band => band.StartExperience)), string.Join('|', skill.Bands.Select(band => band.StartExperience)), $"{skill.Skill} band ordering");
-        Equal(1, skill.AvailableMethods.Count, $"{skill.Skill} default method count");
+        var expectedMethodCount = skill.Skill == "Herblore" ? 3 : 1;
+        Equal(expectedMethodCount, skill.AvailableMethods.Count, $"{skill.Skill} method count");
         Equal("main-ehp", skill.AvailableMethods[0].Id, $"{skill.Skill} default method ID");
         Equal(skill.Bands.Count, skill.AvailableMethods[0].Bands.Count, $"{skill.Skill} default method bands");
     }
@@ -918,7 +920,7 @@ static void DeterministicMethodCatalogue()
     EqualDecimal(450_000m, herblore.ExperiencePerHour, "Herblore rate");
     Equal("Saradomin brews", herblore.Method, "Herblore method");
     Equal(
-        "3002|6687|6693|21163",
+        "3002|6685|6693|21163",
         string.Join('|', herblore.Economics!.Resources.Select(resource => resource.ItemId).Order()),
         "Herblore item IDs");
     EqualDecimal(
@@ -930,9 +932,9 @@ static void DeterministicMethodCatalogue()
         Resource(herblore, 21163).QuantityPerExperience,
         "Alchemist's amulet charge consumption");
     EqualDecimal(
-        (1m + 0.15m / 3m) / 180m,
-        Resource(herblore, 6687).QuantityPerExperience,
-        "Alchemist's amulet brew output");
+        (3m + 0.15m) / 4m / 180m,
+        Resource(herblore, 6685).QuantityPerExperience,
+        "four-dose Alchemist's amulet brew output");
     True(
         catalogue.Skills.Single(skill => skill.Skill == "Herblore").Note?
             .Contains("Prescription goggles", StringComparison.Ordinal) == true,
@@ -965,7 +967,7 @@ static void HerbloreEquipmentEconomics()
         [3002] = new ItemPrice(3002, 1_000, 900, null, null),
         [6693] = new ItemPrice(6693, 2_000, 1_900, null, null),
         [21163] = new ItemPrice(21163, 3_000, 2_900, null, null),
-        [6687] = new ItemPrice(6687, 600, 500, null, null)
+        [6685] = new ItemPrice(6685, 600, 500, null, null)
     };
 
     var result = new TrainingPlanCalculator().Calculate(
@@ -976,15 +978,97 @@ static void HerbloreEquipmentEconomics()
 
     EqualDecimal(1m, result.Hours, "one hour of Saradomin brews");
     EqualDecimal(
-        -5_826_250m,
+        -6_147_812.5m,
         result.NetGp ?? 0m,
         "equipment-adjusted brew GP per hour",
         0.01m);
     EqualDecimal(
-        -5_826_250m,
+        -6_147_812.5m,
         result.AverageGpPerHour ?? 0m,
         "equipment-adjusted displayed GP per hour",
         0.01m);
+}
+
+static void HerbloreAlternativeMethods()
+{
+    var definition = new MainEhpCatalogue().Skills.Single(skill => skill.Skill == "Herblore");
+    Equal(
+        "main-ehp|super-restores|1t-extended-super-antifires",
+        string.Join('|', definition.AvailableMethods.Select(method => method.Id)),
+        "Herblore method IDs");
+
+    var restores = definition.ResolveMethod("super-restores");
+    var restoreBand = restores.Bands.Last();
+    Equal(368_599L, restoreBand.StartExperience, "Super restores unlock XP");
+    EqualDecimal(356_250m, restoreBand.ExperiencePerHour, "Super restores XP/hour");
+    EqualDecimal(1m / 142.5m, Resource(restoreBand, 3004).QuantityPerExperience, "unfinished snapdragon per XP");
+    EqualDecimal(0.9m / 142.5m, Resource(restoreBand, 223).QuantityPerExperience, "goggle-adjusted eggs per XP");
+    EqualDecimal(0.015m / 142.5m, Resource(restoreBand, 21163).QuantityPerExperience, "restore amulet charges per XP");
+    EqualDecimal(0.7875m / 142.5m, Resource(restoreBand, 3024).QuantityPerExperience, "four-dose restores per XP");
+
+    var extended = definition.ResolveMethod("1t-extended-super-antifires");
+    var extendedBand = extended.Bands.Last();
+    Equal(11_805_606L, extendedBand.StartExperience, "Extended super antifires unlock XP");
+    EqualDecimal(840_000m, extendedBand.ExperiencePerHour, "Extended super antifires XP/hour");
+    EqualDecimal(1m / 160m, Resource(extendedBand, 21978).QuantityPerExperience, "super antifire(4) per XP");
+    EqualDecimal(3.6m / 160m, Resource(extendedBand, 11994).QuantityPerExperience, "goggle-adjusted shards per XP");
+    EqualDecimal(1m / 160m, Resource(extendedBand, 22209).QuantityPerExperience, "extended super antifire(4) per XP");
+    True(
+        extendedBand.Economics!.Resources.All(resource => resource.ItemId != 21163),
+        "Alchemist's amulet must not apply to extended super antifires");
+
+    True(
+        definition.AvailableMethods
+            .SelectMany(method => method.Bands)
+            .SelectMany(band => band.Economics?.Resources ?? [])
+            .All(resource => resource.ItemId != 6687),
+        "Herblore methods must not sell three-dose potions");
+
+    var calculator = new TrainingPlanCalculator();
+    var restorePlan = calculator.Calculate(
+        definition,
+        0,
+        TrainingPlanCalculator.MaximumExperience,
+        new Dictionary<int, ItemPrice>(),
+        methodId: restores.Id);
+    var extendedPlan = calculator.Calculate(
+        definition,
+        0,
+        TrainingPlanCalculator.MaximumExperience,
+        new Dictionary<int, ItemPrice>(),
+        methodId: extended.Id);
+
+    True(restorePlan.Hours is > 562m and < 563m, "Super restore 0-to-200m hours");
+    True(extendedPlan.Hours is > 251m and < 252m, "Extended super antifire 0-to-200m hours");
+
+    var restoreHour = calculator.Calculate(
+        definition,
+        368_599,
+        724_849,
+        new Dictionary<int, ItemPrice>
+        {
+            [3004] = new ItemPrice(3004, 1_000, 900, null, null),
+            [223] = new ItemPrice(223, 2_000, 1_900, null, null),
+            [21163] = new ItemPrice(21163, 3_000, 2_900, null, null),
+            [3024] = new ItemPrice(3024, 600, 500, null, null)
+        },
+        methodId: restores.Id);
+    EqualDecimal(1m, restoreHour.Hours, "one hour of Super restores");
+    EqualDecimal(-6_147_812.5m, restoreHour.NetGp ?? 0m, "Super restore hourly economics", 0.01m);
+
+    var extendedHour = calculator.Calculate(
+        definition,
+        11_805_606,
+        12_645_606,
+        new Dictionary<int, ItemPrice>
+        {
+            [21978] = new ItemPrice(21978, 1_000, 900, null, null),
+            [11994] = new ItemPrice(11994, 200, 190, null, null),
+            [22209] = new ItemPrice(22209, 2_600, 2_500, null, null)
+        },
+        methodId: extended.Id);
+    EqualDecimal(1m, extendedHour.Hours, "one hour of extended super antifires");
+    EqualDecimal(3_832_500m, extendedHour.NetGp ?? 0m, "extended super antifire hourly economics", 0.01m);
 }
 
 static void PhaseTwoMethodCatalogue()
@@ -1581,7 +1665,7 @@ static void XpPlannerPriceTooltips()
         [3002] = new ItemPrice(3002, 10_000, 9_000, timestamp, timestamp.AddMinutes(-1)),
         [6693] = new ItemPrice(6693, 5_000, 4_500, timestamp.AddMinutes(-2), timestamp.AddMinutes(-3)),
         [21163] = new ItemPrice(21163, 2_000, 1_800, timestamp.AddMinutes(-4), timestamp.AddMinutes(-5)),
-        [6687] = new ItemPrice(6687, 12_000, 11_000, timestamp.AddMinutes(-6), timestamp.AddMinutes(-7))
+        [6685] = new ItemPrice(6685, 12_000, 11_000, timestamp.AddMinutes(-6), timestamp.AddMinutes(-7))
     };
     var definition = new MainEhpCatalogue().Skills.Single(skill => skill.Skill == "Herblore");
     var row = new XpPlannerRowViewModel(
@@ -1610,7 +1694,7 @@ static void XpPlannerPriceTooltips()
         "equipment charge input uses latest high");
     True(
         row.PriceToolTip.Contains(
-            "Sell Saradomin brew(3) @ 11,000 gp (low · 2026-07-27 05:23 UTC)",
+            "Sell Saradomin brew(4) @ 11,000 gp (low · 2026-07-27 05:23 UTC)",
             StringComparison.Ordinal),
         "finished potion uses latest low");
     True(
@@ -1630,7 +1714,7 @@ static void XpPlannerPriceTooltips()
 
     var outputFallback = TrainingMarketPricing.Select(
         TrainingFlowDirection.Output,
-        new ItemPrice(6687, 12_000, null, timestamp, null));
+        new ItemPrice(6685, 12_000, null, timestamp, null));
     Equal(12_000L, outputFallback.UnitPrice ?? 0L, "output high fallback price");
     True(outputFallback.UsedFallbackPrice, "output high fallback state");
 
