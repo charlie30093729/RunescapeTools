@@ -1,6 +1,6 @@
 using RunescapeTools.Core.Training;
+using RunescapeTools.Infrastructure.Training;
 using static RunescapeTools.Infrastructure.Training.TrainingCatalogueBuilder;
-using static RunescapeTools.Infrastructure.Training.TrainingItemIds;
 
 namespace RunescapeTools.Infrastructure.Training.Skills;
 
@@ -24,5 +24,10 @@ internal static class FiremakingCatalogue
                 623_700m,
                 "Rosewood logs - bow burning",
                 new TrainingEconomics(
-                    [Input(RosewoodLogs, "Rosewood logs", 1m / RosewoodLogBowFiremakingXp)])));
+                    [Input(Items.RosewoodLogs, 1m / RosewoodLogBowFiremakingXp)])));
+
+    private static class Items
+    {
+        public static readonly CatalogueItem RosewoodLogs = new(32910, "Rosewood logs");
+    }
 }

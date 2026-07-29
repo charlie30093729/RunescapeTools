@@ -1,6 +1,6 @@
 using RunescapeTools.Core.Training;
+using RunescapeTools.Infrastructure.Training;
 using static RunescapeTools.Infrastructure.Training.TrainingCatalogueBuilder;
-using static RunescapeTools.Infrastructure.Training.TrainingItemIds;
 
 namespace RunescapeTools.Infrastructure.Training.Skills;
 
@@ -25,7 +25,13 @@ internal static class CraftingCatalogue
                 "Black dragonhide bodies",
                 new TrainingEconomics(
                     [
-                        Input(BlackDragonLeather, "Black dragon leather", 3m / BlackDhideBodyCraftingXp),
-                        Output(BlackDhideBody, "Black d'hide body", 1m / BlackDhideBodyCraftingXp)
+                        Input(Items.BlackDragonLeather, 3m / BlackDhideBodyCraftingXp),
+                        Output(Items.BlackDhideBody, 1m / BlackDhideBodyCraftingXp)
                     ])));
+
+    private static class Items
+    {
+        public static readonly CatalogueItem BlackDragonLeather = new(2509, "Black dragon leather");
+        public static readonly CatalogueItem BlackDhideBody = new(2503, "Black d'hide body");
+    }
 }

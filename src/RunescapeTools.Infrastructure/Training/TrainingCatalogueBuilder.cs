@@ -30,25 +30,23 @@ internal static class TrainingCatalogueBuilder
         Band(0, rate, method);
 
     public static TrainingResourceFlow Input(
-        int itemId,
-        string name,
+        CatalogueItem item,
         decimal quantityPerExperience,
         decimal quantityPerHour = 0m) =>
         new(
-            itemId,
-            name,
+            item.Id,
+            item.Name,
             quantityPerExperience,
             TrainingFlowDirection.Input,
             QuantityPerHour: quantityPerHour);
 
     public static TrainingResourceFlow Output(
-        int itemId,
-        string name,
+        CatalogueItem item,
         decimal quantityPerExperience,
         decimal quantityPerHour = 0m) =>
         new(
-            itemId,
-            name,
+            item.Id,
+            item.Name,
             quantityPerExperience,
             TrainingFlowDirection.Output,
             QuantityPerHour: quantityPerHour);

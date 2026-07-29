@@ -1,6 +1,6 @@
 using RunescapeTools.Core.Training;
+using RunescapeTools.Infrastructure.Training;
 using static RunescapeTools.Infrastructure.Training.TrainingCatalogueBuilder;
-using static RunescapeTools.Infrastructure.Training.TrainingItemIds;
 
 namespace RunescapeTools.Infrastructure.Training.Skills.Herblore.Methods;
 
@@ -15,13 +15,10 @@ internal static class SuperRestores
             356_250m,
             "Super restores",
             HerbloreGlobal.CreatePotionEconomics(
-                SnapdragonPotionUnfinished,
-                "Snapdragon potion (unf)",
-                RedSpidersEggs,
-                "Red spiders' eggs",
+                Items.SnapdragonPotionUnfinished,
+                Items.RedSpidersEggs,
                 1m,
-                SuperRestore4,
-                "Super restore(4)",
+                Items.SuperRestore4,
                 ExperiencePerPotion));
 
         return new TrainingMethodDefinition(
@@ -29,5 +26,13 @@ internal static class SuperRestores
             "Super restores",
             HerbloreGlobal.CreateRoute(methodBand),
             HerbloreGlobal.EquipmentNote);
+    }
+
+    private static class Items
+    {
+        public static readonly CatalogueItem SnapdragonPotionUnfinished =
+            new(3004, "Snapdragon potion (unf)");
+        public static readonly CatalogueItem RedSpidersEggs = new(223, "Red spiders' eggs");
+        public static readonly CatalogueItem SuperRestore4 = new(3024, "Super restore(4)");
     }
 }

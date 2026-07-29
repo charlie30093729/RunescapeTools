@@ -1,6 +1,6 @@
 using RunescapeTools.Core.Training;
+using RunescapeTools.Infrastructure.Training;
 using static RunescapeTools.Infrastructure.Training.TrainingCatalogueBuilder;
-using static RunescapeTools.Infrastructure.Training.TrainingItemIds;
 
 namespace RunescapeTools.Infrastructure.Training.Skills;
 
@@ -11,8 +11,8 @@ internal static class ConstructionCatalogue
 
     public static TrainingSkillDefinition Create()
     {
-        var oakEconomics = PlankEconomics(OakPlank, "Oak plank", 60m);
-        var mahoganyEconomics = PlankEconomics(MahoganyPlank, "Mahogany plank", 140m);
+        var oakEconomics = PlankEconomics(Items.OakPlank, 60m);
+        var mahoganyEconomics = PlankEconomics(Items.MahoganyPlank, 140m);
         return Skill(
             "Construction",
             Band(0, 54_700m, "Low-level furniture"),
@@ -24,10 +24,15 @@ internal static class ConstructionCatalogue
     }
 
     private static TrainingEconomics PlankEconomics(
-        int itemId,
-        string name,
+        CatalogueItem plank,
         decimal experiencePerPlank) =>
         new(
-            [Input(itemId, name, 1m / experiencePerPlank)],
+            [Input(plank, 1m / experiencePerPlank)],
             DemonButlerGpPerTrip / DemonButlerCapacity / experiencePerPlank);
+
+    private static class Items
+    {
+        public static readonly CatalogueItem OakPlank = new(8778, "Oak plank");
+        public static readonly CatalogueItem MahoganyPlank = new(8782, "Mahogany plank");
+    }
 }

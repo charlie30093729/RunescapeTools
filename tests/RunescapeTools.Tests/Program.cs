@@ -47,6 +47,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("money-maker action-rate overrides persist atomically", MoneyMakingPreferencePersistence),
     ("profile view-model loads defaults and keeps valid data on errors", ProfileViewModelFlow),
     ("EHP catalogue covers every skill and ordered rate band", () => RunSync(EhpCatalogueCoverage)),
+    ("catalogue market resources keep valid local item identities", () => RunSync(CatalogueMarketItemIntegrity)),
     ("training definitions support stable default and alternative methods", () => RunSync(TrainingMethodSelection)),
     ("XP Planner rows select and persist training methods", () => RunSync(XpPlannerRowMethodSelection)),
     ("approved deterministic methods expose reviewed rates and economics", () => RunSync(DeterministicMethodCatalogue)),
@@ -773,6 +774,59 @@ static void EhpCatalogueCoverage()
         Equal("main-ehp", skill.AvailableMethods[0].Id, $"{skill.Skill} default method ID");
         Equal(skill.Bands.Count, skill.AvailableMethods[0].Bands.Count, $"{skill.Skill} default method bands");
     }
+}
+
+static void CatalogueMarketItemIntegrity()
+{
+    var resources = new MainEhpCatalogue().Skills
+        .SelectMany(skill => skill.AvailableMethods)
+        .SelectMany(method => method.Bands)
+        .SelectMany(band => band.Economics?.Resources ?? [])
+        .ToArray();
+
+    True(resources.Length > 0, "catalogue should expose market resources");
+    True(resources.All(resource => resource.ItemId > 0), "catalogue item IDs should be positive");
+    True(
+        resources.All(resource => !string.IsNullOrWhiteSpace(resource.Name)),
+        "catalogue items should have display names");
+
+    var idConflicts = resources
+        .GroupBy(resource => resource.ItemId)
+        .Select(group => new
+        {
+            ItemId = group.Key,
+            Names = group
+                .Select(resource => BaseItemName(resource.Name))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Order()
+                .ToArray()
+        })
+        .Where(group => group.Names.Length > 1)
+        .ToArray();
+    Equal(
+        string.Empty,
+        string.Join("; ", idConflicts.Select(group => $"{group.ItemId}: {string.Join('|', group.Names)}")),
+        "one item ID should not map to conflicting base names");
+
+    var nameConflicts = resources
+        .GroupBy(resource => BaseItemName(resource.Name), StringComparer.OrdinalIgnoreCase)
+        .Select(group => new
+        {
+            Name = group.Key,
+            ItemIds = group.Select(resource => resource.ItemId).Distinct().Order().ToArray()
+        })
+        .Where(group => group.ItemIds.Length > 1)
+        .ToArray();
+    Equal(
+        string.Empty,
+        string.Join("; ", nameConflicts.Select(group => $"{group.Name}: {string.Join('|', group.ItemIds)}")),
+        "one base item name should not map to conflicting IDs");
+}
+
+static string BaseItemName(string name)
+{
+    var contextStart = name.IndexOf(" (", StringComparison.Ordinal);
+    return contextStart < 0 ? name : name[..contextStart];
 }
 
 static void TrainingMethodSelection()

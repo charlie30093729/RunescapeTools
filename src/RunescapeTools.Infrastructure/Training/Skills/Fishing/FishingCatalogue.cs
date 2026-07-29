@@ -1,6 +1,6 @@
 using RunescapeTools.Core.Training;
+using RunescapeTools.Infrastructure.Training;
 using static RunescapeTools.Infrastructure.Training.TrainingCatalogueBuilder;
-using static RunescapeTools.Infrastructure.Training.TrainingItemIds;
 
 namespace RunescapeTools.Infrastructure.Training.Skills;
 
@@ -30,9 +30,14 @@ internal static class FishingCatalogue
                 new TrainingEconomics(
                     [
                         Input(
-                            EnhancedCrystalTeleportSeed,
-                            "Enhanced crystal teleport seed (crystal harpoon charges)",
+                            Items.EnhancedCrystalTeleportSeed,
                             ReviewedSeedTotal
                             / (TrainingPlanCalculator.MaximumExperience - CrystalToolStartExperience))
                     ])));
+
+    private static class Items
+    {
+        public static readonly CatalogueItem EnhancedCrystalTeleportSeed =
+            new(23959, "Enhanced crystal teleport seed (crystal harpoon charges)");
+    }
 }

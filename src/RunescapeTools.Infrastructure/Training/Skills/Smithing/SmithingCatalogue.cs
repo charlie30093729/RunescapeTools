@@ -1,6 +1,6 @@
 using RunescapeTools.Core.Training;
+using RunescapeTools.Infrastructure.Training;
 using static RunescapeTools.Infrastructure.Training.TrainingCatalogueBuilder;
-using static RunescapeTools.Infrastructure.Training.TrainingItemIds;
 
 namespace RunescapeTools.Infrastructure.Training.Skills;
 
@@ -22,9 +22,16 @@ internal static class SmithingCatalogue
     private static TrainingEconomics GoldEconomics(decimal fixedGpPerHour) =>
         new(
             [
-                Input(GoldOre, "Gold ore", 1m / GoldBarSmithingXp),
-                Input(StaminaPotion4, "Stamina potion(4)", 0m, quantityPerHour: StaminaPotion4PerHour),
-                Output(GoldBar, "Gold bar", 1m / GoldBarSmithingXp)
+                Input(Items.GoldOre, 1m / GoldBarSmithingXp),
+                Input(Items.StaminaPotion4, 0m, quantityPerHour: StaminaPotion4PerHour),
+                Output(Items.GoldBar, 1m / GoldBarSmithingXp)
             ],
             FixedGpPerHour: fixedGpPerHour);
+
+    private static class Items
+    {
+        public static readonly CatalogueItem GoldOre = new(444, "Gold ore");
+        public static readonly CatalogueItem StaminaPotion4 = new(12625, "Stamina potion(4)");
+        public static readonly CatalogueItem GoldBar = new(2357, "Gold bar");
+    }
 }

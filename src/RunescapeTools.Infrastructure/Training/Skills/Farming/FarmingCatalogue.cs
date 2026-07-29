@@ -1,6 +1,6 @@
 using RunescapeTools.Core.Training;
+using RunescapeTools.Infrastructure.Training;
 using static RunescapeTools.Infrastructure.Training.TrainingCatalogueBuilder;
-using static RunescapeTools.Infrastructure.Training.TrainingItemIds;
 
 namespace RunescapeTools.Infrastructure.Training.Skills;
 
@@ -24,172 +24,150 @@ internal static class FarmingCatalogue
                 364_000m,
                 "Efficient tree runs",
                 TreeRunEconomics(
-                    Regular(WillowSapling, "Willow sapling", CookingApple, "Cooking apple", 5m, 1_481.5m),
-                    Fruit(BananaSapling, "Banana sapling", CookingApple, "Cooking apple", 20m, 1_778.5m),
-                    Hardwood(TeakSapling, "Teak sapling", LimpwurtRoot, "Limpwurt root", 15m, 7_325m, 74m + 40m / 60m))),
+                    Regular(Items.WillowSapling, Items.CookingApple, 5m, 1_481.5m),
+                    Fruit(Items.BananaSapling, Items.CookingApple, 20m, 1_778.5m),
+                    Hardwood(Items.TeakSapling, Items.LimpwurtRoot, 15m, 7_325m, 74m + 40m / 60m))),
             Band(
                 61_512,
                 575_000m,
                 "Efficient tree runs",
                 TreeRunEconomics(
-                    Regular(MapleSapling, "Maple sapling", Orange, "Orange", 5m, 3_448.4m),
-                    Fruit(CurrySapling, "Curry sapling", Banana, "Banana", 25m, 2_946.9m),
-                    Hardwood(TeakSapling, "Teak sapling", LimpwurtRoot, "Limpwurt root", 15m, 7_325m, 74m + 40m / 60m))),
+                    Regular(Items.MapleSapling, Items.Orange, 5m, 3_448.4m),
+                    Fruit(Items.CurrySapling, Items.Banana, 25m, 2_946.9m),
+                    Hardwood(Items.TeakSapling, Items.LimpwurtRoot, 15m, 7_325m, 74m + 40m / 60m))),
             Band(
                 166_636,
                 841_000m,
                 "Efficient tree runs",
                 TreeRunEconomics(
-                    Regular(MapleSapling, "Maple sapling", Orange, "Orange", 5m, 3_448.4m),
-                    Fruit(PineappleSapling, "Pineapple sapling", Watermelon, "Watermelon", 10m, 4_662.7m),
-                    Hardwood(MahoganySapling, "Mahogany sapling", YanillianHops, "Yanillian hops", 25m, 15_783m, 85m + 20m / 60m))),
+                    Regular(Items.MapleSapling, Items.Orange, 5m, 3_448.4m),
+                    Fruit(Items.PineappleSapling, Items.Watermelon, 10m, 4_662.7m),
+                    Hardwood(Items.MahoganySapling, Items.YanillianHops, 25m, 15_783m, 85m + 20m / 60m))),
             Band(
                 273_742,
                 1_222_000m,
                 "Efficient tree runs",
                 TreeRunEconomics(
-                    Regular(YewSapling, "Yew sapling", CactusSpine, "Cactus spine", 10m, 7_150.9m),
-                    Fruit(PapayaSapling, "Papaya sapling", Pineapple, "Pineapple", 10m, 6_218.4m),
-                    Hardwood(MahoganySapling, "Mahogany sapling", YanillianHops, "Yanillian hops", 25m, 15_783m, 85m + 20m / 60m))),
+                    Regular(Items.YewSapling, Items.CactusSpine, 10m, 7_150.9m),
+                    Fruit(Items.PapayaSapling, Items.Pineapple, 10m, 6_218.4m),
+                    Hardwood(Items.MahoganySapling, Items.YanillianHops, 25m, 15_783m, 85m + 20m / 60m))),
             Band(
                 605_032,
                 1_428_000m,
                 "Efficient tree runs",
                 TreeRunEconomics(
-                    Regular(YewSapling, "Yew sapling", CactusSpine, "Cactus spine", 10m, 7_150.9m),
-                    Fruit(PalmSapling, "Palm sapling", PapayaFruit, "Papaya fruit", 15m, 10_260.6m),
-                    Hardwood(CamphorSapling, "Camphor sapling", WhiteBerries, "White berries", 10m, 17_928m, 85m + 20m / 60m))),
+                    Regular(Items.YewSapling, Items.CactusSpine, 10m, 7_150.9m),
+                    Fruit(Items.PalmSapling, Items.PapayaFruit, 15m, 10_260.6m),
+                    Hardwood(Items.CamphorSapling, Items.WhiteBerries, 10m, 17_928m, 85m + 20m / 60m))),
             Band(
                 1_210_421,
                 2_063_000m,
                 "Efficient tree runs",
                 TreeRunEconomics(
-                    Regular(MagicSapling, "Magic sapling", Coconut, "Coconut", 25m, 13_913.8m),
-                    Fruit(PalmSapling, "Palm sapling", PapayaFruit, "Papaya fruit", 15m, 10_260.6m),
-                    Hardwood(CamphorSapling, "Camphor sapling", WhiteBerries, "White berries", 10m, 17_928m, 85m + 20m / 60m),
-                    Daily(CalquatSapling, "Calquat sapling", PoisonIvyBerries, "Poison ivy berries", 8m, 12_225.5m))),
+                    Regular(Items.MagicSapling, Items.Coconut, 25m, 13_913.8m),
+                    Fruit(Items.PalmSapling, Items.PapayaFruit, 15m, 10_260.6m),
+                    Hardwood(Items.CamphorSapling, Items.WhiteBerries, 10m, 17_928m, 85m + 20m / 60m),
+                    Daily(Items.CalquatSapling, Items.PoisonIvyBerries, 8m, 12_225.5m))),
             Band(
                 2_192_818,
                 2_475_000m,
                 "Efficient tree runs",
                 TreeRunEconomics(
-                    Regular(MagicSapling, "Magic sapling", Coconut, "Coconut", 25m, 13_913.8m),
-                    Fruit(DragonfruitSapling, "Dragonfruit sapling", Coconut, "Coconut", 15m, 17_475m),
-                    Hardwood(IronwoodSapling, "Ironwood sapling", CurryLeaf, "Curry leaf", 10m, 20_525m, 85m + 20m / 60m),
-                    Daily(CalquatSapling, "Calquat sapling", PoisonIvyBerries, "Poison ivy berries", 8m, 12_225.5m))),
+                    Regular(Items.MagicSapling, Items.Coconut, 25m, 13_913.8m),
+                    Fruit(Items.DragonfruitSapling, Items.Coconut, 15m, 17_475m),
+                    Hardwood(Items.IronwoodSapling, Items.CurryLeaf, 10m, 20_525m, 85m + 20m / 60m),
+                    Daily(Items.CalquatSapling, Items.PoisonIvyBerries, 8m, 12_225.5m))),
             Band(
                 3_258_594,
                 2_611_000m,
                 "Efficient tree runs",
                 TreeRunEconomics(
-                    Regular(MagicSapling, "Magic sapling", Coconut, "Coconut", 25m, 13_913.8m),
-                    Fruit(DragonfruitSapling, "Dragonfruit sapling", Coconut, "Coconut", 15m, 17_475m),
-                    Hardwood(IronwoodSapling, "Ironwood sapling", CurryLeaf, "Curry leaf", 10m, 20_525m, 85m + 20m / 60m),
-                    Daily(CalquatSapling, "Calquat sapling", PoisonIvyBerries, "Poison ivy berries", 8m, 12_225.5m),
-                    Daily(CelastrusSapling, "Celastrus sapling", PotatoCactus, "Potato cactus", 8m, 14_334m))),
+                    Regular(Items.MagicSapling, Items.Coconut, 25m, 13_913.8m),
+                    Fruit(Items.DragonfruitSapling, Items.Coconut, 15m, 17_475m),
+                    Hardwood(Items.IronwoodSapling, Items.CurryLeaf, 10m, 20_525m, 85m + 20m / 60m),
+                    Daily(Items.CalquatSapling, Items.PoisonIvyBerries, 8m, 12_225.5m),
+                    Daily(Items.CelastrusSapling, Items.PotatoCactus, 8m, 14_334m))),
             Band(
                 6_517_253,
                 2_669_000m,
                 "Efficient tree runs",
                 TreeRunEconomics(
-                    Regular(MagicSapling, "Magic sapling", Coconut, "Coconut", 25m, 13_913.8m),
-                    Fruit(DragonfruitSapling, "Dragonfruit sapling", Coconut, "Coconut", 15m, 17_475m),
-                    Hardwood(RosewoodSapling, "Rosewood sapling", Dragonfruit, "Dragonfruit", 8m, 23_352m, 96m),
-                    Daily(CalquatSapling, "Calquat sapling", PoisonIvyBerries, "Poison ivy berries", 8m, 12_225.5m),
-                    Daily(CelastrusSapling, "Celastrus sapling", PotatoCactus, "Potato cactus", 8m, 14_334m),
+                    Regular(Items.MagicSapling, Items.Coconut, 25m, 13_913.8m),
+                    Fruit(Items.DragonfruitSapling, Items.Coconut, 15m, 17_475m),
+                    Hardwood(Items.RosewoodSapling, Items.Dragonfruit, 8m, 23_352m, 96m),
+                    Daily(Items.CalquatSapling, Items.PoisonIvyBerries, 8m, 12_225.5m),
+                    Daily(Items.CelastrusSapling, Items.PotatoCactus, 8m, 14_334m),
                     EveryHours(
-                        RedwoodSapling,
-                        "Redwood sapling",
-                        Dragonfruit,
-                        "Dragonfruit",
+                        Items.RedwoodSapling,
+                        Items.Dragonfruit,
                         6m,
                         22_680m,
                         106m + 40m / 60m,
                         clearingFee: 2_000m))));
 
     private static TreeComponent Regular(
-        int saplingId,
-        string saplingName,
-        int paymentId,
-        string paymentName,
+        CatalogueItem sapling,
+        CatalogueItem payment,
         decimal paymentQuantity,
         decimal experiencePerTree) =>
         new(
-            saplingId,
-            saplingName,
-            paymentId,
-            paymentName,
+            sapling,
+            payment,
             paymentQuantity,
             experiencePerTree,
             RegularTreesPerDay,
             StandardClearingFee);
 
     private static TreeComponent Fruit(
-        int saplingId,
-        string saplingName,
-        int paymentId,
-        string paymentName,
+        CatalogueItem sapling,
+        CatalogueItem payment,
         decimal paymentQuantity,
         decimal experiencePerTree) =>
         new(
-            saplingId,
-            saplingName,
-            paymentId,
-            paymentName,
+            sapling,
+            payment,
             paymentQuantity,
             experiencePerTree,
             FruitTreesPerDay,
             StandardClearingFee);
 
     private static TreeComponent Hardwood(
-        int saplingId,
-        string saplingName,
-        int paymentId,
-        string paymentName,
+        CatalogueItem sapling,
+        CatalogueItem payment,
         decimal paymentQuantity,
         decimal experiencePerTree,
         decimal growthHours) =>
         new(
-            saplingId,
-            saplingName,
-            paymentId,
-            paymentName,
+            sapling,
+            payment,
             paymentQuantity,
             experiencePerTree,
             HardwoodPatches * 24m / growthHours,
             StandardClearingFee);
 
     private static TreeComponent Daily(
-        int saplingId,
-        string saplingName,
-        int paymentId,
-        string paymentName,
+        CatalogueItem sapling,
+        CatalogueItem payment,
         decimal paymentQuantity,
         decimal experiencePerTree) =>
         new(
-            saplingId,
-            saplingName,
-            paymentId,
-            paymentName,
+            sapling,
+            payment,
             paymentQuantity,
             experiencePerTree,
             1m,
             StandardClearingFee);
 
     private static TreeComponent EveryHours(
-        int saplingId,
-        string saplingName,
-        int paymentId,
-        string paymentName,
+        CatalogueItem sapling,
+        CatalogueItem payment,
         decimal paymentQuantity,
         decimal experiencePerTree,
         decimal growthHours,
         decimal clearingFee) =>
         new(
-            saplingId,
-            saplingName,
-            paymentId,
-            paymentName,
+            sapling,
+            payment,
             paymentQuantity,
             experiencePerTree,
             24m / growthHours,
@@ -204,12 +182,10 @@ internal static class FarmingCatalogue
                 new[]
                 {
                     Input(
-                        component.SaplingId,
-                        component.SaplingName,
+                        component.Sapling,
                         component.TreesPerDay / experiencePerDay),
                     Input(
-                        component.PaymentId,
-                        component.PaymentName,
+                        component.Payment,
                         component.PaymentQuantity * component.TreesPerDay / experiencePerDay)
                 })
             .GroupBy(resource => (resource.ItemId, resource.Name, resource.Direction))
@@ -229,12 +205,47 @@ internal static class FarmingCatalogue
     }
 
     private sealed record TreeComponent(
-        int SaplingId,
-        string SaplingName,
-        int PaymentId,
-        string PaymentName,
+        CatalogueItem Sapling,
+        CatalogueItem Payment,
         decimal PaymentQuantity,
         decimal ExperiencePerTree,
         decimal TreesPerDay,
         decimal ClearingFee);
+
+    private static class Items
+    {
+        public static readonly CatalogueItem Banana = new(1963, "Banana");
+        public static readonly CatalogueItem BananaSapling = new(5497, "Banana sapling");
+        public static readonly CatalogueItem CactusSpine = new(6016, "Cactus spine");
+        public static readonly CatalogueItem CalquatSapling = new(5503, "Calquat sapling");
+        public static readonly CatalogueItem CamphorSapling = new(31502, "Camphor sapling");
+        public static readonly CatalogueItem CelastrusSapling = new(22856, "Celastrus sapling");
+        public static readonly CatalogueItem Coconut = new(5974, "Coconut");
+        public static readonly CatalogueItem CookingApple = new(1955, "Cooking apple");
+        public static readonly CatalogueItem CurryLeaf = new(5970, "Curry leaf");
+        public static readonly CatalogueItem CurrySapling = new(5499, "Curry sapling");
+        public static readonly CatalogueItem Dragonfruit = new(22929, "Dragonfruit");
+        public static readonly CatalogueItem DragonfruitSapling = new(22866, "Dragonfruit sapling");
+        public static readonly CatalogueItem IronwoodSapling = new(31505, "Ironwood sapling");
+        public static readonly CatalogueItem LimpwurtRoot = new(225, "Limpwurt root");
+        public static readonly CatalogueItem MagicSapling = new(5374, "Magic sapling");
+        public static readonly CatalogueItem MahoganySapling = new(21480, "Mahogany sapling");
+        public static readonly CatalogueItem MapleSapling = new(5372, "Maple sapling");
+        public static readonly CatalogueItem Orange = new(2108, "Orange");
+        public static readonly CatalogueItem PalmSapling = new(5502, "Palm sapling");
+        public static readonly CatalogueItem PapayaFruit = new(5972, "Papaya fruit");
+        public static readonly CatalogueItem PapayaSapling = new(5501, "Papaya sapling");
+        public static readonly CatalogueItem Pineapple = new(2114, "Pineapple");
+        public static readonly CatalogueItem PineappleSapling = new(5500, "Pineapple sapling");
+        public static readonly CatalogueItem PoisonIvyBerries = new(6018, "Poison ivy berries");
+        public static readonly CatalogueItem PotatoCactus = new(3138, "Potato cactus");
+        public static readonly CatalogueItem RedwoodSapling = new(22859, "Redwood sapling");
+        public static readonly CatalogueItem RosewoodSapling = new(31508, "Rosewood sapling");
+        public static readonly CatalogueItem TeakSapling = new(21477, "Teak sapling");
+        public static readonly CatalogueItem Watermelon = new(5982, "Watermelon");
+        public static readonly CatalogueItem WhiteBerries = new(239, "White berries");
+        public static readonly CatalogueItem WillowSapling = new(5371, "Willow sapling");
+        public static readonly CatalogueItem YanillianHops = new(5998, "Yanillian hops");
+        public static readonly CatalogueItem YewSapling = new(5373, "Yew sapling");
+    }
 }

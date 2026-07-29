@@ -1,6 +1,6 @@
 using RunescapeTools.Core.Training;
+using RunescapeTools.Infrastructure.Training;
 using static RunescapeTools.Infrastructure.Training.TrainingCatalogueBuilder;
-using static RunescapeTools.Infrastructure.Training.TrainingItemIds;
 
 namespace RunescapeTools.Infrastructure.Training.Skills;
 
@@ -28,8 +28,13 @@ internal static class MiningCatalogue
             new TrainingEconomics(
                 [
                     Input(
-                        DragonPickaxe,
-                        "Dragon pickaxe (infernal pickaxe recharge)",
+                        Items.DragonPickaxe,
                         1m / InfernalPickaxeExperiencePerDragonPickaxe)
                 ]));
+
+    private static class Items
+    {
+        public static readonly CatalogueItem DragonPickaxe =
+            new(11920, "Dragon pickaxe (infernal pickaxe recharge)");
+    }
 }

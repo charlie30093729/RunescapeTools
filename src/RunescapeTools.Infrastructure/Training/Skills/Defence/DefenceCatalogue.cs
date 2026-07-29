@@ -1,6 +1,6 @@
 using RunescapeTools.Core.Training;
+using RunescapeTools.Infrastructure.Training;
 using static RunescapeTools.Infrastructure.Training.TrainingCatalogueBuilder;
-using static RunescapeTools.Infrastructure.Training.TrainingItemIds;
 
 namespace RunescapeTools.Infrastructure.Training.Skills;
 
@@ -18,16 +18,20 @@ internal static class DefenceCatalogue
                 ExperiencePerHour,
                 "Black Chinchompas & Cannon - Defensive",
                 new TrainingEconomics(
-                    [
-                        Input(
-                            BlackChinchompa,
-                            "Black chinchompa",
-                            BlackChinchompasPerHour / ExperiencePerHour),
-                        Input(
-                            Cannonball,
-                            "Cannonball",
-                            CannonballsPerHour / ExperiencePerHour)
-                    ])),
+                        [
+                            Input(
+                                Items.BlackChinchompa,
+                                BlackChinchompasPerHour / ExperiencePerHour),
+                            Input(
+                                Items.Cannonball,
+                                CannonballsPerHour / ExperiencePerHour)
+                        ])),
             "Reviewed projection at 405,000 Defence XP/hour. The cost model assumes 1,500 long-fuse " +
             "black chinchompas and maximum 6,000-cannonball throughput per hour.");
+
+    private static class Items
+    {
+        public static readonly CatalogueItem BlackChinchompa = new(11959, "Black chinchompa");
+        public static readonly CatalogueItem Cannonball = new(2, "Cannonball");
+    }
 }

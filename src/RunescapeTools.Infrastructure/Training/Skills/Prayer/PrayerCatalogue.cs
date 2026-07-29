@@ -1,6 +1,6 @@
 using RunescapeTools.Core.Training;
+using RunescapeTools.Infrastructure.Training;
 using static RunescapeTools.Infrastructure.Training.TrainingCatalogueBuilder;
-using static RunescapeTools.Infrastructure.Training.TrainingItemIds;
 
 namespace RunescapeTools.Infrastructure.Training.Skills;
 
@@ -17,5 +17,10 @@ internal static class PrayerCatalogue
                 2_000_000m,
                 "Superior dragon bones at the Chaos Altar",
                 new TrainingEconomics(
-                    [Input(SuperiorDragonBones, "Superior dragon bones", 1m / EffectiveChaosAltarXpPerSuperiorBone)])));
+                    [Input(Items.SuperiorDragonBones, 1m / EffectiveChaosAltarXpPerSuperiorBone)])));
+
+    private static class Items
+    {
+        public static readonly CatalogueItem SuperiorDragonBones = new(22124, "Superior dragon bones");
+    }
 }

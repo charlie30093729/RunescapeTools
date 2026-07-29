@@ -1,6 +1,6 @@
 using RunescapeTools.Core.Training;
+using RunescapeTools.Infrastructure.Training;
 using static RunescapeTools.Infrastructure.Training.TrainingCatalogueBuilder;
-using static RunescapeTools.Infrastructure.Training.TrainingItemIds;
 
 namespace RunescapeTools.Infrastructure.Training.Skills;
 
@@ -23,13 +23,11 @@ internal static class SailingCatalogue
                 new TrainingEconomics(
                     [
                         Input(
-                            SuperCombatPotion4,
-                            "Super combat potion(4)",
+                            Items.SuperCombatPotion4,
                             0m,
                             PotionsPerHour),
                         Output(
-                            DivineSuperCombatPotion4,
-                            "Divine super combat potion(4)",
+                            Items.DivineSuperCombatPotion4,
                             0m,
                             PotionsPerHour)
                     ])),
@@ -37,4 +35,11 @@ internal static class SailingCatalogue
             $"{ReviewedPotionTotal:N0} divine super combat potions produced over {ReviewedHours:N2} active hours. " +
             "The crystal extractor converts each shard into 10 dust; four dust upgrades one potion. " +
             "No multiskilling is included.");
+
+    private static class Items
+    {
+        public static readonly CatalogueItem SuperCombatPotion4 = new(12695, "Super combat potion(4)");
+        public static readonly CatalogueItem DivineSuperCombatPotion4 =
+            new(23685, "Divine super combat potion(4)");
+    }
 }

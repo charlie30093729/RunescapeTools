@@ -1,6 +1,6 @@
 using RunescapeTools.Core.Training;
+using RunescapeTools.Infrastructure.Training;
 using static RunescapeTools.Infrastructure.Training.TrainingCatalogueBuilder;
-using static RunescapeTools.Infrastructure.Training.TrainingItemIds;
 
 namespace RunescapeTools.Infrastructure.Training.Skills;
 
@@ -21,12 +21,10 @@ internal static class RangedCatalogue
                     new TrainingEconomics(
                         [
                             Input(
-                                BlackChinchompa,
-                                "Black chinchompa",
+                                Items.BlackChinchompa,
                                 BlackChinchompasPerHour / ExperiencePerHour),
                             Input(
-                                Cannonball,
-                                "Cannonball",
+                                Items.Cannonball,
                                 CannonballsPerHour / ExperiencePerHour)
                         ]))
             ],
@@ -34,4 +32,10 @@ internal static class RangedCatalogue
             Note: "Ranged is priced at 1,150,000 XP/hour but contributes zero active hours. " +
                   "The cost model assumes 1,866 rapid black chinchompas and maximum " +
                   "6,000-cannonball throughput per hour.");
+
+    private static class Items
+    {
+        public static readonly CatalogueItem BlackChinchompa = new(11959, "Black chinchompa");
+        public static readonly CatalogueItem Cannonball = new(2, "Cannonball");
+    }
 }

@@ -1,6 +1,6 @@
 using RunescapeTools.Core.Training;
+using RunescapeTools.Infrastructure.Training;
 using static RunescapeTools.Infrastructure.Training.TrainingCatalogueBuilder;
-using static RunescapeTools.Infrastructure.Training.TrainingItemIds;
 
 namespace RunescapeTools.Infrastructure.Training.Skills;
 
@@ -21,12 +21,10 @@ internal static class MagicCatalogue
                     new TrainingEconomics(
                         [
                             Input(
-                                BloodRune,
-                                "Blood rune",
+                                Items.BloodRune,
                                 2m * KodaiRuneConsumption * CastsPerHour / ExperiencePerHour),
                             Input(
-                                DeathRune,
-                                "Death rune",
+                                Items.DeathRune,
                                 4m * KodaiRuneConsumption * CastsPerHour / ExperiencePerHour)
                         ]))
             ],
@@ -34,4 +32,10 @@ internal static class MagicCatalogue
             Note: "Ice Barrage is priced only against Magic XP left after pending Slayer credit and contributes " +
                   "zero active hours. The reviewed 330,000 XP/hour cost model assumes 1,085 casts/hour, " +
                   "a Kodai wand's 15% rune-saving effect, and no water-rune cost.");
+
+    private static class Items
+    {
+        public static readonly CatalogueItem BloodRune = new(565, "Blood rune");
+        public static readonly CatalogueItem DeathRune = new(560, "Death rune");
+    }
 }
