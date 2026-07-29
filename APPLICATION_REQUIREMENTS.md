@@ -221,7 +221,8 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | FR-XP-036 | Every XP Planner skill row shall provide a dropdown containing each registered training route for that skill; selecting a route shall recalculate its active rate bands, hours, economics, generated XP, and live-price requirements. |
 | FR-XP-037 | The selected training-route ID shall persist per RSN in the training plan and shall fall back safely to the skill's registered default when a saved route is unavailable. |
 | FR-XP-038 | A per-skill reset shall preserve the currently selected training route, restore start XP from the loaded profile, restore the 200m goal, restore the selected route's catalogue XP rate at that start XP, and clear that skill's money-making allocation. |
-| FR-XP-029 | Herblore potion economics shall include the average Prescription goggles secondary saving, Alchemist's amulet extra-dose output, and the Amulets of chemistry consumed to recharge it by default; ineligible future potion routes shall opt out explicitly. |
+| FR-XP-039 | Herblore potion economics shall include the average Prescription goggles secondary saving, Alchemist's amulet extra-dose output, and the Amulets of chemistry consumed to recharge it for eligible methods. Ineligible routes shall opt out explicitly, and all finished potions shall be valued as four-dose sale items. |
+| FR-XP-040 | Herblore shall provide selectable Saradomin brew, Super restore, and 1-tick extended super antifire routes. Super restores shall use both equipment effects; extended super antifires shall use Prescription goggles but not the Alchemist's amulet. |
 
 ### 6.8 Method modularity
 
@@ -394,8 +395,9 @@ Requirements:
 | NFR-MAINT-002 | Market behavior and use cases shall remain in the Application project; external HTTP and JSON persistence shall remain in Infrastructure. |
 | NFR-MAINT-003 | WPF view-models and Razor components shall consume shared services and domain results rather than reproduce calculation rules. |
 | NFR-MAINT-004 | Shared dependency registration shall configure HTTP, persistence, caches, calculator, and discovered methods for either host. |
-| NFR-MAINT-005 | Each XP Planner skill catalogue shall be maintained in its own Infrastructure file; the main catalogue shall only compose skills in canonical order. |
+| NFR-MAINT-005 | Each XP Planner skill shall be maintained in its own Infrastructure folder. A skill catalogue shall compose its method definitions, method-specific data shall remain in separate files as the catalogue expands, and the main catalogue shall only compose skills in canonical order. |
 | NFR-MAINT-006 | Verified training item IDs and common catalogue-construction helpers shall remain centralized rather than duplicated between skill files. |
+| NFR-MAINT-007 | Rules genuinely shared by multiple methods of one skill shall be centralized in that skill's `Global.cs`; method files shall consume those rules by composition rather than duplicate them or inherit UI behavior. |
 | NFR-TEST-001 | The regression harness shall cover calculation rules, caching, history filtering, search ordering, retries, warmup, JSON persistence, and WPF view-model behavior. |
 | NFR-TEST-002 | A release candidate shall build with zero compiler errors. |
 
