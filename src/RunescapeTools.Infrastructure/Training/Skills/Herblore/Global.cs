@@ -1,6 +1,6 @@
 using RunescapeTools.Core.Training;
+using RunescapeTools.Infrastructure.Training;
 using static RunescapeTools.Infrastructure.Training.TrainingCatalogueBuilder;
-using static RunescapeTools.Infrastructure.Training.TrainingItemIds;
 
 namespace RunescapeTools.Infrastructure.Training.Skills.Herblore;
 
@@ -43,13 +43,10 @@ internal static class HerbloreGlobal
             .ToArray();
 
     public static TrainingEconomics CreatePotionEconomics(
-        int baseItemId,
-        string baseItemName,
-        int secondaryItemId,
-        string secondaryItemName,
+        CatalogueItem baseItem,
+        CatalogueItem secondaryItem,
         decimal secondaryQuantityPerPotion,
-        int outputItemId,
-        string outputItemName,
+        CatalogueItem outputItem,
         decimal experiencePerPotion,
         decimal baseOutputDosesPerPotion = 3m,
         bool prescriptionGogglesApply = true,
@@ -67,10 +64,9 @@ internal static class HerbloreGlobal
             : 1m;
         var resources = new List<TrainingResourceFlow>
         {
-            Input(baseItemId, baseItemName, 1m / experiencePerPotion),
+            Input(baseItem, 1m / experiencePerPotion),
             Input(
-                secondaryItemId,
-                secondaryItemName,
+                secondaryItem,
                 secondaryQuantityPerPotion * secondaryMultiplier / experiencePerPotion)
         };
 
@@ -78,8 +74,7 @@ internal static class HerbloreGlobal
         {
             resources.Add(
                 Input(
-                    AmuletOfChemistry,
-                    "Amulet of chemistry",
+                    Items.AmuletOfChemistry,
                     AlchemistsAmuletExtraDoseChance
                     / AlchemistsAmuletChargesPerChemistryAmulet
                     / experiencePerPotion));
@@ -90,10 +85,14 @@ internal static class HerbloreGlobal
             + (alchemistsAmuletApplies ? AlchemistsAmuletExtraDoseChance : 0m);
         resources.Add(
             Output(
-                outputItemId,
-                outputItemName,
+                outputItem,
                 expectedOutputDoses / DosesPerSaleItem / experiencePerPotion));
 
         return new TrainingEconomics(resources);
+    }
+
+    private static class Items
+    {
+        public static readonly CatalogueItem AmuletOfChemistry = new(21163, "Amulet of chemistry");
     }
 }

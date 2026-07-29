@@ -1,6 +1,6 @@
 using RunescapeTools.Core.Training;
+using RunescapeTools.Infrastructure.Training;
 using static RunescapeTools.Infrastructure.Training.TrainingCatalogueBuilder;
-using static RunescapeTools.Infrastructure.Training.TrainingItemIds;
 
 namespace RunescapeTools.Infrastructure.Training.Skills.Herblore.Methods;
 
@@ -25,12 +25,17 @@ internal static class SaradominBrews
             450_000m,
             "Saradomin brews",
             HerbloreGlobal.CreatePotionEconomics(
-                ToadflaxPotionUnfinished,
-                "Toadflax potion (unf)",
-                CrushedNest,
-                "Crushed nest",
+                Items.ToadflaxPotionUnfinished,
+                Items.CrushedNest,
                 1m,
-                SaradominBrew4,
-                "Saradomin brew(4)",
+                Items.SaradominBrew4,
                 ExperiencePerPotion));
+
+    private static class Items
+    {
+        public static readonly CatalogueItem ToadflaxPotionUnfinished =
+            new(3002, "Toadflax potion (unf)");
+        public static readonly CatalogueItem CrushedNest = new(6693, "Crushed nest");
+        public static readonly CatalogueItem SaradominBrew4 = new(6685, "Saradomin brew(4)");
+    }
 }

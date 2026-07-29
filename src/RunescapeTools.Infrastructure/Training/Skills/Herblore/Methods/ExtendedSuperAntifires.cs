@@ -1,6 +1,6 @@
 using RunescapeTools.Core.Training;
+using RunescapeTools.Infrastructure.Training;
 using static RunescapeTools.Infrastructure.Training.TrainingCatalogueBuilder;
-using static RunescapeTools.Infrastructure.Training.TrainingItemIds;
 
 namespace RunescapeTools.Infrastructure.Training.Skills.Herblore.Methods;
 
@@ -15,13 +15,10 @@ internal static class ExtendedSuperAntifires
             840_000m,
             "1t extended super antifires",
             HerbloreGlobal.CreatePotionEconomics(
-                SuperAntifirePotion4,
-                "Super antifire potion(4)",
-                LavaScaleShard,
-                "Lava scale shard",
+                Items.SuperAntifirePotion4,
+                Items.LavaScaleShard,
                 4m,
-                ExtendedSuperAntifire4,
-                "Extended super antifire(4)",
+                Items.ExtendedSuperAntifire4,
                 ExperiencePerPotion,
                 baseOutputDosesPerPotion: 4m,
                 prescriptionGogglesApply: true,
@@ -32,5 +29,14 @@ internal static class ExtendedSuperAntifires
             "1t extended super antifires",
             HerbloreGlobal.CreateRoute(methodBand, SaradominBrews.CreateBand()),
             HerbloreGlobal.EquipmentNote);
+    }
+
+    private static class Items
+    {
+        public static readonly CatalogueItem SuperAntifirePotion4 =
+            new(21978, "Super antifire potion(4)");
+        public static readonly CatalogueItem LavaScaleShard = new(11994, "Lava scale shard");
+        public static readonly CatalogueItem ExtendedSuperAntifire4 =
+            new(22209, "Extended super antifire(4)");
     }
 }

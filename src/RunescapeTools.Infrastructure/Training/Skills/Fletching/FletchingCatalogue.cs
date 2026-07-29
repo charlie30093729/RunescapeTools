@@ -1,6 +1,6 @@
 using RunescapeTools.Core.Training;
+using RunescapeTools.Infrastructure.Training;
 using static RunescapeTools.Infrastructure.Training.TrainingCatalogueBuilder;
-using static RunescapeTools.Infrastructure.Training.TrainingItemIds;
 
 namespace RunescapeTools.Infrastructure.Training.Skills;
 
@@ -18,8 +18,15 @@ internal static class FletchingCatalogue
                 "Amethyst darts",
                 new TrainingEconomics(
                     [
-                        Input(AmethystDartTip, "Amethyst dart tip", 1m / AmethystDartFletchingXp),
-                        Input(Feather, "Feather", 1m / AmethystDartFletchingXp),
-                        Output(AmethystDart, "Amethyst dart", 1m / AmethystDartFletchingXp)
+                        Input(Items.AmethystDartTip, 1m / AmethystDartFletchingXp),
+                        Input(Items.Feather, 1m / AmethystDartFletchingXp),
+                        Output(Items.AmethystDart, 1m / AmethystDartFletchingXp)
                     ])));
+
+    private static class Items
+    {
+        public static readonly CatalogueItem AmethystDartTip = new(25853, "Amethyst dart tip");
+        public static readonly CatalogueItem Feather = new(314, "Feather");
+        public static readonly CatalogueItem AmethystDart = new(25849, "Amethyst dart");
+    }
 }

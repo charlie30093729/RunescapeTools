@@ -1,6 +1,6 @@
 using RunescapeTools.Core.Training;
+using RunescapeTools.Infrastructure.Training;
 using static RunescapeTools.Infrastructure.Training.TrainingCatalogueBuilder;
-using static RunescapeTools.Infrastructure.Training.TrainingItemIds;
 
 namespace RunescapeTools.Infrastructure.Training.Skills;
 
@@ -53,16 +53,27 @@ internal static class RunecraftCatalogue
     {
         var resources = new List<TrainingResourceFlow>
         {
-            Input(PureEssence, "Pure essence", essencePerLap / experiencePerLap),
-            Input(EarthRune, "Earth rune", essencePerLap / experiencePerLap),
-            Input(BindingNecklace, "Binding necklace", 0.2m / experiencePerLap),
-            Input(AstralRune, "Astral rune", astralRunesPerLap / experiencePerLap),
-            Output(MudRune, "Mud rune", mudRunesPerLap / experiencePerLap)
+            Input(Items.PureEssence, essencePerLap / experiencePerLap),
+            Input(Items.EarthRune, essencePerLap / experiencePerLap),
+            Input(Items.BindingNecklace, 0.2m / experiencePerLap),
+            Input(Items.AstralRune, astralRunesPerLap / experiencePerLap),
+            Output(Items.MudRune, mudRunesPerLap / experiencePerLap)
         };
         if (airRunesPerLap > 0m)
-            resources.Add(Input(AirRune, "Air rune", airRunesPerLap / experiencePerLap));
+            resources.Add(Input(Items.AirRune, airRunesPerLap / experiencePerLap));
         if (cosmicRunesPerLap > 0m)
-            resources.Add(Input(CosmicRune, "Cosmic rune", cosmicRunesPerLap / experiencePerLap));
+            resources.Add(Input(Items.CosmicRune, cosmicRunesPerLap / experiencePerLap));
         return new TrainingEconomics(resources);
+    }
+
+    private static class Items
+    {
+        public static readonly CatalogueItem PureEssence = new(7936, "Pure essence");
+        public static readonly CatalogueItem EarthRune = new(557, "Earth rune");
+        public static readonly CatalogueItem BindingNecklace = new(5521, "Binding necklace");
+        public static readonly CatalogueItem AstralRune = new(9075, "Astral rune");
+        public static readonly CatalogueItem MudRune = new(4698, "Mud rune");
+        public static readonly CatalogueItem AirRune = new(556, "Air rune");
+        public static readonly CatalogueItem CosmicRune = new(564, "Cosmic rune");
     }
 }

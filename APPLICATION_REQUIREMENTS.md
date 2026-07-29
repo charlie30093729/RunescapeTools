@@ -396,8 +396,9 @@ Requirements:
 | NFR-MAINT-003 | WPF view-models and Razor components shall consume shared services and domain results rather than reproduce calculation rules. |
 | NFR-MAINT-004 | Shared dependency registration shall configure HTTP, persistence, caches, calculator, and discovered methods for either host. |
 | NFR-MAINT-005 | Each XP Planner skill shall be maintained in its own Infrastructure folder. A skill catalogue shall compose its method definitions, method-specific data shall remain in separate files as the catalogue expands, and the main catalogue shall only compose skills in canonical order. |
-| NFR-MAINT-006 | Verified training item IDs and common catalogue-construction helpers shall remain centralized rather than duplicated between skill files. |
+| NFR-MAINT-006 | A training method shall own its market-item ID and display name together as a local `CatalogueItem`; application-wide training-item registries shall not be used. |
 | NFR-MAINT-007 | Rules genuinely shared by multiple methods of one skill shall be centralized in that skill's `Global.cs`; method files shall consume those rules by composition rather than duplicate them or inherit UI behavior. |
+| NFR-MAINT-008 | An item shared by methods within one skill may live in that skill's `Global.cs`. Items coincidentally reused by unrelated skills shall remain locally owned so new methods do not create cross-skill catalogue coupling. |
 | NFR-TEST-001 | The regression harness shall cover calculation rules, caching, history filtering, search ordering, retries, warmup, JSON persistence, and WPF view-model behavior. |
 | NFR-TEST-002 | A release candidate shall build with zero compiler errors. |
 

@@ -1,6 +1,6 @@
 using RunescapeTools.Core.Training;
+using RunescapeTools.Infrastructure.Training;
 using static RunescapeTools.Infrastructure.Training.TrainingCatalogueBuilder;
-using static RunescapeTools.Infrastructure.Training.TrainingItemIds;
 
 namespace RunescapeTools.Infrastructure.Training.Skills;
 
@@ -31,22 +31,35 @@ internal static class AgilityCatalogue
         new(
             [
                 Input(
-                    StaminaPotion4,
-                    "Stamina potion(4)",
+                    Items.StaminaPotion4,
                     StaminaPotionsPerCoffin / ExperiencePerGrandCoffin),
                 Output(
-                    RingOfEnduranceUncharged,
-                    "Ring of endurance (uncharged)",
+                    Items.RingOfEnduranceUncharged,
                     1m / 200m / ExperiencePerGrandCoffin),
-                Output(Rune2hSword, "Rune 2h sword", 0.1m / ExperiencePerGrandCoffin),
-                Output(RunePlatebody, "Rune platebody", 0.1m / ExperiencePerGrandCoffin),
-                Output(LawRune, "Law rune", 20m / ExperiencePerGrandCoffin),
-                Output(BloodRune, "Blood rune", 20m / ExperiencePerGrandCoffin),
-                Output(SoulRune, "Soul rune", 20m / ExperiencePerGrandCoffin),
-                Output(RuniteBolts, "Runite bolts", 20m / ExperiencePerGrandCoffin),
-                Output(Monkfish, "Monkfish", 0.4m / ExperiencePerGrandCoffin),
-                Output(SanfewSerum4, "Sanfew serum(4)", 0.15m / ExperiencePerGrandCoffin),
-                Output(RanarrSeed, "Ranarr seed", 0.15m / ExperiencePerGrandCoffin)
+                Output(Items.Rune2hSword, 0.1m / ExperiencePerGrandCoffin),
+                Output(Items.RunePlatebody, 0.1m / ExperiencePerGrandCoffin),
+                Output(Items.LawRune, 20m / ExperiencePerGrandCoffin),
+                Output(Items.BloodRune, 20m / ExperiencePerGrandCoffin),
+                Output(Items.SoulRune, 20m / ExperiencePerGrandCoffin),
+                Output(Items.RuniteBolts, 20m / ExperiencePerGrandCoffin),
+                Output(Items.Monkfish, 0.4m / ExperiencePerGrandCoffin),
+                Output(Items.SanfewSerum4, 0.15m / ExperiencePerGrandCoffin),
+                Output(Items.RanarrSeed, 0.15m / ExperiencePerGrandCoffin)
             ],
             FixedGpOutputPerExperience: 2_125m / ExperiencePerGrandCoffin);
+
+    private static class Items
+    {
+        public static readonly CatalogueItem StaminaPotion4 = new(12625, "Stamina potion(4)");
+        public static readonly CatalogueItem RingOfEnduranceUncharged = new(24844, "Ring of endurance (uncharged)");
+        public static readonly CatalogueItem Rune2hSword = new(1319, "Rune 2h sword");
+        public static readonly CatalogueItem RunePlatebody = new(1127, "Rune platebody");
+        public static readonly CatalogueItem LawRune = new(563, "Law rune");
+        public static readonly CatalogueItem BloodRune = new(565, "Blood rune");
+        public static readonly CatalogueItem SoulRune = new(566, "Soul rune");
+        public static readonly CatalogueItem RuniteBolts = new(9144, "Runite bolts");
+        public static readonly CatalogueItem Monkfish = new(7946, "Monkfish");
+        public static readonly CatalogueItem SanfewSerum4 = new(10925, "Sanfew serum(4)");
+        public static readonly CatalogueItem RanarrSeed = new(5295, "Ranarr seed");
+    }
 }

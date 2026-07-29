@@ -1,6 +1,6 @@
 using RunescapeTools.Core.Training;
+using RunescapeTools.Infrastructure.Training;
 using static RunescapeTools.Infrastructure.Training.TrainingCatalogueBuilder;
-using static RunescapeTools.Infrastructure.Training.TrainingItemIds;
 
 namespace RunescapeTools.Infrastructure.Training.Skills;
 
@@ -26,12 +26,16 @@ internal static class ThievingCatalogue
         new(
             [
                 Output(
-                    UncutOnyx,
-                    "Uncut onyx (Tokkul conversion)",
+                    Items.UncutOnyx,
                     TokkulDropChance
                     * AverageTokkulPerDrop
                     * RogueEquipmentExpectedYield
                     / TokkulPerDiscountedOnyx
                     / ExperiencePerPickpocket)
             ]);
+
+    private static class Items
+    {
+        public static readonly CatalogueItem UncutOnyx = new(6571, "Uncut onyx (Tokkul conversion)");
+    }
 }

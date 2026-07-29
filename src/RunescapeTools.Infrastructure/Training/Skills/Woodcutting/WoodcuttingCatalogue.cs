@@ -1,6 +1,6 @@
 using RunescapeTools.Core.Training;
+using RunescapeTools.Infrastructure.Training;
 using static RunescapeTools.Infrastructure.Training.TrainingCatalogueBuilder;
-using static RunescapeTools.Infrastructure.Training.TrainingItemIds;
 
 namespace RunescapeTools.Infrastructure.Training.Skills;
 
@@ -33,18 +33,23 @@ internal static class WoodcuttingCatalogue
         var resources = new List<TrainingResourceFlow>
         {
             Input(
-                ForestersRation,
-                "Forester's ration",
+                Items.ForestersRation,
                 ReviewedRationTotal / (TrainingPlanCalculator.MaximumExperience - TeakStartExperience))
         };
         if (includeCrystalCharges)
         {
             resources.Add(Input(
-                EnhancedCrystalTeleportSeed,
-                "Enhanced crystal teleport seed (crystal felling axe charges)",
+                Items.EnhancedCrystalTeleportSeed,
                 ReviewedSeedTotal / (TrainingPlanCalculator.MaximumExperience - CrystalToolStartExperience)));
         }
 
         return new TrainingEconomics(resources);
+    }
+
+    private static class Items
+    {
+        public static readonly CatalogueItem ForestersRation = new(28157, "Forester's ration");
+        public static readonly CatalogueItem EnhancedCrystalTeleportSeed =
+            new(23959, "Enhanced crystal teleport seed (crystal felling axe charges)");
     }
 }

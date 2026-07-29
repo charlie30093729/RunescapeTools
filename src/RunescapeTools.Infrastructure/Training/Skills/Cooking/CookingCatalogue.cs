@@ -1,6 +1,6 @@
 using RunescapeTools.Core.Training;
+using RunescapeTools.Infrastructure.Training;
 using static RunescapeTools.Infrastructure.Training.TrainingCatalogueBuilder;
-using static RunescapeTools.Infrastructure.Training.TrainingItemIds;
 
 namespace RunescapeTools.Infrastructure.Training.Skills;
 
@@ -24,8 +24,15 @@ internal static class CookingCatalogue
     private static TrainingEconomics SummerPieEconomics() =>
         new(
             [
-                Input(RawSummerPie, "Raw summer pie", 1m / SummerPieCookingXp),
-                Input(AstralRune, "Astral rune", 1m / SummerPieCookingXp),
-                Output(SummerPie, "Summer pie", 1m / SummerPieCookingXp)
+                Input(Items.RawSummerPie, 1m / SummerPieCookingXp),
+                Input(Items.AstralRune, 1m / SummerPieCookingXp),
+                Output(Items.SummerPie, 1m / SummerPieCookingXp)
             ]);
+
+    private static class Items
+    {
+        public static readonly CatalogueItem RawSummerPie = new(7216, "Raw summer pie");
+        public static readonly CatalogueItem AstralRune = new(9075, "Astral rune");
+        public static readonly CatalogueItem SummerPie = new(7218, "Summer pie");
+    }
 }

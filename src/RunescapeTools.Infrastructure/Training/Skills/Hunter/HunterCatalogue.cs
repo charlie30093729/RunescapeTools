@@ -1,6 +1,6 @@
 using RunescapeTools.Core.Training;
+using RunescapeTools.Infrastructure.Training;
 using static RunescapeTools.Infrastructure.Training.TrainingCatalogueBuilder;
-using static RunescapeTools.Infrastructure.Training.TrainingItemIds;
 
 namespace RunescapeTools.Infrastructure.Training.Skills;
 
@@ -27,5 +27,10 @@ internal static class HunterCatalogue
                 265_000m,
                 "Black chinchompas - shooting alt",
                 new TrainingEconomics(
-                    [Output(BlackChinchompa, "Black chinchompa", 1m / BlackChinchompaExperience)])));
+                    [Output(Items.BlackChinchompa, 1m / BlackChinchompaExperience)])));
+
+    private static class Items
+    {
+        public static readonly CatalogueItem BlackChinchompa = new(11959, "Black chinchompa");
+    }
 }
