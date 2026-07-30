@@ -2,7 +2,7 @@ using RunescapeTools.Core.Training;
 using RunescapeTools.Infrastructure.Training;
 using static RunescapeTools.Infrastructure.Training.TrainingCatalogueBuilder;
 
-namespace RunescapeTools.Infrastructure.Training.Skills;
+namespace RunescapeTools.Infrastructure.Training.Skills.Construction;
 
 internal static class ConstructionCatalogue
 {
@@ -13,14 +13,18 @@ internal static class ConstructionCatalogue
     {
         var oakEconomics = PlankEconomics(Items.OakPlank, 60m);
         var mahoganyEconomics = PlankEconomics(Items.MahoganyPlank, 140m);
-        return Skill(
+        return new TrainingSkillDefinition(
             "Construction",
-            Band(0, 54_700m, "Low-level furniture"),
-            Band(18_247, 200_000m, "Oak larders", oakEconomics),
-            Band(37_224, 290_000m, "Mahogany bookcases", mahoganyEconomics),
-            Band(123_660, 950_000m, "Mahogany tables", mahoganyEconomics),
-            Band(1_475_581, 1_070_000m, "Mahogany benches", mahoganyEconomics),
-            Band(13_034_431, 1_440_000m, "2t mahogany flatpacks", mahoganyEconomics));
+            [
+                Band(0, 54_700m, "Low-level furniture"),
+                Band(18_247, 200_000m, "Oak larders", oakEconomics),
+                Band(37_224, 290_000m, "Mahogany bookcases", mahoganyEconomics),
+                Band(123_660, 950_000m, "Mahogany tables", mahoganyEconomics),
+                Band(1_475_581, 1_070_000m, "Mahogany benches", mahoganyEconomics),
+                Band(13_034_431, 1_440_000m, "2t mahogany flatpacks", mahoganyEconomics)
+            ],
+            Note: "Carpenter's outfit follows the saved Construction configuration.",
+            Configurator: ConstructionGlobal.Configurator);
     }
 
     private static TrainingEconomics PlankEconomics(

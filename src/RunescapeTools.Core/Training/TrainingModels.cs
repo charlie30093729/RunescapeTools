@@ -40,7 +40,8 @@ public sealed record TrainingMethodDefinition(
     string Name,
     IReadOnlyList<TrainingRateBand> Bands,
     string? Note = null,
-    IReadOnlyList<TrainingExperienceFlow>? ExperienceOutputs = null);
+    IReadOnlyList<TrainingExperienceFlow>? ExperienceOutputs = null,
+    bool UseStableDisplayName = false);
 
 public sealed record TrainingSkillDefinition(
     string Skill,
@@ -49,7 +50,8 @@ public sealed record TrainingSkillDefinition(
     string? Note = null,
     IReadOnlyList<TrainingMethodDefinition>? Methods = null,
     string DefaultMethodId = "main-ehp",
-    IReadOnlyList<TrainingExperienceFlow>? ExperienceOutputs = null)
+    IReadOnlyList<TrainingExperienceFlow>? ExperienceOutputs = null,
+    ITrainingSkillConfigurator? Configurator = null)
 {
     public IReadOnlyList<TrainingMethodDefinition> AvailableMethods =>
         Methods is { Count: > 0 }
@@ -93,7 +95,8 @@ public sealed record TrainingSkillPlanResult(
     bool HasMissingPrice,
     IReadOnlyList<TrainingBandResult> Bands,
     long AppliedExperienceCredit,
-    IReadOnlyDictionary<string, decimal> GeneratedExperience)
+    IReadOnlyDictionary<string, decimal> GeneratedExperience,
+    bool IncludesActiveHours)
 {
     public long EffectiveStartExperience =>
         Math.Min(TargetExperience, StartExperience + AppliedExperienceCredit);
@@ -121,7 +124,8 @@ public sealed class TrainingPlanCalculator
         IReadOnlyDictionary<int, ItemPrice> prices,
         decimal? personalRate = null,
         string? methodId = null,
-        long pendingExperienceCredit = 0)
+        long pendingExperienceCredit = 0,
+        IReadOnlyDictionary<string, string>? configuration = null)
     {
         ArgumentNullException.ThrowIfNull(definition);
         ArgumentNullException.ThrowIfNull(prices);
@@ -130,7 +134,15 @@ public sealed class TrainingPlanCalculator
         var target = Math.Clamp(targetExperience, start, MaximumExperience);
         var appliedCredit = Math.Clamp(pendingExperienceCredit, 0, target - start);
         var effectiveStart = start + appliedCredit;
-        var method = definition.ResolveMethod(methodId);
+        var baseMethod = definition.ResolveMethod(methodId);
+        var configurationValues =
+            definition.Configurator?.Definition.Normalize(configuration)
+            ?? TrainingConfigurationValues.Empty;
+        var method = definition.Configurator?.ConfigureMethod(baseMethod, configurationValues)
+                     ?? baseMethod;
+        var includesActiveHours =
+            !definition.IsZeroTime
+            && (definition.Configurator?.IncludeHours(method, configurationValues) ?? true);
         var ordered = method.Bands.OrderBy(band => band.StartExperience).ToArray();
         var activeBand = ordered.LastOrDefault(band => band.StartExperience <= effectiveStart)
                          ?? ordered.FirstOrDefault();
@@ -144,7 +156,8 @@ public sealed class TrainingPlanCalculator
             return new TrainingSkillPlanResult(
                 definition, method, start, target, baseRate, personalRate ?? baseRate, 0m, 0m,
                 target - effectiveStart, false, false, [], appliedCredit,
-                new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase));
+                new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase),
+                includesActiveHours);
         }
 
         var results = new List<TrainingBandResult>();
@@ -239,7 +252,7 @@ public sealed class TrainingPlanCalculator
                 band,
                 segmentStart,
                 segmentEnd,
-                definition.IsZeroTime ? 0m : hours,
+                includesActiveHours ? hours : 0m,
                 segmentGp,
                 segmentFallback,
                 segmentMissing));
@@ -261,14 +274,15 @@ public sealed class TrainingPlanCalculator
             target,
             baseRate,
             personalRate ?? baseRate,
-            definition.IsZeroTime ? 0m : calculationHours,
+            includesActiveHours ? calculationHours : 0m,
             hasAnyPrice ? totalGp : null,
             pricedExperience,
             usedFallback,
             hasMissing,
             results,
             appliedCredit,
-            generatedExperience);
+            generatedExperience,
+            includesActiveHours);
     }
 
 }

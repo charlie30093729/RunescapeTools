@@ -6,6 +6,7 @@ using RunescapeTools.Application.Profiles;
 using RunescapeTools.Application.Training;
 using RunescapeTools.Core.Market;
 using RunescapeTools.Core.Training;
+using RunescapeTools.Wpf.Services;
 
 namespace RunescapeTools.Wpf.ViewModels;
 
@@ -18,13 +19,22 @@ public partial class TrainingMethodOptionViewModel(
     [ObservableProperty]
     private string name = definition.Name;
 
-    public void UpdateName(long experience)
+    public void UpdateName(
+        long experience,
+        TrainingMethodDefinition? configuredDefinition = null)
     {
-        var activeBand = Definition.Bands
+        var source = configuredDefinition ?? Definition;
+        if (source.UseStableDisplayName)
+        {
+            Name = source.Name;
+            return;
+        }
+
+        var activeBand = source.Bands
             .OrderBy(band => band.StartExperience)
             .LastOrDefault(band => band.StartExperience <= experience)
-            ?? Definition.Bands.FirstOrDefault();
-        Name = activeBand?.Method ?? Definition.Name;
+            ?? source.Bands.FirstOrDefault();
+        Name = activeBand?.Method ?? source.Name;
     }
 }
 
@@ -32,6 +42,7 @@ public partial class XpPlannerRowViewModel : ObservableObject
 {
     private readonly TrainingPlanCalculator calculator;
     private readonly Action changed;
+    private readonly Action<XpPlannerRowViewModel>? configure;
     private IReadOnlyDictionary<int, ItemPrice> prices;
     private long pendingExperienceCredit;
     private bool suppressChanges;
@@ -84,12 +95,14 @@ public partial class XpPlannerRowViewModel : ObservableObject
         long profileExperience,
         TrainingSkillPreference? preference,
         IReadOnlyDictionary<int, ItemPrice> prices,
-        Action changed)
+        Action changed,
+        Action<XpPlannerRowViewModel>? configure = null)
     {
         Definition = definition;
         this.calculator = calculator;
         this.prices = prices;
         this.changed = changed;
+        this.configure = configure;
         ProfileExperience = Math.Max(0, profileExperience);
         startExperience = preference?.StartExperienceOverride ?? ProfileExperience;
         targetExperience = preference?.TargetExperience ?? TrainingPlanCalculator.MaximumExperience;
@@ -109,13 +122,17 @@ public partial class XpPlannerRowViewModel : ObservableObject
                                        definition.DefaultMethodId,
                                        StringComparison.OrdinalIgnoreCase))
                                ?? MethodOptions.First();
+        ConfigurationValues =
+            definition.Configurator?.Definition.Normalize(preference?.Configuration).ToDictionary()
+            ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         var baseline = calculator.Calculate(
             definition,
             startExperience,
             targetExperience,
             prices,
-            methodId: selectedMethodOption.Id);
+            methodId: selectedMethodOption.Id,
+            configuration: ConfigurationValues);
         personalRate = preference?.ExperiencePerHourOverride ?? baseline.BaseRate;
         Recalculate();
     }
@@ -126,6 +143,8 @@ public partial class XpPlannerRowViewModel : ObservableObject
     public string? Note => Definition.Note;
     public IReadOnlyList<TrainingMethodDefinition> AvailableMethods => Definition.AvailableMethods;
     public IReadOnlyList<TrainingMethodOptionViewModel> MethodOptions { get; }
+    public bool HasConfiguration => Definition.Configurator is not null;
+    public Dictionary<string, string> ConfigurationValues { get; private set; }
     public long ProfileExperience { get; private set; }
     public TrainingSkillPlanResult Result { get; private set; } = null!;
 
@@ -140,7 +159,10 @@ public partial class XpPlannerRowViewModel : ObservableObject
             StartExperience == ProfileExperience ? null : StartExperience,
             rateOverride,
             IsMoneyMakingSelected,
-            SelectedMethodOption?.Id);
+            SelectedMethodOption?.Id,
+            new Dictionary<string, string>(
+                ConfigurationValues,
+                StringComparer.OrdinalIgnoreCase));
     }
 
     public void UpdatePrices(IReadOnlyDictionary<int, ItemPrice> value)
@@ -167,6 +189,36 @@ public partial class XpPlannerRowViewModel : ObservableObject
         Recalculate();
     }
 
+    public void ApplyConfiguration(IReadOnlyDictionary<string, string> values)
+    {
+        var definition = Definition.Configurator?.Definition;
+        if (definition is null)
+            return;
+
+        var wasUsingCatalogueRate = Result is not null
+                                    && Math.Abs(PersonalRate - Result.BaseRate) < 0.001m;
+        ConfigurationValues = definition.Normalize(values).ToDictionary();
+        var baseline = calculator.Calculate(
+            Definition,
+            StartExperience,
+            TargetExperience,
+            prices,
+            methodId: SelectedMethodOption?.Id,
+            pendingExperienceCredit: pendingExperienceCredit,
+            configuration: ConfigurationValues);
+        if (wasUsingCatalogueRate)
+        {
+            suppressChanges = true;
+            PersonalRate = baseline.BaseRate;
+            suppressChanges = false;
+        }
+
+        ChangedAndRecalculate();
+    }
+
+    [RelayCommand]
+    private void OpenConfiguration() => configure?.Invoke(this);
+
     [RelayCommand]
     private void ResetSkill()
     {
@@ -176,13 +228,17 @@ public partial class XpPlannerRowViewModel : ObservableObject
             StartExperience = ProfileExperience;
             TargetExperience = TrainingPlanCalculator.MaximumExperience;
             IsMoneyMakingSelected = false;
+            ConfigurationValues =
+                Definition.Configurator?.Definition.Normalize().ToDictionary()
+                ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var baseline = calculator.Calculate(
                 Definition,
                 StartExperience,
                 TargetExperience,
                 prices,
                 methodId: SelectedMethodOption?.Id,
-                pendingExperienceCredit: pendingExperienceCredit);
+                pendingExperienceCredit: pendingExperienceCredit,
+                configuration: ConfigurationValues);
             PersonalRate = baseline.BaseRate;
         }
         finally
@@ -209,7 +265,8 @@ public partial class XpPlannerRowViewModel : ObservableObject
                 TargetExperience,
                 prices,
                 methodId: SelectedMethodOption?.Id,
-                pendingExperienceCredit: pendingExperienceCredit);
+                pendingExperienceCredit: pendingExperienceCredit,
+                configuration: ConfigurationValues);
             suppressChanges = true;
             PersonalRate = baseline.BaseRate;
             suppressChanges = false;
@@ -231,7 +288,8 @@ public partial class XpPlannerRowViewModel : ObservableObject
             TargetExperience,
             prices,
             methodId: value.Id,
-            pendingExperienceCredit: pendingExperienceCredit);
+            pendingExperienceCredit: pendingExperienceCredit,
+            configuration: ConfigurationValues);
         suppressChanges = true;
         PersonalRate = baseline.BaseRate;
         suppressChanges = false;
@@ -258,10 +316,18 @@ public partial class XpPlannerRowViewModel : ObservableObject
                 prices,
                 PersonalRate > 0m ? PersonalRate : null,
                 SelectedMethodOption?.Id,
-                pendingExperienceCredit: pendingExperienceCredit);
+                pendingExperienceCredit: pendingExperienceCredit,
+                configuration: ConfigurationValues);
 
             foreach (var option in MethodOptions)
-                option.UpdateName(Result.EffectiveStartExperience);
+                option.UpdateName(
+                    Result.EffectiveStartExperience,
+                    string.Equals(
+                        option.Id,
+                        Result.Method.Id,
+                        StringComparison.OrdinalIgnoreCase)
+                        ? Result.Method
+                        : null);
 
             var activeBand = Result.Method.Bands
                 .OrderBy(band => band.StartExperience)
@@ -270,7 +336,7 @@ public partial class XpPlannerRowViewModel : ObservableObject
             Method = activeBand?.Method ?? "Passive / zero-time";
             Hours = Result.Hours == 0m ? "0" : Result.Hours.ToString("N1");
             TotalGp = Result.NetGp.HasValue ? DisplayFormat.Gp(Result.NetGp) : "Not priced";
-            EconomicRate = Definition.IsZeroTime
+            EconomicRate = !Result.IncludesActiveHours
                 ? Result.GpPerExperience.HasValue
                     ? DisplayFormat.GpPerExperience(Result.GpPerExperience)
                     : "Not priced"
@@ -352,6 +418,7 @@ public partial class XpPlannerViewModel : ObservableObject, IPageViewModel
     private readonly ITrainingPlanStore store;
     private readonly ICurrentProfileContext profileContext;
     private readonly MoneyMakerSelectionContext moneyMakerSelection;
+    private readonly ITrainingConfigurationDialogService? configurationDialogs;
     private CancellationTokenSource? saveCancellation;
     private IReadOnlyDictionary<int, ItemPrice> prices = new Dictionary<int, ItemPrice>();
     private bool initialized;
@@ -409,7 +476,8 @@ public partial class XpPlannerViewModel : ObservableObject, IPageViewModel
         IMarketDataService marketData,
         ITrainingPlanStore store,
         ICurrentProfileContext profileContext,
-        MoneyMakerSelectionContext moneyMakerSelection)
+        MoneyMakerSelectionContext moneyMakerSelection,
+        ITrainingConfigurationDialogService? configurationDialogs = null)
     {
         this.catalogue = catalogue;
         this.calculator = calculator;
@@ -418,6 +486,7 @@ public partial class XpPlannerViewModel : ObservableObject, IPageViewModel
         this.store = store;
         this.profileContext = profileContext;
         this.moneyMakerSelection = moneyMakerSelection;
+        this.configurationDialogs = configurationDialogs;
         profileContext.ProfileChanged += (_, _) => initialized = false;
         moneyMakerSelection.SelectionChanged += OnMoneyMakerSelectionChanged;
         UpdateMoneyMakerDisplay();
@@ -476,7 +545,8 @@ public partial class XpPlannerViewModel : ObservableObject, IPageViewModel
                     profileSkill?.Experience ?? 0,
                     preference,
                     prices,
-                    OnRowChanged));
+                    OnRowChanged,
+                    ConfigureRow));
             }
 
             ProfileName = profile.Rsn;
@@ -578,6 +648,22 @@ public partial class XpPlannerViewModel : ObservableObject, IPageViewModel
             return;
         RecalculateSummary();
         ScheduleSave();
+    }
+
+    private void ConfigureRow(XpPlannerRowViewModel row)
+    {
+        var definition = row.Definition.Configurator?.Definition;
+        if (definition is null || configurationDialogs is null)
+            return;
+
+        var updated = configurationDialogs.Edit(
+            row.Skill,
+            row.Method,
+            row.SelectedMethodOption?.Id,
+            definition,
+            row.ConfigurationValues);
+        if (updated is not null)
+            row.ApplyConfiguration(updated);
     }
 
     private void RecalculateSummary()

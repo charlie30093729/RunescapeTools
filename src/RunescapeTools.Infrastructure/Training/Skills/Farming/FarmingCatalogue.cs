@@ -18,6 +18,7 @@ internal static class FarmingCatalogue
                 defaultMethod,
                 MagicPalmTreeRuns.Create()
             ],
-            DefaultMethodId: defaultMethod.Id);
+            DefaultMethodId: defaultMethod.Id,
+            Configurator: FarmingGlobal.Configurator);
     }
 }

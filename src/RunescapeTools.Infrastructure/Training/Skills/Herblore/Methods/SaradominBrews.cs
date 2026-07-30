@@ -8,9 +8,9 @@ internal static class SaradominBrews
 {
     private const decimal ExperiencePerPotion = 180m;
 
-    public static TrainingMethodDefinition Create()
+    public static TrainingMethodDefinition Create(HerbloreGlobal.HerbloreSettings settings)
     {
-        var methodBand = CreateBand();
+        var methodBand = CreateBand(settings);
 
         return new TrainingMethodDefinition(
             "main-ehp",
@@ -19,7 +19,7 @@ internal static class SaradominBrews
             HerbloreGlobal.EquipmentNote);
     }
 
-    internal static TrainingRateBand CreateBand() =>
+    internal static TrainingRateBand CreateBand(HerbloreGlobal.HerbloreSettings settings) =>
         Band(
             2_192_818,
             450_000m,
@@ -29,7 +29,8 @@ internal static class SaradominBrews
                 Items.CrushedNest,
                 1m,
                 Items.SaradominBrew4,
-                ExperiencePerPotion));
+                ExperiencePerPotion,
+                settings));
 
     private static class Items
     {
