@@ -1,6 +1,7 @@
 using RunescapeTools.Application.Training;
 using RunescapeTools.Core.Training;
 using RunescapeTools.Infrastructure.Training.Skills;
+using RunescapeTools.Infrastructure.Training.Skills.Farming;
 using RunescapeTools.Infrastructure.Training.Skills.Herblore;
 
 namespace RunescapeTools.Infrastructure.Training;
@@ -9,7 +10,7 @@ public sealed class MainEhpCatalogue : IEhpCatalogue
 {
     public string Version => "OSRS training catalogue 2026-07";
 
-    public DateOnly VerifiedOn => new(2026, 7, 29);
+    public DateOnly VerifiedOn => new(2026, 7, 30);
 
     public IReadOnlyList<TrainingSkillDefinition> Skills { get; } =
     [
