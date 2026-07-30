@@ -769,7 +769,12 @@ static void EhpCatalogueCoverage()
         var ordered = skill.Bands.OrderBy(band => band.StartExperience).ToArray();
         Equal(ordered.Length, ordered.Select(band => band.StartExperience).Distinct().Count(), $"{skill.Skill} band starts");
         Equal(string.Join('|', ordered.Select(band => band.StartExperience)), string.Join('|', skill.Bands.Select(band => band.StartExperience)), $"{skill.Skill} band ordering");
-        var expectedMethodCount = skill.Skill == "Herblore" ? 3 : 1;
+        var expectedMethodCount = skill.Skill switch
+        {
+            "Herblore" => 3,
+            "Farming" => 2,
+            _ => 1
+        };
         Equal(expectedMethodCount, skill.AvailableMethods.Count, $"{skill.Skill} method count");
         Equal("main-ehp", skill.AvailableMethods[0].Id, $"{skill.Skill} default method ID");
         Equal(skill.Bands.Count, skill.AvailableMethods[0].Bands.Count, $"{skill.Skill} default method bands");
@@ -1324,7 +1329,7 @@ static void PhaseThreeMethodCatalogue()
                 .Bands.Select(band => band.ExperiencePerHour)),
         "Farming rate progression");
     EqualDecimal(2_669_000m, farming.ExperiencePerHour, "Farming level-92 rate");
-    Equal("Efficient tree runs", farming.Method, "Farming method");
+    Equal("Efficient tree runs - magic + dragonfruit", farming.Method, "Farming method");
     True(farming.Economics is { IsComplete: true }, "Farming economics should be complete");
     const decimal rosewoodTreesPerDay = 1m;
     const decimal redwoodTreesPerDay = 0.225m;
@@ -1475,7 +1480,46 @@ static void PhaseThreeTrainingCalculations()
 static void FarmingTrainingCalculations()
 {
     var definition = new MainEhpCatalogue().Skills.Single(skill => skill.Skill == "Farming");
-    var prices = definition.Bands
+    Equal(
+        "main-ehp|magic-palm-tree-runs",
+        string.Join('|', definition.AvailableMethods.Select(method => method.Id)),
+        "Farming method IDs");
+    Equal(
+        "Magic + dragonfruit tree runs|Magic + palm tree runs",
+        string.Join('|', definition.AvailableMethods.Select(method => method.Name)),
+        "Farming method dropdown names");
+
+    var palmMethod = definition.ResolveMethod("magic-palm-tree-runs");
+    var palmRates = palmMethod.Bands
+        .Where(band => band.StartExperience >= 2_192_818)
+        .Select(band => band.ExperiencePerHour)
+        .ToArray();
+    EqualDecimal(1_995_973.1502m, palmRates[0], "level-81 palm rate", 0.0001m);
+    EqualDecimal(2_136_088.6575m, palmRates[1], "level-85 palm rate", 0.0001m);
+    EqualDecimal(2_194_240.6680m, palmRates[2], "level-92 palm rate", 0.0001m);
+
+    var palmBand = palmMethod.Bands.Last();
+    const decimal palmExperiencePerDay =
+        6m * 13_913.8m
+        + 6m * 10_260.6m
+        + 23_352m
+        + 12_225.5m
+        + 14_334m
+        + 0.225m * 22_680m;
+    EqualDecimal(
+        6m / palmExperiencePerDay,
+        Resource(palmBand, 5502).QuantityPerExperience,
+        "palm saplings per Farming XP");
+    EqualDecimal(
+        90m / palmExperiencePerDay,
+        Resource(palmBand, 5972).QuantityPerExperience,
+        "papaya protection per Farming XP");
+    True(
+        palmBand.Economics!.Resources.All(resource => resource.ItemId != 22866),
+        "palm route should not buy dragonfruit saplings");
+
+    var prices = definition.AvailableMethods
+        .SelectMany(method => method.Bands)
         .Where(band => band.Economics is not null)
         .SelectMany(band => band.Economics!.Resources)
         .Select(resource => resource.ItemId)
@@ -1495,6 +1539,16 @@ static void FarmingTrainingCalculations()
     True(pricedRoute.IsFullyPriced, "every tree-run band should be fully priced");
     True(!pricedRoute.HasMissingPrice, "reviewed Farming inputs should all resolve");
     True(pricedRoute.NetGp < 0m, "tree runs should cost GP");
+
+    var palmRoute = calculator.Calculate(
+        definition,
+        32_500,
+        TrainingPlanCalculator.MaximumExperience,
+        prices,
+        methodId: palmMethod.Id);
+    True(palmRoute.IsFullyPriced, "palm tree-run bands should be fully priced");
+    True(!palmRoute.HasMissingPrice, "palm tree-run inputs should all resolve");
+    True(palmRoute.Hours > pricedRoute.Hours, "lower-XP palm route should require more active hours");
 
     var fullRoute = calculator.Calculate(
         definition,

@@ -223,6 +223,7 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | FR-XP-038 | A per-skill reset shall preserve the currently selected training route, restore start XP from the loaded profile, restore the 200m goal, restore the selected route's catalogue XP rate at that start XP, and clear that skill's money-making allocation. |
 | FR-XP-039 | Herblore potion economics shall include the average Prescription goggles secondary saving, Alchemist's amulet extra-dose output, and the Amulets of chemistry consumed to recharge it for eligible methods. Ineligible routes shall opt out explicitly, and all finished potions shall be valued as four-dose sale items. |
 | FR-XP-040 | Herblore shall provide selectable Saradomin brew, Super restore, and 1-tick extended super antifire routes. Super restores shall use both equipment effects; extended super antifires shall use Prescription goggles but not the Alchemist's amulet. |
+| FR-XP-041 | Farming shall provide selectable magic + dragonfruit and magic + palm tree-run routes. The palm route shall retain palms after dragonfruit trees unlock, buy palm saplings and papaya protection, and scale its active XP rates by the resulting daily XP without changing the reviewed run-time assumptions. |
 
 ### 6.8 Method modularity
 
