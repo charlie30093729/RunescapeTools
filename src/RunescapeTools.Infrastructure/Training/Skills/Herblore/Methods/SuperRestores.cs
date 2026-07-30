@@ -8,7 +8,7 @@ internal static class SuperRestores
 {
     private const decimal ExperiencePerPotion = 142.5m;
 
-    public static TrainingMethodDefinition Create()
+    public static TrainingMethodDefinition Create(HerbloreGlobal.HerbloreSettings settings)
     {
         var methodBand = Band(
             368_599,
@@ -19,7 +19,8 @@ internal static class SuperRestores
                 Items.RedSpidersEggs,
                 1m,
                 Items.SuperRestore4,
-                ExperiencePerPotion));
+                ExperiencePerPotion,
+                settings));
 
         return new TrainingMethodDefinition(
             "super-restores",

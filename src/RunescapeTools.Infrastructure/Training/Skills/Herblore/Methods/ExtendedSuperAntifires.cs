@@ -8,7 +8,7 @@ internal static class ExtendedSuperAntifires
 {
     private const decimal ExperiencePerPotion = 160m;
 
-    public static TrainingMethodDefinition Create()
+    public static TrainingMethodDefinition Create(HerbloreGlobal.HerbloreSettings settings)
     {
         var methodBand = Band(
             11_805_606,
@@ -20,14 +20,15 @@ internal static class ExtendedSuperAntifires
                 4m,
                 Items.ExtendedSuperAntifire4,
                 ExperiencePerPotion,
+                settings,
                 baseOutputDosesPerPotion: 4m,
-                prescriptionGogglesApply: true,
-                alchemistsAmuletApplies: false));
+                prescriptionGogglesSupported: true,
+                alchemistsAmuletSupported: false));
 
         return new TrainingMethodDefinition(
             "1t-extended-super-antifires",
             "1t extended super antifires",
-            HerbloreGlobal.CreateRoute(methodBand, SaradominBrews.CreateBand()),
+            HerbloreGlobal.CreateRoute(methodBand, SaradominBrews.CreateBand(settings)),
             HerbloreGlobal.EquipmentNote);
     }
 

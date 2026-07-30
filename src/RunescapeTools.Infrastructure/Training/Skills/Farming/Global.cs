@@ -17,6 +17,10 @@ internal static class FarmingGlobal
         "run per day. Four hardwood patches and the redwood patch are normalized by their growth cycles; calquat " +
         "and celastrus are completed daily. Fruit, bark, and logs are not harvested or valued.";
 
+    public static ITrainingSkillConfigurator Configurator { get; } =
+        new TrainingSkillConfigurator(
+            new TrainingConfigurationDefinition([]));
+
     public static IReadOnlyList<TrainingRateBand> CreateBaseBands() =>
     [
         Band(0, 16_000m, "Quests"),

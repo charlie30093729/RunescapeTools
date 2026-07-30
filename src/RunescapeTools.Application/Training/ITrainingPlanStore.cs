@@ -6,7 +6,8 @@ public sealed record TrainingSkillPreference(
     long? StartExperienceOverride = null,
     decimal? ExperiencePerHourOverride = null,
     bool IsMoneyMakingSelected = false,
-    string? TrainingMethodId = null);
+    string? TrainingMethodId = null,
+    Dictionary<string, string>? Configuration = null);
 
 public interface ITrainingPlanStore
 {

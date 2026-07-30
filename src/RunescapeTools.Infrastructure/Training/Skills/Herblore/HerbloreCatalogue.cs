@@ -7,7 +7,8 @@ internal static class HerbloreCatalogue
 {
     public static TrainingSkillDefinition Create()
     {
-        var defaultMethod = SaradominBrews.Create();
+        var settings = HerbloreGlobal.ResolveSettings();
+        var defaultMethod = SaradominBrews.Create(settings);
 
         return new TrainingSkillDefinition(
             "Herblore",
@@ -16,9 +17,10 @@ internal static class HerbloreCatalogue
             Methods:
             [
                 defaultMethod,
-                SuperRestores.Create(),
-                ExtendedSuperAntifires.Create()
+                SuperRestores.Create(settings),
+                ExtendedSuperAntifires.Create(settings)
             ],
-            DefaultMethodId: defaultMethod.Id);
+            DefaultMethodId: defaultMethod.Id,
+            Configurator: HerbloreGlobal.Configurator);
     }
 }

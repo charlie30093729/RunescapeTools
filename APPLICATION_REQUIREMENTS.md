@@ -220,10 +220,16 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | FR-XP-035 | Every XP Planner skill tooltip shall list the active method's live market resources, suggest input purchases at the same high price used by the calculator, suggest output sales at the same low price used by the calculator, show the selected quote timestamp, identify fallback or unavailable prices, and disclose that recent completed trades do not guarantee offer execution. |
 | FR-XP-036 | Every XP Planner skill row shall provide a dropdown containing each registered training route for that skill; selecting a route shall recalculate its active rate bands, hours, economics, generated XP, and live-price requirements. |
 | FR-XP-037 | The selected training-route ID shall persist per RSN in the training plan and shall fall back safely to the skill's registered default when a saved route is unavailable. |
-| FR-XP-038 | A per-skill reset shall preserve the currently selected training route, restore start XP from the loaded profile, restore the 200m goal, restore the selected route's catalogue XP rate at that start XP, and clear that skill's money-making allocation. |
-| FR-XP-039 | Herblore potion economics shall include the average Prescription goggles secondary saving, Alchemist's amulet extra-dose output, and the Amulets of chemistry consumed to recharge it for eligible methods. Ineligible routes shall opt out explicitly, and all finished potions shall be valued as four-dose sale items. |
-| FR-XP-040 | Herblore shall provide selectable Saradomin brew, Super restore, and 1-tick extended super antifire routes. Super restores shall use both equipment effects; extended super antifires shall use Prescription goggles but not the Alchemist's amulet. |
+| FR-XP-038 | A per-skill reset shall preserve the currently selected training route, restore start XP from the loaded profile, restore the 200m goal, restore the selected route's catalogue XP rate and configuration defaults at that start XP, and clear that skill's money-making allocation. |
+| FR-XP-039 | Herblore potion economics shall conditionally include the user-selected Prescription goggles secondary saving, Alchemist's amulet extra-dose output, and the Amulets of chemistry consumed to recharge it for eligible methods. Ineligible routes shall opt out explicitly, and all finished potions shall be valued as four-dose sale items. |
+| FR-XP-040 | Herblore shall provide selectable Saradomin brew, Super restore, and 1-tick extended super antifire routes. Super restores shall support both equipment effects; extended super antifires shall support Prescription goggles but not the Alchemist's amulet. |
 | FR-XP-041 | Farming shall provide selectable magic + dragonfruit and magic + palm tree-run routes. The palm route shall retain palms after dragonfruit trees unlock, buy palm saplings and papaya protection, and scale its active XP rates by the resulting daily XP without changing the reviewed run-time assumptions. |
+| FR-XP-042 | Configurable skill rows shall show a cog beside the method selector and use one schema-driven WPF dialog rather than skill-specific view logic. |
+| FR-XP-043 | Skill-local `Global.cs` files shall own stable configuration keys, defaults, validation, method applicability, and calculation effects; mutable user selections shall not be stored in static catalogue state. |
+| FR-XP-044 | Prayer shall currently expose only Superior dragon bones, default to a Gilded Altar, and support a Chaos Altar selection. Bank and Prif agility offering choices shall remain visible but disabled until their calculations are implemented. |
+| FR-XP-045 | Firemaking shall default to the full Pyromancer outfit, allow the outfit to be disabled, and allow supported logs to switch between bow burning and manual Forester's Campfire rates. |
+| FR-XP-046 | Fletching shall allow its active hours to be excluded without removing its processing-time resource and economic calculations. |
+| FR-XP-047 | Smithing shall persist a Smiths' uniform preference without applying it to Blast Furnace gold; Construction shall optionally apply the full Carpenter's outfit XP multiplier; Farming shall expose an empty configuration entry point for future options. |
 
 ### 6.8 Method modularity
 
@@ -246,7 +252,7 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | FR-DATA-006 | The first-run seed shall never replace an existing desktop favourites file. |
 | FR-DATA-007 | When the renamed desktop data file does not yet exist, the host shall preserve an existing legacy favourites file by copying it to the new LocalAppData location before applying the seed. |
 | FR-DATA-008 | The selected RSN shall persist atomically in `%LocalAppData%\RunescapeTools\data\profile.json`. |
-| FR-DATA-009 | XP goals, overrides, selected training-route IDs, and money-making skill allocations shall persist atomically per normalized RSN in `%LocalAppData%\RunescapeTools\data\training-plans.json`. |
+| FR-DATA-009 | XP goals, overrides, selected training-route IDs, normalized skill-configuration values, and money-making skill allocations shall persist atomically per normalized RSN in `%LocalAppData%\RunescapeTools\data\training-plans.json`. Existing records without configuration values shall load the current skill defaults. |
 | FR-DATA-010 | Positive money-maker actions/hour overrides shall persist atomically by stable method slug in `%LocalAppData%\RunescapeTools\data\money-making-preferences.json` and shall apply across application restarts. |
 | FR-ERR-001 | Item search, latest-price, history, and calculator failures shall produce user-readable messages. |
 | FR-ERR-002 | Temporary API failures shall not delete or overwrite stored favourites. |
@@ -400,6 +406,7 @@ Requirements:
 | NFR-MAINT-006 | A training method shall own its market-item ID and display name together as a local `CatalogueItem`; application-wide training-item registries shall not be used. |
 | NFR-MAINT-007 | Rules genuinely shared by multiple methods of one skill shall be centralized in that skill's `Global.cs`; method files shall consume those rules by composition rather than duplicate them or inherit UI behavior. |
 | NFR-MAINT-008 | An item shared by methods within one skill may live in that skill's `Global.cs`. Items coincidentally reused by unrelated skills shall remain locally owned so new methods do not create cross-skill catalogue coupling. |
+| NFR-MAINT-009 | The shared calculator shall consume normalized skill configuration through Core contracts; WPF shall render option metadata and shall not reproduce skill-specific game rules. |
 | NFR-TEST-001 | The regression harness shall cover calculation rules, caching, history filtering, search ordering, retries, warmup, JSON persistence, and WPF view-model behavior. |
 | NFR-TEST-002 | A release candidate shall build with zero compiler errors. |
 
@@ -458,6 +465,8 @@ The MVP is accepted when all of the following are true:
 16. XP Planner hours span every applicable level band and reproduce the reviewed Construction 0-to-200m benchmark within rounding tolerance.
 17. Unpriced training segments remain visible through economic-coverage states, and per-RSN goals survive restart.
 18. A money-maker actions/hour override reprices the method and XP Planner contribution, survives restart, remains independent per method, and returns to the active configured default when reset.
+19. XP Planner skill configuration survives restart per RSN, recalculates immediately, and returns to documented defaults on per-skill reset.
+20. Prayer defaults to Superior dragon bones at the Gilded Altar, Firemaking defaults to Pyromancer, and disabling Fletching hours leaves its economics intact.
 
 ## 14. Risks and dependencies
 

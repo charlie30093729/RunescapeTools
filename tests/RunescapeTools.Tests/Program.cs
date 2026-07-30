@@ -50,6 +50,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("catalogue market resources keep valid local item identities", () => RunSync(CatalogueMarketItemIntegrity)),
     ("training definitions support stable default and alternative methods", () => RunSync(TrainingMethodSelection)),
     ("XP Planner rows select and persist training methods", () => RunSync(XpPlannerRowMethodSelection)),
+    ("skill configuration defaults and calculation effects are applied centrally", () => RunSync(TrainingSkillConfiguration)),
+    ("XP Planner rows persist and reset skill configuration", () => RunSync(XpPlannerRowConfiguration)),
     ("approved deterministic methods expose reviewed rates and economics", () => RunSync(DeterministicMethodCatalogue)),
     ("Herblore methods use shared equipment and four-dose economics", () => RunSync(HerbloreEquipmentEconomics)),
     ("Herblore alternatives preserve unlock routes and reviewed rates", () => RunSync(HerbloreAlternativeMethods)),
@@ -776,7 +778,7 @@ static void EhpCatalogueCoverage()
             _ => 1
         };
         Equal(expectedMethodCount, skill.AvailableMethods.Count, $"{skill.Skill} method count");
-        Equal("main-ehp", skill.AvailableMethods[0].Id, $"{skill.Skill} default method ID");
+        Equal(skill.DefaultMethodId, skill.AvailableMethods[0].Id, $"{skill.Skill} default method ID");
         Equal(skill.Bands.Count, skill.AvailableMethods[0].Bands.Count, $"{skill.Skill} default method bands");
     }
 }
@@ -945,14 +947,208 @@ static void ConstructionTrainingCalculation()
     True(result.NetGp is < -2_800_000_000m and > -2_805_000_000m, "Construction cost should match the reviewed 2.8b estimate");
 }
 
+static void TrainingSkillConfiguration()
+{
+    var catalogue = new MainEhpCatalogue();
+    var calculator = new TrainingPlanCalculator();
+    var prices = new Dictionary<int, ItemPrice>();
+
+    var prayer = catalogue.Skills.Single(skill => skill.Skill == "Prayer");
+    var gilded = calculator.Calculate(
+        prayer,
+        0,
+        1_000_000,
+        prices);
+    Equal(
+        "Superior dragon bones at the Gilded Altar",
+        gilded.Method.Bands[0].Method,
+        "Prayer defaults to Gilded Altar");
+    EqualDecimal(
+        1m / 525m,
+        Resource(gilded.Method.Bands[0], 22124).QuantityPerExperience,
+        "Gilded Altar superior bone consumption");
+    var prayerRow = new XpPlannerRowViewModel(
+        prayer,
+        calculator,
+        0,
+        null,
+        prices,
+        () => { });
+    Equal(
+        "Superior dragon bones",
+        prayerRow.SelectedMethodOption?.Name ?? string.Empty,
+        "Prayer material selector remains separate from offering location");
+
+    var chaos = calculator.Calculate(
+        prayer,
+        0,
+        1_000_000,
+        prices,
+        configuration: new Dictionary<string, string>
+        {
+            ["offering-location"] = "chaos-altar"
+        });
+    Equal(
+        "Superior dragon bones at the Chaos Altar",
+        chaos.Method.Bands[0].Method,
+        "Prayer Chaos Altar selection");
+    EqualDecimal(
+        1m / 1_050m,
+        Resource(chaos.Method.Bands[0], 22124).QuantityPerExperience,
+        "Chaos Altar superior bone consumption");
+
+    var firemaking = catalogue.Skills.Single(skill => skill.Skill == "Firemaking");
+    var pyromancer = calculator.Calculate(
+        firemaking,
+        13_034_431,
+        13_034_431 + 639_292,
+        prices);
+    EqualDecimal(623_700m * 1.025m, pyromancer.BaseRate, "Pyromancer default rate");
+    EqualDecimal(
+        1m / (420m * 1.025m),
+        Resource(pyromancer.Method.Bands[^1], 32910).QuantityPerExperience,
+        "Pyromancer rosewood consumption");
+
+    var bonfire = calculator.Calculate(
+        firemaking,
+        13_034_431,
+        13_034_431 + 267_832,
+        prices,
+        configuration: new Dictionary<string, string>
+        {
+            ["pyromancer-outfit"] = bool.TrueString,
+            ["bonfire"] = bool.TrueString
+        });
+    EqualDecimal(268m * 975m * 1.025m, bonfire.BaseRate, "manual bonfire rate");
+    Equal(
+        "Rosewood logs - bonfire",
+        bonfire.Method.Bands[^1].Method,
+        "bonfire method label");
+
+    var fletching = catalogue.Skills.Single(skill => skill.Skill == "Fletching");
+    var counted = calculator.Calculate(fletching, 5_346_332, 6_346_332, prices);
+    var zeroTime = calculator.Calculate(
+        fletching,
+        5_346_332,
+        6_346_332,
+        prices,
+        configuration: new Dictionary<string, string>
+        {
+            ["include-hours"] = bool.FalseString
+        });
+    EqualDecimal(1m, counted.Hours, "Fletching default active hours");
+    EqualDecimal(0m, zeroTime.Hours, "Fletching hidden active hours");
+    True(!zeroTime.IncludesActiveHours, "Fletching zero-time flag");
+
+    var herblore = catalogue.Skills.Single(skill => skill.Skill == "Herblore");
+    var noEquipment = calculator.Calculate(
+        herblore,
+        2_192_818,
+        2_642_818,
+        prices,
+        configuration: new Dictionary<string, string>
+        {
+            ["prescription-goggles"] = bool.FalseString,
+            ["alchemists-amulet"] = bool.FalseString
+        });
+    var brewBand = noEquipment.Method.Bands[^1];
+    EqualDecimal(
+        1m / 180m,
+        Resource(brewBand, 6693).QuantityPerExperience,
+        "Herblore without goggles");
+    True(
+        brewBand.Economics!.Resources.All(resource => resource.ItemId != 21163),
+        "Herblore without amulet has no charge input");
+    EqualDecimal(
+        3m / 4m / 180m,
+        Resource(brewBand, 6685).QuantityPerExperience,
+        "Herblore without amulet has base output doses");
+
+    var construction = catalogue.Skills.Single(skill => skill.Skill == "Construction");
+    var carpenter = calculator.Calculate(
+        construction,
+        13_034_431,
+        14_474_431,
+        prices,
+        configuration: new Dictionary<string, string>
+        {
+            ["carpenters-outfit"] = bool.TrueString
+        });
+    EqualDecimal(1_440_000m * 1.025m, carpenter.BaseRate, "Carpenter outfit rate");
+    EqualDecimal(
+        1m / 140m / 1.025m,
+        Resource(carpenter.Method.Bands[^1], 8782).QuantityPerExperience,
+        "Carpenter outfit plank consumption");
+
+    var configuredSkills = catalogue.Skills
+        .Where(skill => skill.Configurator is not null)
+        .Select(skill => skill.Skill)
+        .ToArray();
+    Equal(
+        "Prayer|Fletching|Firemaking|Smithing|Herblore|Farming|Construction",
+        string.Join('|', configuredSkills),
+        "requested skill configurators");
+    Equal(
+        0,
+        catalogue.Skills.Single(skill => skill.Skill == "Farming")
+            .Configurator!.Definition.Options.Count,
+        "Farming placeholder configuration");
+}
+
+static void XpPlannerRowConfiguration()
+{
+    var definition = new MainEhpCatalogue().Skills
+        .Single(skill => skill.Skill == "Fletching");
+    var row = new XpPlannerRowViewModel(
+        definition,
+        new TrainingPlanCalculator(),
+        5_346_332,
+        null,
+        new Dictionary<int, ItemPrice>(),
+        () => { });
+
+    True(row.HasConfiguration, "Fletching row exposes configuration");
+    row.ApplyConfiguration(new Dictionary<string, string>
+    {
+        ["include-hours"] = bool.FalseString
+    });
+    EqualDecimal(0m, row.Result.Hours, "row applies Fletching zero-time selection");
+    Equal(
+        bool.FalseString,
+        row.ToPreference().Configuration!["include-hours"],
+        "row persists Fletching configuration");
+
+    row.ResetSkillCommand.Execute(null);
+    Equal(
+        bool.TrueString,
+        row.ConfigurationValues["include-hours"],
+        "skill reset restores configuration default");
+    True(row.Result.IncludesActiveHours, "skill reset restores active hours");
+
+    var restored = new XpPlannerRowViewModel(
+        definition,
+        new TrainingPlanCalculator(),
+        5_346_332,
+        new TrainingSkillPreference(
+            "Fletching",
+            TrainingPlanCalculator.MaximumExperience,
+            Configuration: new Dictionary<string, string>
+            {
+                ["include-hours"] = bool.FalseString
+            }),
+        new Dictionary<int, ItemPrice>(),
+        () => { });
+    True(!restored.Result.IncludesActiveHours, "saved configuration restores");
+}
+
 static void DeterministicMethodCatalogue()
 {
     var catalogue = new MainEhpCatalogue();
 
-    var prayer = TrainingBand(catalogue, "Prayer", 737_627);
+    var prayer = TrainingBand(catalogue, "Prayer", 0);
     EqualDecimal(2_000_000m, prayer.ExperiencePerHour, "Prayer rate");
-    Equal("Superior dragon bones at the Chaos Altar", prayer.Method, "Prayer method");
-    EqualDecimal(1m / 1_050m, Resource(prayer, 22124).QuantityPerExperience, "Prayer bones per XP");
+    Equal("Superior dragon bones at the Gilded Altar", prayer.Method, "Prayer method");
+    EqualDecimal(1m / 525m, Resource(prayer, 22124).QuantityPerExperience, "Prayer bones per XP");
 
     var cooking = TrainingBand(catalogue, "Cooking", 8_771_558);
     EqualDecimal(490_000m, cooking.ExperiencePerHour, "Cooking rate");
@@ -1009,9 +1205,12 @@ static void DeterministicMethodCatalogue()
     EqualDecimal(1m / 21m, Resource(fletching, 25853).QuantityPerExperience, "amethyst tips per XP");
 
     var firemaking = TrainingBand(catalogue, "Firemaking", 13_034_431);
-    EqualDecimal(623_700m, firemaking.ExperiencePerHour, "Firemaking rate");
+    EqualDecimal(623_700m * 1.025m, firemaking.ExperiencePerHour, "Firemaking rate");
     Equal("Rosewood logs - bow burning", firemaking.Method, "Firemaking method");
-    EqualDecimal(1m / 420m, Resource(firemaking, 32910).QuantityPerExperience, "rosewood logs per XP");
+    EqualDecimal(
+        1m / (420m * 1.025m),
+        Resource(firemaking, 32910).QuantityPerExperience,
+        "rosewood logs per XP");
 
     foreach (var band in new[] { prayer, cooking, crafting, smithing, herblore, fletching, firemaking })
         True(band.Economics is { IsComplete: true }, $"{band.Method} should be fully modelled");
@@ -1851,7 +2050,11 @@ static async Task TrainingPlanPersistence()
                 0,
                 1_070_000,
                 true,
-                "mahogany-benches")]);
+                "mahogany-benches",
+                new Dictionary<string, string>
+                {
+                    ["carpenters-outfit"] = bool.TrueString
+                })]);
         await store.SaveAsync("Player Two", [new TrainingSkillPreference("Construction", 13_034_431)]);
 
         var first = await store.GetAsync(" player one ");
@@ -1864,6 +2067,10 @@ static async Task TrainingPlanPersistence()
             "mahogany-benches",
             first["Construction"].TrainingMethodId ?? string.Empty,
             "training method selection persists");
+        Equal(
+            bool.TrueString,
+            first["Construction"].Configuration!["carpenters-outfit"],
+            "training configuration persists");
     }
     finally
     {
@@ -2076,6 +2283,22 @@ static Task WpfViewsConstruct()
             };
             window.Show();
             plannerView.UpdateLayout();
+            var farmingConfiguration = new MainEhpCatalogue().Skills
+                .Single(skill => skill.Skill == "Farming")
+                .Configurator!;
+            var configurationDialog = new TrainingConfigurationDialog(
+                new TrainingConfigurationDialogViewModel(
+                    "Farming",
+                    "Magic + dragonfruit tree runs",
+                    farmingConfiguration.Definition,
+                    farmingConfiguration.Definition.Normalize().Values,
+                    "main-ehp"))
+            {
+                Owner = window
+            };
+            configurationDialog.Show();
+            configurationDialog.UpdateLayout();
+            configurationDialog.Close();
             window.Content = moneyView;
             moneyView.UpdateLayout();
             window.Content = favouritesView;

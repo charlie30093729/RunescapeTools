@@ -6,6 +6,8 @@ namespace RunescapeTools.Infrastructure.Training.Skills.Herblore;
 
 internal static class HerbloreGlobal
 {
+    public const string PrescriptionGogglesKey = "prescription-goggles";
+    public const string AlchemistsAmuletKey = "alchemists-amulet";
     private const decimal PrescriptionGogglesSaveChance = 0.10m;
     private const decimal AlchemistsAmuletExtraDoseChance = 0.15m;
     private const decimal AlchemistsAmuletChargesPerChemistryAmulet = 10m;
@@ -26,11 +28,46 @@ internal static class HerbloreGlobal
     ];
 
     public const string EquipmentNote =
-        "Eligible potion economics use Prescription goggles to save 10% of secondary ingredients " +
-        "on average and a charged Alchemist's amulet to add one dose 15% of the time. Amulet of " +
+        "Equipment effects follow the saved Herblore configuration. Prescription goggles save 10% of " +
+        "eligible secondary ingredients on average and a charged Alchemist's amulet adds one dose 15% " +
+        "of the time. Amulet of " +
         "chemistry charges are priced at 0.015 amulets per eligible potion. Finished potions are " +
         "decanted and sold as four-dose items. Methods that cannot use an equipment effect opt out " +
         "explicitly; one-time untradeable equipment costs are excluded.";
+
+    public static ITrainingSkillConfigurator Configurator { get; } =
+        new TrainingSkillConfigurator(
+            new TrainingConfigurationDefinition(
+            [
+                new TrainingConfigurationOption(
+                    PrescriptionGogglesKey,
+                    "Prescription goggles",
+                    TrainingConfigurationOptionKind.Toggle,
+                    bool.TrueString,
+                    "Save 10% of eligible secondary ingredients on average."),
+                new TrainingConfigurationOption(
+                    AlchemistsAmuletKey,
+                    "Alchemist's amulet",
+                    TrainingConfigurationOptionKind.Toggle,
+                    bool.TrueString,
+                    "Adds one dose 15% of the time and prices consumed charges.",
+                    ApplicableMethodIds:
+                    [
+                        "main-ehp",
+                        "super-restores"
+                    ])
+            ]),
+            ConfigureMethod);
+
+    public static HerbloreSettings ResolveSettings(
+        TrainingConfigurationValues? configuration = null)
+    {
+        var values = configuration
+                     ?? Configurator.Definition.Normalize();
+        return new HerbloreSettings(
+            values.GetToggle(PrescriptionGogglesKey),
+            values.GetToggle(AlchemistsAmuletKey));
+    }
 
     public static IReadOnlyList<TrainingRateBand> CreateRoute(
         TrainingRateBand selectedMethodBand,
@@ -48,9 +85,10 @@ internal static class HerbloreGlobal
         decimal secondaryQuantityPerPotion,
         CatalogueItem outputItem,
         decimal experiencePerPotion,
+        HerbloreSettings settings,
         decimal baseOutputDosesPerPotion = 3m,
-        bool prescriptionGogglesApply = true,
-        bool alchemistsAmuletApplies = true)
+        bool prescriptionGogglesSupported = true,
+        bool alchemistsAmuletSupported = true)
     {
         if (secondaryQuantityPerPotion <= 0m)
             throw new ArgumentOutOfRangeException(nameof(secondaryQuantityPerPotion));
@@ -59,6 +97,10 @@ internal static class HerbloreGlobal
         if (baseOutputDosesPerPotion <= 0m)
             throw new ArgumentOutOfRangeException(nameof(baseOutputDosesPerPotion));
 
+        var prescriptionGogglesApply =
+            prescriptionGogglesSupported && settings.PrescriptionGoggles;
+        var alchemistsAmuletApplies =
+            alchemistsAmuletSupported && settings.AlchemistsAmulet;
         var secondaryMultiplier = prescriptionGogglesApply
             ? 1m - PrescriptionGogglesSaveChance
             : 1m;
@@ -90,6 +132,24 @@ internal static class HerbloreGlobal
 
         return new TrainingEconomics(resources);
     }
+
+    private static TrainingMethodDefinition ConfigureMethod(
+        TrainingMethodDefinition method,
+        TrainingConfigurationValues configuration)
+    {
+        var settings = ResolveSettings(configuration);
+        return method.Id switch
+        {
+            "main-ehp" => Methods.SaradominBrews.Create(settings),
+            "super-restores" => Methods.SuperRestores.Create(settings),
+            "1t-extended-super-antifires" => Methods.ExtendedSuperAntifires.Create(settings),
+            _ => method
+        };
+    }
+
+    internal readonly record struct HerbloreSettings(
+        bool PrescriptionGoggles,
+        bool AlchemistsAmulet);
 
     private static class Items
     {

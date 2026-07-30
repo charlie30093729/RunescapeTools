@@ -11,6 +11,7 @@ using RunescapeTools.Application.Profiles;
 using RunescapeTools.Infrastructure.Configuration;
 using RunescapeTools.Infrastructure.DependencyInjection;
 using RunescapeTools.Infrastructure.Persistence;
+using RunescapeTools.Wpf.Services;
 using RunescapeTools.Wpf.ViewModels;
 
 namespace RunescapeTools.Wpf;
@@ -124,6 +125,9 @@ public partial class App : System.Windows.Application
         builder.Services.AddSingleton<FavouritesViewModel>();
         builder.Services.AddSingleton<MoneyMakerSelectionContext>();
         builder.Services.AddSingleton<MoneyMakersViewModel>();
+        builder.Services.AddSingleton<
+            ITrainingConfigurationDialogService,
+            TrainingConfigurationDialogService>();
         builder.Services.AddSingleton<XpPlannerViewModel>();
         builder.Services.AddSingleton<ShellViewModel>();
         builder.Services.AddSingleton<MainWindow>();
