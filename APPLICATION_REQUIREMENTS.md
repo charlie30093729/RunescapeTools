@@ -235,6 +235,9 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | FR-XP-050 | Crafting shall provide an air battlestaff route from level 66 using one battlestaff and one air orb per 137.5 XP and valuing one finished air battlestaff output. |
 | FR-XP-051 | Fletching shall provide an adamant dart route from level 67 using one adamant dart tip and one feather per 15 XP and valuing one finished adamant dart output; its active-hour configuration shall apply to this route. |
 | FR-XP-052 | Dragon-bone Prayer shall use the reviewed manual-offering rates and effective bone consumption for the selected altar; excluded Chaos Altar risk, supply, and unnoting costs shall remain disclosed rather than silently priced as zero. |
+| FR-XP-053 | Runecraft shall provide selectable solo mud, solo lava, and solo aether routes, preserving the default solo-mud path until a selected alternative reaches its real unlock and pouch breakpoint. |
+| FR-XP-054 | Runecraft shall provide a per-RSN full-Raiments toggle that increases applicable rune output by up to 60%, using the game's per-craft integer rounding, without changing XP/hour, essence consumption, or active hours. Aether bonus output shall consume matching additional aether catalysts. |
+| FR-XP-055 | Solo aether economics shall buy pure essence, soul runes, aether catalysts, binding necklaces, Magic Imbue and pouch-repair runes where applicable, and rings of dueling, then value taxed aether-rune output. Reusable and untradeable teleport equipment shall remain disclosed exclusions. |
 
 ### 6.8 Method modularity
 
