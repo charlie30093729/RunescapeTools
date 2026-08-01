@@ -56,6 +56,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Herblore methods use shared equipment and four-dose economics", () => RunSync(HerbloreEquipmentEconomics)),
     ("Herblore alternatives preserve unlock routes and reviewed rates", () => RunSync(HerbloreAlternativeMethods)),
     ("practical buyable alternatives expose reviewed unlocks, rates, and economics", () => RunSync(PracticalBuyableMethods)),
+    ("Runecraft alternatives and Raiments configuration preserve reviewed mechanics", () => RunSync(RunecraftAlternativeMethods)),
     ("phase-two methods expose reviewed unlocks, rates, and item flows", () => RunSync(PhaseTwoMethodCatalogue)),
     ("phase-two calculations reproduce reviewed resource totals and pricing", () => RunSync(PhaseTwoTrainingCalculations)),
     ("phase-three methods expose reviewed rates and Sailing item flows", () => RunSync(PhaseThreeMethodCatalogue)),
@@ -776,6 +777,7 @@ static void EhpCatalogueCoverage()
         {
             "Herblore" => 3,
             "Smithing" => 3,
+            "Runecraft" => 3,
             "Farming" => 2,
             "Prayer" or "Fletching" or "Crafting" or "Construction" => 2,
             _ => 1
@@ -1088,7 +1090,7 @@ static void TrainingSkillConfiguration()
         .Select(skill => skill.Skill)
         .ToArray();
     Equal(
-        "Prayer|Fletching|Firemaking|Smithing|Herblore|Farming|Construction",
+        "Prayer|Fletching|Firemaking|Smithing|Herblore|Farming|Runecraft|Construction",
         string.Join('|', configuredSkills),
         "requested skill configurators");
     Equal(
@@ -1414,6 +1416,77 @@ static void PracticalBuyableMethods()
     EqualDecimal(1m / 15m, Resource(adamantDarts, 810).QuantityPerExperience, "adamant darts per XP");
 }
 
+static void RunecraftAlternativeMethods()
+{
+    var definition = new MainEhpCatalogue().Skills.Single(skill => skill.Skill == "Runecraft");
+    var calculator = new TrainingPlanCalculator();
+    var emptyPrices = new Dictionary<int, ItemPrice>();
+
+    Equal(
+        "main-ehp|solo-lava-runes|solo-aether-runes",
+        string.Join('|', definition.AvailableMethods.Select(method => method.Id)),
+        "Runecraft method IDs");
+
+    var mud = definition.ResolveMethod("main-ehp").Bands.Last();
+    EqualDecimal(98_200m, mud.ExperiencePerHour, "solo mud 99 rate");
+    EqualDecimal(99m / 598.5m, Resource(mud, 4698).QuantityPerExperience, "Raiments mud output");
+    var noRaimentsMud = calculator.Calculate(
+        definition,
+        13_034_431,
+        13_132_631,
+        emptyPrices,
+        methodId: "main-ehp",
+        configuration: new Dictionary<string, string>
+        {
+            ["raiments-of-the-eye"] = bool.FalseString
+        });
+    EqualDecimal(98_200m, noRaimentsMud.BaseRate, "Raiments do not alter mud XP/hour");
+    EqualDecimal(
+        1m / 9.5m,
+        Resource(noRaimentsMud.Method.Bands.Last(), 4698).QuantityPerExperience,
+        "mud output without Raiments");
+
+    var lavaMethod = definition.ResolveMethod("solo-lava-runes");
+    Equal(6_291L, lavaMethod.Bands[1].StartExperience, "solo lava unlock XP");
+    EqualDecimal(40_000m, lavaMethod.Bands[1].ExperiencePerHour, "solo lava entry rate");
+    var lava85 = lavaMethod.Bands.Last();
+    Equal(3_258_594L, lava85.StartExperience, "solo lava colossal-pouch unlock XP");
+    EqualDecimal(102_100m, lava85.ExperiencePerHour, "solo lava colossal-pouch rate");
+    EqualDecimal(1m / 10.5m, Resource(lava85, 7936).QuantityPerExperience, "lava essence per XP");
+    EqualDecimal(1m / 10.5m, Resource(lava85, 557).QuantityPerExperience, "lava earth runes per XP");
+    EqualDecimal(99m / 661.5m, Resource(lava85, 4699).QuantityPerExperience, "Raiments lava output");
+
+    var aetherMethod = definition.ResolveMethod("solo-aether-runes");
+    var aether90 = aetherMethod.Bands.Single(band => band.StartExperience == 5_346_332);
+    EqualDecimal(99_000m, aether90.ExperiencePerHour, "solo aether level-90 rate");
+    EqualDecimal(1m / 20m, Resource(aether90, 7936).QuantityPerExperience, "aether essence per XP");
+    EqualDecimal(1m / 20m, Resource(aether90, 566).QuantityPerExperience, "aether soul runes per XP");
+    EqualDecimal(99m / 1_260m, Resource(aether90, 30771).QuantityPerExperience, "Raiments catalyst cost");
+    EqualDecimal(99m / 1_260m, Resource(aether90, 30843).QuantityPerExperience, "Raiments aether output");
+    EqualDecimal(0.125m / 1_260m, Resource(aether90, 2552).QuantityPerExperience, "aether rings of dueling per XP");
+    var aether99 = aetherMethod.Bands.Last();
+    EqualDecimal(102_000m, aether99.ExperiencePerHour, "solo aether level-99 rate");
+    True(
+        aether99.Economics!.Resources.All(resource => resource.ItemId is not 556 and not 564),
+        "Runecraft cape removes aether pouch-repair runes");
+
+    var noRaimentsAether = calculator.Calculate(
+        definition,
+        5_346_332,
+        5_445_332,
+        emptyPrices,
+        methodId: "solo-aether-runes",
+        configuration: new Dictionary<string, string>
+        {
+            ["raiments-of-the-eye"] = bool.FalseString
+        });
+    var noRaimentsAetherBand = noRaimentsAether.Method.Bands
+        .Single(band => band.StartExperience == 5_346_332);
+    EqualDecimal(99_000m, noRaimentsAether.BaseRate, "Raiments do not alter aether XP/hour");
+    EqualDecimal(1m / 20m, Resource(noRaimentsAetherBand, 30771).QuantityPerExperience, "base catalyst cost");
+    EqualDecimal(1m / 20m, Resource(noRaimentsAetherBand, 30843).QuantityPerExperience, "base aether output");
+}
+
 static void PhaseTwoMethodCatalogue()
 {
     var catalogue = new MainEhpCatalogue();
@@ -1471,14 +1544,14 @@ static void PhaseTwoMethodCatalogue()
     var runecraft75 = TrainingBand(catalogue, "Runecraft", 1_210_421);
     EqualDecimal(74_500m, runecraft75.ExperiencePerHour, "Runecraft level-75 rate");
     EqualDecimal(50m / 475m, Resource(runecraft75, 7936).QuantityPerExperience, "level-75 essence per XP");
-    EqualDecimal(74m / 475m, Resource(runecraft75, 4698).QuantityPerExperience, "level-75 mud runes per XP");
+    EqualDecimal(80m / 475m, Resource(runecraft75, 4698).QuantityPerExperience, "level-75 mud runes per XP");
     EqualDecimal(0.2m / 475m, Resource(runecraft75, 5521).QuantityPerExperience, "level-75 necklaces per XP");
     EqualDecimal(2.1m / 475m, Resource(runecraft75, 9075).QuantityPerExperience, "level-75 astrals per XP");
 
     var runecraft85 = TrainingBand(catalogue, "Runecraft", 3_258_594);
     EqualDecimal(96_900m, runecraft85.ExperiencePerHour, "Runecraft level-85 rate");
     EqualDecimal(63m / 598.5m, Resource(runecraft85, 7936).QuantityPerExperience, "level-85 essence per XP");
-    EqualDecimal(93m / 598.5m, Resource(runecraft85, 4698).QuantityPerExperience, "level-85 mud runes per XP");
+    EqualDecimal(99m / 598.5m, Resource(runecraft85, 4698).QuantityPerExperience, "level-85 mud runes per XP");
     EqualDecimal(2.125m / 598.5m, Resource(runecraft85, 9075).QuantityPerExperience, "level-85 astrals per XP");
     EqualDecimal(0.25m / 598.5m, Resource(runecraft85, 556).QuantityPerExperience, "level-85 air runes per XP");
     EqualDecimal(0.125m / 598.5m, Resource(runecraft85, 564).QuantityPerExperience, "level-85 cosmic runes per XP");

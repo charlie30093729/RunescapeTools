@@ -8,6 +8,7 @@ using RunescapeTools.Infrastructure.Training.Skills.Firemaking;
 using RunescapeTools.Infrastructure.Training.Skills.Fletching;
 using RunescapeTools.Infrastructure.Training.Skills.Herblore;
 using RunescapeTools.Infrastructure.Training.Skills.Prayer;
+using RunescapeTools.Infrastructure.Training.Skills.Runecraft;
 using RunescapeTools.Infrastructure.Training.Skills.Smithing;
 
 namespace RunescapeTools.Infrastructure.Training;
