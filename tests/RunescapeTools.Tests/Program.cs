@@ -55,6 +55,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("approved deterministic methods expose reviewed rates and economics", () => RunSync(DeterministicMethodCatalogue)),
     ("Herblore methods use shared equipment and four-dose economics", () => RunSync(HerbloreEquipmentEconomics)),
     ("Herblore alternatives preserve unlock routes and reviewed rates", () => RunSync(HerbloreAlternativeMethods)),
+    ("practical buyable alternatives expose reviewed unlocks, rates, and economics", () => RunSync(PracticalBuyableMethods)),
     ("phase-two methods expose reviewed unlocks, rates, and item flows", () => RunSync(PhaseTwoMethodCatalogue)),
     ("phase-two calculations reproduce reviewed resource totals and pricing", () => RunSync(PhaseTwoTrainingCalculations)),
     ("phase-three methods expose reviewed rates and Sailing item flows", () => RunSync(PhaseThreeMethodCatalogue)),
@@ -774,7 +775,9 @@ static void EhpCatalogueCoverage()
         var expectedMethodCount = skill.Skill switch
         {
             "Herblore" => 3,
+            "Smithing" => 3,
             "Farming" => 2,
+            "Prayer" or "Fletching" or "Crafting" or "Construction" => 2,
             _ => 1
         };
         Equal(expectedMethodCount, skill.AvailableMethods.Count, $"{skill.Skill} method count");
@@ -1327,6 +1330,88 @@ static void HerbloreAlternativeMethods()
         methodId: extended.Id);
     EqualDecimal(1m, extendedHour.Hours, "one hour of extended super antifires");
     EqualDecimal(3_832_500m, extendedHour.NetGp ?? 0m, "extended super antifire hourly economics", 0.01m);
+}
+
+static void PracticalBuyableMethods()
+{
+    var catalogue = new MainEhpCatalogue();
+    var calculator = new TrainingPlanCalculator();
+    var emptyPrices = new Dictionary<int, ItemPrice>();
+
+    var smithing = catalogue.Skills.Single(skill => skill.Skill == "Smithing");
+    Equal(
+        "main-ehp|adamant-platebodies|rune-2h-swords",
+        string.Join('|', smithing.AvailableMethods.Select(method => method.Id)),
+        "Smithing method IDs");
+    var adamant = smithing.ResolveMethod("adamant-platebodies").Bands.Last();
+    Equal(4_382_299L, adamant.StartExperience, "Adamant platebody unlock XP");
+    EqualDecimal(260_400m, adamant.ExperiencePerHour, "Adamant platebody base rate");
+    EqualDecimal(5m / 312.5m, Resource(adamant, 2361).QuantityPerExperience, "adamantite bars per XP");
+    EqualDecimal(1m / 312.5m, Resource(adamant, 1123).QuantityPerExperience, "adamant platebodies per XP");
+    var uniformAdamant = calculator.Calculate(
+        smithing,
+        4_382_299,
+        4_707_299,
+        emptyPrices,
+        methodId: "adamant-platebodies",
+        configuration: new Dictionary<string, string>
+        {
+            ["smiths-uniform"] = bool.TrueString
+        });
+    EqualDecimal(325_000m, uniformAdamant.BaseRate, "Adamant platebody uniform rate");
+    EqualDecimal(
+        5m / 312.5m,
+        Resource(uniformAdamant.Method.Bands.Last(), 2361).QuantityPerExperience,
+        "Smiths' uniform changes speed rather than bar consumption");
+
+    var rune = smithing.ResolveMethod("rune-2h-swords").Bands.Last();
+    Equal(13_034_431L, rune.StartExperience, "Rune 2h unlock XP");
+    EqualDecimal(217_000m, rune.ExperiencePerHour, "Rune 2h base rate");
+    EqualDecimal(3m / 225m, Resource(rune, 2363).QuantityPerExperience, "runite bars per XP");
+    EqualDecimal(1m / 225m, Resource(rune, 1319).QuantityPerExperience, "rune 2h swords per XP");
+
+    var construction = catalogue.Skills.Single(skill => skill.Skill == "Construction");
+    var doors = construction.ResolveMethod("oak-dungeon-doors").Bands.Last();
+    Equal(1_210_421L, doors.StartExperience, "Oak dungeon door unlock XP");
+    EqualDecimal(550_000m, doors.ExperiencePerHour, "Oak dungeon door rate");
+    EqualDecimal(1m / 60m, Resource(doors, 8778).QuantityPerExperience, "oak planks per XP");
+    EqualDecimal(1_250m / 25m / 60m, doors.Economics!.FixedGpPerExperience, "Oak dungeon door servant fee");
+
+    var prayer = catalogue.Skills.Single(skill => skill.Skill == "Prayer");
+    var dragonBones = prayer.ResolveMethod("dragon-bones").Bands.Single();
+    EqualDecimal(642_600m, dragonBones.ExperiencePerHour, "Gilded Altar dragon bone rate");
+    EqualDecimal(1m / 252m, Resource(dragonBones, 536).QuantityPerExperience, "Gilded dragon bones per XP");
+    var chaosDragonBones = calculator.Calculate(
+        prayer,
+        0,
+        504_000,
+        emptyPrices,
+        methodId: "dragon-bones",
+        configuration: new Dictionary<string, string>
+        {
+            ["offering-location"] = "chaos-altar"
+        });
+    EqualDecimal(504_000m, chaosDragonBones.BaseRate, "Chaos Altar dragon bone rate");
+    EqualDecimal(
+        1m / 504m,
+        Resource(chaosDragonBones.Method.Bands.Single(), 536).QuantityPerExperience,
+        "Chaos Altar effective dragon bones per XP");
+
+    var crafting = catalogue.Skills.Single(skill => skill.Skill == "Crafting");
+    var airStaves = crafting.ResolveMethod("air-battlestaves").Bands.Last();
+    Equal(496_254L, airStaves.StartExperience, "Air battlestaff unlock XP");
+    EqualDecimal(336_875m, airStaves.ExperiencePerHour, "Air battlestaff rate");
+    EqualDecimal(1m / 137.5m, Resource(airStaves, 1391).QuantityPerExperience, "battlestaves per XP");
+    EqualDecimal(1m / 137.5m, Resource(airStaves, 573).QuantityPerExperience, "air orbs per XP");
+    EqualDecimal(1m / 137.5m, Resource(airStaves, 1397).QuantityPerExperience, "air battlestaves per XP");
+
+    var fletching = catalogue.Skills.Single(skill => skill.Skill == "Fletching");
+    var adamantDarts = fletching.ResolveMethod("adamant-darts").Bands.Last();
+    Equal(737_627L, adamantDarts.StartExperience, "Adamant dart unlock XP");
+    EqualDecimal(300_000m, adamantDarts.ExperiencePerHour, "Adamant dart rate");
+    EqualDecimal(1m / 15m, Resource(adamantDarts, 823).QuantityPerExperience, "adamant dart tips per XP");
+    EqualDecimal(1m / 15m, Resource(adamantDarts, 314).QuantityPerExperience, "adamant dart feathers per XP");
+    EqualDecimal(1m / 15m, Resource(adamantDarts, 810).QuantityPerExperience, "adamant darts per XP");
 }
 
 static void PhaseTwoMethodCatalogue()
@@ -2109,7 +2194,8 @@ static async Task XpPlannerViewModelFlow()
     Equal("142.8", construction.Hours, "Construction displayed hours");
     True(construction.Result.NetGp is < -2_800_000_000m, "Construction live cost");
     True(construction.EconomicRate.EndsWith(" gp/hr"), "method subtitle identifies GP per hour");
-    Equal(1, construction.AvailableMethods.Count, "current catalogue exposes its default route");
+    Equal(2, construction.AvailableMethods.Count, "Construction exposes default and oak-door routes");
+    Equal("main-ehp", construction.SelectedMethodOption?.Id ?? string.Empty, "Construction defaults to Main EHP");
     construction.PersonalRate = 100_000m;
     True(construction.Hours != "142.8", "personal rate changes displayed hours");
     construction.ResetSkillCommand.Execute(null);
