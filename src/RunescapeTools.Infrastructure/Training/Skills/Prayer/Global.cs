@@ -1,6 +1,5 @@
 using RunescapeTools.Core.Training;
 using RunescapeTools.Infrastructure.Training;
-using static RunescapeTools.Infrastructure.Training.TrainingCatalogueBuilder;
 
 namespace RunescapeTools.Infrastructure.Training.Skills.Prayer;
 
@@ -9,9 +8,6 @@ internal static class PrayerGlobal
     public const string OfferingLocationKey = "offering-location";
     private const string GildedAltar = "gilded-altar";
     private const string ChaosAltar = "chaos-altar";
-    private const decimal ExperiencePerHour = 2_000_000m;
-    private const decimal GildedAltarExperiencePerBone = 525m;
-    private const decimal EffectiveChaosAltarExperiencePerBone = 1_050m;
 
     public static ITrainingSkillConfigurator Configurator { get; } =
         new TrainingSkillConfigurator(
@@ -22,7 +18,7 @@ internal static class PrayerGlobal
                     "Offering location",
                     TrainingConfigurationOptionKind.Choice,
                     GildedAltar,
-                    "Select where Superior dragon bones are offered.",
+                    "Select where the chosen bones are offered.",
                     [
                         new TrainingConfigurationChoice(
                             GildedAltar,
@@ -42,7 +38,7 @@ internal static class PrayerGlobal
                             "Coming soon")
                     ])
             ]),
-            (method, values) => CreateMethod(ResolveSettings(values)));
+            ConfigureMethod);
 
     public static PrayerSettings ResolveSettings(
         TrainingConfigurationValues? configuration = null)
@@ -52,37 +48,24 @@ internal static class PrayerGlobal
         return new PrayerSettings(values.GetChoice(OfferingLocationKey));
     }
 
-    public static TrainingMethodDefinition CreateMethod(PrayerSettings settings)
-    {
-        var (location, experiencePerBone) = settings.OfferingLocation switch
-        {
-            ChaosAltar => ("Chaos Altar", EffectiveChaosAltarExperiencePerBone),
-            _ => ("Gilded Altar", GildedAltarExperiencePerBone)
-        };
+    public static bool UsesChaosAltar(PrayerSettings settings) =>
+        string.Equals(settings.OfferingLocation, ChaosAltar, StringComparison.OrdinalIgnoreCase);
 
-        return new TrainingMethodDefinition(
-            "superior-dragon-bones",
-            "Superior dragon bones",
-            [
-                Band(
-                    0,
-                    ExperiencePerHour,
-                    $"Superior dragon bones at the {location}",
-                    new TrainingEconomics(
-                    [
-                        Input(Items.SuperiorDragonBones, 1m / experiencePerBone)
-                    ]))
-            ],
-            "Only Superior dragon bones are available in this release. The rate remains the reviewed " +
-            "2,000,000 XP/hour; offering location changes the expected bone consumption.",
-            UseStableDisplayName: true);
+    public static string LocationName(PrayerSettings settings) =>
+        UsesChaosAltar(settings) ? "Chaos Altar" : "Gilded Altar";
+
+    private static TrainingMethodDefinition ConfigureMethod(
+        TrainingMethodDefinition method,
+        TrainingConfigurationValues values)
+    {
+        var settings = ResolveSettings(values);
+        return method.Id switch
+        {
+            "superior-dragon-bones" => Methods.SuperiorDragonBones.Create(settings),
+            "dragon-bones" => Methods.DragonBones.Create(settings),
+            _ => method
+        };
     }
 
     internal readonly record struct PrayerSettings(string OfferingLocation);
-
-    private static class Items
-    {
-        public static readonly CatalogueItem SuperiorDragonBones =
-            new(22124, "Superior dragon bones");
-    }
 }

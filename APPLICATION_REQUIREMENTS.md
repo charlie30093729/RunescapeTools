@@ -226,10 +226,15 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | FR-XP-041 | Farming shall provide selectable magic + dragonfruit and magic + palm tree-run routes. The palm route shall retain palms after dragonfruit trees unlock, buy palm saplings and papaya protection, and scale its active XP rates by the resulting daily XP without changing the reviewed run-time assumptions. |
 | FR-XP-042 | Configurable skill rows shall show a cog beside the method selector and use one schema-driven WPF dialog rather than skill-specific view logic. |
 | FR-XP-043 | Skill-local `Global.cs` files shall own stable configuration keys, defaults, validation, method applicability, and calculation effects; mutable user selections shall not be stored in static catalogue state. |
-| FR-XP-044 | Prayer shall currently expose only Superior dragon bones, default to a Gilded Altar, and support a Chaos Altar selection. Bank and Prif agility offering choices shall remain visible but disabled until their calculations are implemented. |
+| FR-XP-044 | Prayer shall expose Superior dragon bones and dragon bones, default to Superior dragon bones at a Gilded Altar, and support a Chaos Altar selection for either material. Bank and Prif agility offering choices shall remain visible but disabled until their calculations are implemented. |
 | FR-XP-045 | Firemaking shall default to the full Pyromancer outfit, allow the outfit to be disabled, and allow supported logs to switch between bow burning and manual Forester's Campfire rates. |
 | FR-XP-046 | Fletching shall allow its active hours to be excluded without removing its processing-time resource and economic calculations. |
-| FR-XP-047 | Smithing shall persist a Smiths' uniform preference without applying it to Blast Furnace gold; Construction shall optionally apply the full Carpenter's outfit XP multiplier; Farming shall expose an empty configuration entry point for future options. |
+| FR-XP-047 | Smithing shall persist a Smiths' uniform preference and apply the saved anvil-speed rate only to adamant platebodies and rune 2h swords, without changing their material quantities or applying it to Blast Furnace gold. Construction shall optionally apply the full Carpenter's outfit XP multiplier; Farming shall expose an empty configuration entry point for future options. |
+| FR-XP-048 | Smithing shall provide selectable Solo Blast Furnace gold, adamant platebody, and rune 2h sword routes, preserve the existing lower-level route before each unlock, and price bars as inputs and finished equipment as taxed outputs. |
+| FR-XP-049 | Construction shall provide an oak dungeon door route from level 74 using 10 oak planks for 600 base XP and a 25-plank Demon butler fee cycle. |
+| FR-XP-050 | Crafting shall provide an air battlestaff route from level 66 using one battlestaff and one air orb per 137.5 XP and valuing one finished air battlestaff output. |
+| FR-XP-051 | Fletching shall provide an adamant dart route from level 67 using one adamant dart tip and one feather per 15 XP and valuing one finished adamant dart output; its active-hour configuration shall apply to this route. |
+| FR-XP-052 | Dragon-bone Prayer shall use the reviewed manual-offering rates and effective bone consumption for the selected altar; excluded Chaos Altar risk, supply, and unnoting costs shall remain disclosed rather than silently priced as zero. |
 
 ### 6.8 Method modularity
 
