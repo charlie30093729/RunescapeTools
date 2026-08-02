@@ -135,6 +135,7 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | FR-HIST-002 | The application shall request six-hour time-series data for the one-month favourite view. |
 | FR-HIST-003 | The history view shall display the weekly percentage change when at least two valid midpoint values exist. |
 | FR-HIST-004 | The history view shall display current midpoint, instant-buy price, instant-sell price, point count, and tracked volume. |
+| FR-HIST-004A | Each favourite chart-point tooltip shall display its local timestamp, midpoint price, and rolling 24-hour tracked volume split into high-side and low-side observations. The rolling window shall remain consistent across hourly and six-hour graph resolutions. |
 | FR-HIST-005 | The application shall render a graph only when at least two valid midpoint points exist. |
 | FR-HIST-006 | Graph points shall expose local timestamp and GP value details. |
 | FR-HIST-007 | The application shall warm latest prices and weekly history for persisted favourites during startup. |
