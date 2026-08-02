@@ -51,7 +51,7 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 - Price-history graphs with one-day, three-day, seven-day, and one-month windows.
 - Shared item-flow GP-per-hour calculator.
 - Automatic discovery of concrete money-making method classes.
-- Vyrewatch Sentinels as the first registered method.
+- Vyrewatch Sentinels and efficient Rune Dragons as registered combat methods.
 - Startup warming and in-memory API caching.
 - Graceful handling of temporary market-data failures.
 - Self-contained, single-file `win-x64` distribution.
@@ -179,6 +179,7 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | FR-CALC-014 | Every current and future money-making method shall expose an editable positive actions/hour value initialized from its method definition. |
 | FR-CALC-015 | An actions/hour override shall immediately reprice per-action item flows, experience rewards, per-account profit, all-account profit, and the shared rate supplied to the XP Planner. Per-hour item flows shall remain unchanged. |
 | FR-CALC-016 | The user shall be able to reset actions/hour to the method's current configured default, removing the persisted override. Vyrewatch shall use 102 with prayer regeneration potions and 88 without them when no override is active. |
+| FR-CALC-017 | Rune Dragons shall default to 45 kills per hour and shall scale its reviewed consumable inputs and expected tradeable outputs when the action-rate override changes. |
 
 ### 6.7 XP Planner
 
@@ -279,6 +280,7 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | BR-005 | Tracked volume is the sum of high-side and low-side volume across the latest seven-day hourly history, independent of the visible graph window. |
 | BR-006 | The MVP Vyrewatch method defaults to 102 actions per hour with prayer regeneration potions or 88 without them, uses five accounts, and applies a 2% output tax; a positive persisted user override supersedes either action-rate default until reset. |
 | BR-007 | The MVP prices calculations using the current high/low midpoint, so results are estimates rather than guaranteed realized profit. |
+| BR-008 | Rune Dragons assume the efficient low-intensity Justiciar, dragon hunter lance, dragonfire shield, Piety, Protect from Magic, mounted Digsite pendant route, and Monkey Madness II drop access. The variable rare-drop-table value is excluded. |
 
 ## 8. External interface requirements
 

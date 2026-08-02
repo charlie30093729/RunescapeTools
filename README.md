@@ -16,7 +16,7 @@ The WPF executable is the active front end. The original Razor/Blazor applicatio
 - Herblore provides selectable Saradomin brew, Super restore, and 1-tick extended super antifire routes. Prescription goggles and the Alchemist's amulet are user-selectable, apply only where eligible, price Amulets of chemistry used for charges, and decant all finished potion output to four-dose items for sale.
 - Practical buyable alternatives include dragon bones, adamant darts, air battlestaves, adamant platebodies, rune 2h swords, and oak dungeon doors. Each route retains the existing lower-level path until its real unlock, then prices inputs at live high offers and outputs at live low offers.
 - Runecraft provides selectable solo mud, lava, and aether routes. Full Raiments of the Eye are configurable per RSN: the outfit increases rune output by up to 60% using the game's per-craft rounding without increasing XP, and aether bonus output consumes the matching additional catalysts.
-- Vyrewatch Sentinels method with supplies, output tax, per-account profit, and an adjustable all-account total.
+- Vyrewatch Sentinels and efficient Rune Dragons methods with live-priced supplies, expected taxed drops, per-account profit, persistent action-rate overrides, and adjustable all-account totals. Rune Dragons default to 45 kills/hour using the low-intensity Justiciar, dragon hunter lance, and dragonfire shield setup.
 - Local JSON persistence, API-friendly caches, bounded history warmup, retry handling, and user-readable failure states.
 - Single-instance desktop lifetime to prevent competing favourite-file writes.
 
@@ -63,7 +63,7 @@ Custom money-maker actions/hour values are stored by stable method slug at:
 %LocalAppData%\RunescapeTools\data\money-making-preferences.json
 ```
 
-Each money maker starts at its coded default. The Actions/hour field reprices per-action outputs and experience immediately, and its reset control removes the saved override. Vyrewatch defaults to 102 kills/hour with prayer regeneration potions and 88 without them; a custom override remains active when that checkbox changes until it is reset.
+Each money maker starts at its coded default. The Actions/hour field reprices per-action inputs, outputs, and experience immediately, and its reset control removes the saved override. Vyrewatch defaults to 102 kills/hour with prayer regeneration potions and 88 without them; Rune Dragons default to 45 kills/hour. A custom override remains active when a method-specific configuration changes until it is reset.
 
 The same training-plan file stores which skill hours are allocated to money making. The selected Money Makers method itself is session state: choose a successfully priced method in Money Makers, use its account arrows to set the currently running quantity, click the XP Planner summary card to change it, or use the card's Reset action to deselect it. Planner income uses the selected method's combined GP/hour across all chosen accounts and applies it exclusively to the active hours of highlighted skills.
 
