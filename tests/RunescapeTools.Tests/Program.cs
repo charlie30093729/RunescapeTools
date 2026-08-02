@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using Microsoft.Extensions.Logging.Abstractions;
+using LiveChartsCore.SkiaSharpView;
 using RunescapeTools.Application.Favourites;
 using RunescapeTools.Application.Market;
 using RunescapeTools.Application.MoneyMaking;
@@ -43,6 +44,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("dashboard view-model loads and reports failures", DashboardViewModelStates),
     ("favourites view-model searches, adds, selects, and removes", FavouritesViewModelFlow),
     ("favourites chart uses discrete one-day to one-month zoom", FavouritesChartZoomFlow),
+    ("favourites chart points retain rolling 24-hour volume", () => RunSync(FavouritesChartVolume)),
     ("money-maker view-model shares and resets the priced selection", MoneyMakerViewModelFlow),
     ("money-maker action-rate overrides persist atomically", MoneyMakingPreferencePersistence),
     ("profile view-model loads defaults and keeps valid data on errors", ProfileViewModelFlow),
@@ -563,6 +565,8 @@ static async Task FavouritesChartZoomFlow()
     await viewModel.LoadAsync();
 
     Equal("7 DAYS", viewModel.HistoryWindowLabel, "default history window");
+    var series = (LineSeries<FavouritePriceChartPoint>)viewModel.ChartSeries.Single();
+    Equal(3, series.Values?.Count() ?? 0, "chart uses enriched price and volume points");
     viewModel.ZoomHistoryCommand.Execute(120);
     Equal("3 DAYS", viewModel.HistoryWindowLabel, "first zoom-in window");
     viewModel.ZoomHistoryCommand.Execute(120);
@@ -582,6 +586,35 @@ static async Task FavouritesChartZoomFlow()
         market.HistoryTimeSteps.SequenceEqual(
             [PriceTimeStep.SixHours, PriceTimeStep.OneHour]),
         "favourites loads hourly and monthly resolutions");
+    True(
+        market.HistoryWindows.SequenceEqual(
+            [TimeSpan.FromDays(31), TimeSpan.FromDays(8)]),
+        "favourites loads a one-day rolling-volume lookback");
+}
+
+static void FavouritesChartVolume()
+{
+    var now = new DateTimeOffset(2026, 8, 2, 12, 0, 0, TimeSpan.Zero);
+    IReadOnlyList<PricePoint> history =
+    [
+        new PricePoint(now.AddHours(-25), 450, 450, 100, 200),
+        new PricePoint(now.AddHours(-24), 460, 460, 10, 20),
+        new PricePoint(now.AddHours(-23), 470, 470, 1, 2),
+        new PricePoint(now, 500, 500, 3, 4)
+    ];
+
+    var points = FavouritesViewModel.BuildChartPoints(
+        history,
+        now.AddDays(-1),
+        now);
+    var current = points.Single(point => point.Timestamp == now);
+
+    Equal(4L, current.RollingHighVolume, "rolling high-side volume");
+    Equal(6L, current.RollingLowVolume, "rolling low-side volume");
+    Equal(10L, current.RollingVolume, "rolling total volume");
+    True(current.TooltipText.Contains("24h tracked volume: 10 items"), "volume tooltip total");
+    True(current.TooltipText.Contains("High side: 4"), "volume tooltip high side");
+    True(current.TooltipText.Contains("Low side: 6"), "volume tooltip low side");
 }
 
 static async Task MoneyMakerViewModelFlow()
@@ -2695,6 +2728,7 @@ sealed class FakeMarketDataService : IMarketDataService
         new Dictionary<PriceTimeStep, IReadOnlyList<PricePoint>>();
     public List<int> HistoryRequests { get; } = [];
     public List<PriceTimeStep> HistoryTimeSteps { get; } = [];
+    public List<TimeSpan> HistoryWindows { get; } = [];
     public Exception? Failure { get; set; }
 
     public Task<IReadOnlyDictionary<int, ItemPrice>> GetLatestForAsync(IEnumerable<int> itemIds, CancellationToken cancellationToken = default)
@@ -2717,6 +2751,7 @@ sealed class FakeMarketDataService : IMarketDataService
     {
         HistoryRequests.Add(itemId);
         HistoryTimeSteps.Add(timeStep);
+        HistoryWindows.Add(window);
         return Task.FromResult(
             HistoryByTimeStep.TryGetValue(timeStep, out var history)
                 ? history

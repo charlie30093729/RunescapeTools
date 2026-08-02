@@ -2,7 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LiveChartsCore;
-using LiveChartsCore.Defaults;
+using LiveChartsCore.Kernel;
 using LiveChartsCore.SkiaSharpView;
 using LiveChartsCore.SkiaSharpView.Painting;
 using RunescapeTools.Application.Market;
@@ -26,6 +26,21 @@ public sealed record SearchResultRow(ItemMapping Item, string Monogram, string I
 {
     public int ItemId => Item.Id;
     public string Name => Item.Name;
+}
+
+public sealed record FavouritePriceChartPoint(
+    DateTimeOffset Timestamp,
+    double MidPrice,
+    long RollingHighVolume,
+    long RollingLowVolume)
+{
+    public long RollingVolume => RollingHighVolume + RollingLowVolume;
+
+    public string TooltipText =>
+        $"{MidPrice:N0} gp{Environment.NewLine}" +
+        $"24h tracked volume: {RollingVolume:N0} items{Environment.NewLine}" +
+        $"High side: {RollingHighVolume:N0}{Environment.NewLine}" +
+        $"Low side: {RollingLowVolume:N0}";
 }
 
 public partial class FavouritesViewModel(
@@ -294,7 +309,7 @@ public partial class FavouritesViewModel(
         var monthlyTask = marketData.GetHistoryAsync(
             row.ItemId,
             PriceTimeStep.SixHours,
-            TimeSpan.FromDays(30),
+            TimeSpan.FromDays(31),
             cancellationToken);
 
         try
@@ -302,9 +317,11 @@ public partial class FavouritesViewModel(
             hourlyHistory = await marketData.GetHistoryAsync(
                 row.ItemId,
                 PriceTimeStep.OneHour,
-                TimeSpan.FromDays(7),
+                TimeSpan.FromDays(8),
                 cancellationToken);
-            SetWeeklyMetrics(hourlyHistory);
+            SetWeeklyMetrics(hourlyHistory
+                .Where(point => point.Timestamp >= clock.GetUtcNow() - TimeSpan.FromDays(7))
+                .ToArray());
             ApplyHistoryWindow();
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -339,19 +356,16 @@ public partial class FavouritesViewModel(
     {
         var points = history
             .Where(point => point.MidPrice.HasValue)
-            .Select(point => new DateTimePoint(
-                point.Timestamp.UtcDateTime,
-                (double?)point.MidPrice))
             .ToArray();
 
         WeeklyPoints = history.Count.ToString("N0");
         TrackedVolume = DisplayFormat.Compact(history.Sum(point => point.HighVolume + point.LowVolume));
 
-        var startValue = points.FirstOrDefault()?.Value;
-        var endValue = points.LastOrDefault()?.Value;
+        var startValue = points.FirstOrDefault()?.MidPrice;
+        var endValue = points.LastOrDefault()?.MidPrice;
         if (startValue is not null and not 0 && endValue is not null)
         {
-            var change = (endValue.Value - startValue.Value) / startValue.Value * 100d;
+            var change = (endValue.Value - startValue.Value) / startValue.Value * 100m;
             IsWeeklyChangePositive = change >= 0;
             WeeklyChange = $"{(change >= 0 ? "+" : string.Empty)}{change:N1}% this week";
         }
@@ -370,23 +384,19 @@ public partial class FavouritesViewModel(
             : hourlyHistory;
         var now = clock.GetUtcNow();
         var cutoff = now - definition.Duration;
-        var points = history
-            .Where(point => point.Timestamp >= cutoff
-                            && point.Timestamp <= now
-                            && point.MidPrice.HasValue)
-            .Select(point => new DateTimePoint(
-                point.Timestamp.UtcDateTime,
-                (double?)point.MidPrice))
-            .ToArray();
+        var points = BuildChartPoints(history, cutoff, now);
 
         HistoryWindowLabel = definition.Label;
         XAxes = CreateXAxis(definition, now);
         ChartSeries =
         [
-            new LineSeries<DateTimePoint>
+            new LineSeries<FavouritePriceChartPoint>
             {
                 Name = "Mid price",
                 Values = points,
+                Mapping = (point, _) => new Coordinate(
+                    point.Timestamp.UtcDateTime.Ticks,
+                    point.MidPrice),
                 LineSmoothness = 0.35,
                 GeometrySize = definition.GeometrySize,
                 Stroke = new SolidColorPaint(new SKColor(158, 111, 33), 3),
@@ -397,11 +407,52 @@ public partial class FavouritesViewModel(
                     new SKPoint(0.5f, 0),
                     new SKPoint(0.5f, 1)),
                 XToolTipLabelFormatter = chartPoint =>
-                    chartPoint.Model?.DateTime.ToLocalTime().ToString("ddd d MMM, h:mm tt") ?? string.Empty,
+                    chartPoint.Model?.Timestamp.ToLocalTime().ToString("ddd d MMM, h:mm tt") ?? string.Empty,
                 YToolTipLabelFormatter = chartPoint =>
-                    chartPoint.Model?.Value is { } value ? $"{value:N0} gp" : "Unavailable"
+                    chartPoint.Model?.TooltipText ?? "Unavailable"
             }
         ];
+    }
+
+    public static IReadOnlyList<FavouritePriceChartPoint> BuildChartPoints(
+        IReadOnlyList<PricePoint> history,
+        DateTimeOffset cutoff,
+        DateTimeOffset now)
+    {
+        var ordered = history
+            .Where(point => point.Timestamp > cutoff - TimeSpan.FromDays(1)
+                            && point.Timestamp <= now)
+            .OrderBy(point => point.Timestamp)
+            .ToArray();
+        var result = new List<FavouritePriceChartPoint>(ordered.Length);
+        var firstIncluded = 0;
+        long rollingHigh = 0;
+        long rollingLow = 0;
+
+        foreach (var point in ordered)
+        {
+            rollingHigh += point.HighVolume;
+            rollingLow += point.LowVolume;
+            var rollingCutoff = point.Timestamp - TimeSpan.FromDays(1);
+            while (firstIncluded < ordered.Length
+                   && ordered[firstIncluded].Timestamp <= rollingCutoff)
+            {
+                rollingHigh -= ordered[firstIncluded].HighVolume;
+                rollingLow -= ordered[firstIncluded].LowVolume;
+                firstIncluded++;
+            }
+
+            if (point.Timestamp >= cutoff && point.MidPrice is { } midPrice)
+            {
+                result.Add(new FavouritePriceChartPoint(
+                    point.Timestamp,
+                    (double)midPrice,
+                    rollingHigh,
+                    rollingLow));
+            }
+        }
+
+        return result;
     }
 
     private void ResetHistoryWindow()
