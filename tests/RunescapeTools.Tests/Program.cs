@@ -656,23 +656,28 @@ static async Task MoneyMakerViewModelFlow()
 {
     var method = new VyrewatchMethod();
     var secondMethod = new ZulrahMethod();
+    var thirdMethod = new RuneDragonMethod();
     var selection = new MoneyMakerSelectionContext();
     var preferences = new MemoryMoneyMakingPreferenceStore();
     var market = new FakeMarketDataService
     {
         Latest = method.Definition.RequiredItemIds
             .Concat(secondMethod.Definition.RequiredItemIds)
+            .Concat(thirdMethod.Definition.RequiredItemIds)
             .Distinct()
             .ToDictionary(id => id, id => Quote(id, 1_000))
     };
     var viewModel = new MoneyMakersViewModel(
-        [method, secondMethod],
+        [thirdMethod, secondMethod, method],
         new MoneyMakingCalculator(),
         market,
         preferences,
         selection);
 
     await viewModel.LoadAsync();
+    Equal(method.Definition.Slug, viewModel.Methods[0].Method.Definition.Slug, "Vyrewatch display priority");
+    Equal(secondMethod.Definition.Slug, viewModel.Methods[1].Method.Definition.Slug, "Zulrah display priority");
+    Equal(thirdMethod.Definition.Slug, viewModel.Methods[2].Method.Definition.Slug, "remaining methods follow priorities");
     True(viewModel.SelectedMethod is null, "money maker should require an explicit selection");
     var primaryRow = viewModel.Methods.Single(row => row.Method.Definition.Slug == method.Definition.Slug);
     var secondaryRow = viewModel.Methods.Single(row => row.Method.Definition.Slug == secondMethod.Definition.Slug);
