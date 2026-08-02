@@ -81,6 +81,13 @@ public sealed record TrainingBandResult(
     public long Experience => EndExperience - StartExperience;
 }
 
+public sealed record TrainingResourceRequirement(
+    int ItemId,
+    string Name,
+    TrainingFlowDirection Direction,
+    decimal Quantity,
+    bool SubjectToGeTax);
+
 public sealed record TrainingSkillPlanResult(
     TrainingSkillDefinition Definition,
     TrainingMethodDefinition Method,
@@ -94,6 +101,7 @@ public sealed record TrainingSkillPlanResult(
     bool UsedFallbackPrice,
     bool HasMissingPrice,
     IReadOnlyList<TrainingBandResult> Bands,
+    IReadOnlyList<TrainingResourceRequirement> ResourceRequirements,
     long AppliedExperienceCredit,
     IReadOnlyDictionary<string, decimal> GeneratedExperience,
     bool IncludesActiveHours)
@@ -155,12 +163,15 @@ public sealed class TrainingPlanCalculator
         {
             return new TrainingSkillPlanResult(
                 definition, method, start, target, baseRate, personalRate ?? baseRate, 0m, 0m,
-                target - effectiveStart, false, false, [], appliedCredit,
+                target - effectiveStart, false, false, [], [], appliedCredit,
                 new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase),
                 includesActiveHours);
         }
 
         var results = new List<TrainingBandResult>();
+        var resourceRequirements = new Dictionary<
+            (int ItemId, TrainingFlowDirection Direction),
+            (TrainingResourceFlow Resource, decimal Quantity)>();
         decimal calculationHours = 0m;
         decimal totalGp = 0m;
         long pricedExperience = 0;
@@ -183,6 +194,17 @@ public sealed class TrainingPlanCalculator
             var effectiveBandRate = band.ExperiencePerHour * multiplier;
             var hours = effectiveBandRate > 0m ? experience / effectiveBandRate : 0m;
             calculationHours += hours;
+
+            foreach (var resource in band.Economics?.Resources ?? [])
+            {
+                var quantity = resource.QuantityPerExperience * experience
+                               + resource.QuantityPerHour * hours;
+                var key = (resource.ItemId, resource.Direction);
+                if (resourceRequirements.TryGetValue(key, out var existing))
+                    resourceRequirements[key] = (existing.Resource, existing.Quantity + quantity);
+                else
+                    resourceRequirements[key] = (resource, quantity);
+            }
 
             decimal? segmentGp = null;
             var segmentFallback = false;
@@ -280,6 +302,17 @@ public sealed class TrainingPlanCalculator
             usedFallback,
             hasMissing,
             results,
+            resourceRequirements.Values
+                .Where(value => value.Quantity != 0m)
+                .Select(value => new TrainingResourceRequirement(
+                    value.Resource.ItemId,
+                    value.Resource.Name,
+                    value.Resource.Direction,
+                    value.Quantity,
+                    value.Resource.SubjectToGeTax))
+                .OrderBy(value => value.Direction)
+                .ThenBy(value => value.Name, StringComparer.OrdinalIgnoreCase)
+                .ToArray(),
             appliedCredit,
             generatedExperience,
             includesActiveHours);

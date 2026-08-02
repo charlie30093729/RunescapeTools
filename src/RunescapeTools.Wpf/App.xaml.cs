@@ -128,6 +128,9 @@ public partial class App : System.Windows.Application
         builder.Services.AddSingleton<
             ITrainingConfigurationDialogService,
             TrainingConfigurationDialogService>();
+        builder.Services.AddSingleton<
+            ITrainingPriceDialogService,
+            TrainingPriceDialogService>();
         builder.Services.AddSingleton<XpPlannerViewModel>();
         builder.Services.AddSingleton<ShellViewModel>();
         builder.Services.AddSingleton<MainWindow>();

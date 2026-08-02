@@ -24,6 +24,7 @@ using RunescapeTools.Wpf.Views;
 var tests = new (string Name, Func<Task> Run)[]
 {
     ("generic flow calculation", () => RunSync(GenericFlowCalculation)),
+    ("training plans aggregate full-route item quantities", () => RunSync(TrainingResourceRequirements)),
     ("Vyrewatch matches the legacy formula", () => RunSync(VyrewatchMatchesLegacyFormula)),
     ("Vyrewatch supports the no-regen configuration", () => RunSync(VyrewatchNoRegenConfiguration)),
     ("Vyrewatch exposes every required item once", () => RunSync(VyrewatchItemIdsAreDistinct)),
@@ -72,7 +73,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("hourly training costs respond to personal rate overrides", () => RunSync(HourlyTrainingEconomics)),
     ("money-maker profit applies only to selected non-negative skill hours", () => RunSync(TrainingMoneyMakerAllocation)),
     ("training plans persist independently per RSN", TrainingPlanPersistence),
-    ("XP Planner tooltips use live high buys and low sells", () => RunSync(XpPlannerPriceTooltips)),
+    ("XP Planner price dialog uses live offers and goal quantities", () => RunSync(XpPlannerPriceDialog)),
     ("XP planner allocates money-maker profit to selected skill hours", XpPlannerViewModelFlow),
     ("XP planner remains usable when live prices fail", XpPlannerPriceFailure),
     ("shell navigation loads the requested page", ShellNavigation),
@@ -125,6 +126,49 @@ static void GenericFlowCalculation()
     var fourAccounts = new MoneyMakingCalculator().Calculate(method, prices, 4);
     Equal(4, fourAccounts.Method.Accounts, "manual account quantity");
     EqualDecimal(18_400m, fourAccounts.ProfitAllAccounts, "manual account total profit");
+}
+
+static void TrainingResourceRequirements()
+{
+    var definition = new TrainingSkillDefinition(
+        "Test",
+        [
+            new TrainingRateBand(
+                0,
+                100m,
+                "First band",
+                new TrainingEconomics(
+                [
+                    new TrainingResourceFlow(1, "Input", 0.5m, TrainingFlowDirection.Input, QuantityPerHour: 2m),
+                    new TrainingResourceFlow(2, "Output", 0.1m, TrainingFlowDirection.Output)
+                ])),
+            new TrainingRateBand(
+                100,
+                200m,
+                "Second band",
+                new TrainingEconomics(
+                [
+                    new TrainingResourceFlow(1, "Input", 0.25m, TrainingFlowDirection.Input, QuantityPerHour: 2m),
+                    new TrainingResourceFlow(2, "Output", 0.2m, TrainingFlowDirection.Output)
+                ]))
+        ]);
+    var prices = new Dictionary<int, ItemPrice>
+    {
+        [1] = Quote(1, 100),
+        [2] = Quote(2, 100)
+    };
+
+    var result = new TrainingPlanCalculator().Calculate(definition, 0, 200, prices);
+
+    Equal(2, result.ResourceRequirements.Count, "aggregated resource count");
+    EqualDecimal(
+        78m,
+        result.ResourceRequirements.Single(item => item.ItemId == 1).Quantity,
+        "per-XP and per-hour inputs across both bands");
+    EqualDecimal(
+        30m,
+        result.ResourceRequirements.Single(item => item.ItemId == 2).Quantity,
+        "expected outputs across both bands");
 }
 
 static void VyrewatchMatchesLegacyFormula()
@@ -2195,7 +2239,7 @@ static decimal TotalResourceQuantity(
     return total;
 }
 
-static void XpPlannerPriceTooltips()
+static void XpPlannerPriceDialog()
 {
     var timestamp = new DateTimeOffset(2026, 7, 27, 5, 30, 0, TimeSpan.Zero);
     var prices = new Dictionary<int, ItemPrice>
@@ -2215,40 +2259,40 @@ static void XpPlannerPriceTooltips()
         () => { });
 
     Equal("Saradomin brews", row.Method, "active Herblore method");
-    True(
-        row.PriceToolTip.Contains(
-            "Buy Toadflax potion (unf) @ 10,000 gp (high · 2026-07-27 05:30 UTC)",
-            StringComparison.Ordinal),
-        "base potion uses latest high");
-    True(
-        row.PriceToolTip.Contains(
-            "Buy Crushed nest @ 5,000 gp (high · 2026-07-27 05:28 UTC)",
-            StringComparison.Ordinal),
-        "secondary ingredient uses latest high");
-    True(
-        row.PriceToolTip.Contains(
-            "Buy Amulet of chemistry @ 2,000 gp (high · 2026-07-27 05:26 UTC)",
-            StringComparison.Ordinal),
-        "equipment charge input uses latest high");
-    True(
-        row.PriceToolTip.Contains(
-            "Sell Saradomin brew(4) @ 11,000 gp (low · 2026-07-27 05:23 UTC)",
-            StringComparison.Ordinal),
-        "finished potion uses latest low");
-    True(
-        row.PriceToolTip.Contains("not guaranteed offers", StringComparison.OrdinalIgnoreCase),
-        "tooltip discloses execution uncertainty");
+    var dialog = new TrainingPriceDialogViewModel(row.Skill, row.Result, prices);
+    var unfinishedPotion = dialog.Items.Single(item => item.Name == "Toadflax potion (unf)");
+    var crushedNest = dialog.Items.Single(item => item.Name == "Crushed nest");
+    var amulet = dialog.Items.Single(item => item.Name == "Amulet of chemistry");
+    var finishedPotion = dialog.Items.Single(item => item.Name == "Saradomin brew(4)");
+    Equal("BUY", unfinishedPotion.Action, "base potion action");
+    Equal("10,000 gp", unfinishedPotion.UnitPrice, "base potion uses latest high");
+    Equal("high - 2026-07-27 05:30 UTC", unfinishedPotion.QuoteDetail, "base potion quote details");
+    Equal("5,000 gp", crushedNest.UnitPrice, "secondary ingredient uses latest high");
+    Equal("2,000 gp", amulet.UnitPrice, "equipment charge input uses latest high");
+    Equal("SELL", finishedPotion.Action, "finished potion action");
+    Equal("11,000 gp", finishedPotion.UnitPrice, "finished potion uses latest low");
+    Equal("low - 2026-07-27 05:23 UTC", finishedPotion.QuoteDetail, "finished potion quote details");
+    var crushedNestRequirement = row.Result.ResourceRequirements.Single(
+        item => item.ItemId == 6693 && item.Direction == TrainingFlowDirection.Input);
+    Equal(
+        Math.Ceiling(crushedNestRequirement.Quantity).ToString("N0"),
+        crushedNest.Quantity,
+        "dialog displays the complete goal quantity");
+    Equal("required for goal", crushedNest.QuantityCaption, "input quantity caption");
+    Equal("expected output", finishedPotion.QuantityCaption, "output quantity caption");
+    True(finishedPotion.Quantity.StartsWith("~ ", StringComparison.Ordinal), "expected outputs are visibly approximate");
+    True(dialog.GoalSummary.Contains("200,000,000", StringComparison.Ordinal), "dialog identifies the goal XP");
+    True(!string.IsNullOrWhiteSpace(dialog.RouteSummary), "dialog identifies the calculated route");
 
     var fallbackPrices = new Dictionary<int, ItemPrice>(prices)
     {
         [6693] = new ItemPrice(6693, null, 4_500, null, timestamp.AddMinutes(-3))
     };
     row.UpdatePrices(fallbackPrices);
-    True(
-        row.PriceToolTip.Contains(
-            "Buy Crushed nest @ 4,500 gp (low fallback · 2026-07-27 05:27 UTC)",
-            StringComparison.Ordinal),
-        "missing buy quote exposes low fallback");
+    dialog = new TrainingPriceDialogViewModel(row.Skill, row.Result, fallbackPrices);
+    crushedNest = dialog.Items.Single(item => item.Name == "Crushed nest");
+    Equal("4,500 gp", crushedNest.UnitPrice, "missing buy quote uses low fallback");
+    Equal("low fallback - 2026-07-27 05:27 UTC", crushedNest.QuoteDetail, "fallback quote is disclosed");
 
     var outputFallback = TrainingMarketPricing.Select(
         TrainingFlowDirection.Output,
@@ -2259,11 +2303,10 @@ static void XpPlannerPriceTooltips()
     var missingPrices = new Dictionary<int, ItemPrice>(prices);
     missingPrices.Remove(21163);
     row.UpdatePrices(missingPrices);
-    True(
-        row.PriceToolTip.Contains(
-            "Buy Amulet of chemistry @ unavailable (no high or low quote)",
-            StringComparison.Ordinal),
-        "missing ingredient price is visible");
+    dialog = new TrainingPriceDialogViewModel(row.Skill, row.Result, missingPrices);
+    amulet = dialog.Items.Single(item => item.Name == "Amulet of chemistry");
+    Equal("Unavailable", amulet.UnitPrice, "missing ingredient price is visible");
+    Equal("No high or low quote available", amulet.QuoteDetail, "missing quote state is explained");
 }
 
 static async Task TrainingPlanPersistence()
@@ -2531,6 +2574,18 @@ static Task WpfViewsConstruct()
             configurationDialog.Show();
             configurationDialog.UpdateLayout();
             configurationDialog.Close();
+            var constructionRow = viewModel.Rows.Single(row => row.Skill == "Construction");
+            var priceDialog = new TrainingPriceDialog(
+                new TrainingPriceDialogViewModel(
+                    constructionRow.Skill,
+                    constructionRow.Result,
+                    market.Latest))
+            {
+                Owner = window
+            };
+            priceDialog.Show();
+            priceDialog.UpdateLayout();
+            priceDialog.Close();
             window.Content = moneyView;
             moneyView.UpdateLayout();
             window.Content = favouritesView;
