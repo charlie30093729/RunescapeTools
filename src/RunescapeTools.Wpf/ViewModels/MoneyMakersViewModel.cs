@@ -113,7 +113,9 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
         this.selectionContext = selectionContext;
         selectionContext.SelectionChanged += OnSharedSelectionChanged;
         var index = 1;
-        foreach (var method in methods.OrderBy(method => method.Definition.Name))
+        foreach (var method in methods
+                     .OrderBy(GetDisplayPriority)
+                     .ThenBy(method => method.Definition.Name, StringComparer.OrdinalIgnoreCase))
         {
             Methods.Add(new MoneyMethodRow(method, index++.ToString("00")));
             accountCounts[method.Definition.Slug] = Math.Max(1, method.Definition.Accounts);
@@ -127,6 +129,14 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
     public bool ShowRegenPotionOption => SelectedMethod?.Method is VyrewatchMethod;
     public bool CanDecreaseAccountCount => HasSelectedMethod && AccountCount > 1;
     public bool CanIncreaseAccountCount => HasSelectedMethod && AccountCount < int.MaxValue;
+
+    private static int GetDisplayPriority(IMoneyMakingMethod method) =>
+        method.Definition.Slug switch
+        {
+            "vyrewatch-sentinels" => 0,
+            "zulrah" => 1,
+            _ => 2
+        };
 
     public async Task LoadAsync(CancellationToken cancellationToken = default)
     {

@@ -27,6 +27,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Vyrewatch matches the legacy formula", () => RunSync(VyrewatchMatchesLegacyFormula)),
     ("Vyrewatch supports the no-regen configuration", () => RunSync(VyrewatchNoRegenConfiguration)),
     ("Vyrewatch exposes every required item once", () => RunSync(VyrewatchItemIdsAreDistinct)),
+    ("Rune dragons expose reviewed 45-kill economics", () => RunSync(RuneDragonMethodDefinition)),
     ("mid price falls back to the available quote", () => RunSync(MidPriceFallback)),
     ("latest prices are cached and missing prices are omitted", LatestPricesAreCached),
     ("history windows are filtered and cached by resolution", HistoryWindowsAreFilteredAndCached),
@@ -592,6 +593,40 @@ static async Task FavouritesChartZoomFlow()
         "favourites loads a one-day rolling-volume lookback");
 }
 
+static void RuneDragonMethodDefinition()
+{
+    var method = new RuneDragonMethod().Definition;
+    var prices = method.RequiredItemIds.ToDictionary(id => id, id => Quote(id, 1_000));
+    var result = new MoneyMakingCalculator().Calculate(method, prices);
+
+    EqualDecimal(45m, method.ActionsPerHour, "default rune-dragon kills per hour");
+    Equal(1, method.Accounts, "default rune-dragon account count");
+    Equal(method.Items.Count, method.RequiredItemIds.Count, "rune-dragon item IDs are distinct");
+    const decimal quantityTolerance = 0.0000001m;
+    EqualDecimal(15m, Quantity(result, "Prayer potion(4)"), "hourly prayer potions", quantityTolerance);
+    EqualDecimal(2.5m, Quantity(result, "Divine super combat potion(4)"), "hourly combat potions", quantityTolerance);
+    EqualDecimal(1.25m, Quantity(result, "Extended antifire(4)"), "hourly antifires", quantityTolerance);
+    EqualDecimal(100m, Quantity(result, "Cooked karambwan"), "hourly food", quantityTolerance);
+    EqualDecimal(5m, Quantity(result, "Teleport to house (tablet)"), "hourly house teleports", quantityTolerance);
+    EqualDecimal(45m, Quantity(result, "Runite bar"), "guaranteed hourly runite bars", quantityTolerance);
+    EqualDecimal(45m, Quantity(result, "Dragon bones"), "guaranteed hourly dragon bones", quantityTolerance);
+    True(
+        method.Items.Any(item => item.ItemId == 19580 && item.Name == "Rune javelin tips"),
+        "current rune-javelin item name and ID");
+    True(
+        method.Items.Any(item => item.ItemId == 19582 && item.Name == "Dragon javelin tips"),
+        "current dragon-javelin item name and ID");
+
+    var faster = new MoneyMakingCalculator().Calculate(
+        method with { ActionsPerHour = 50m },
+        prices);
+    EqualDecimal(50m, Quantity(faster, "Runite bar"), "custom rate scales outputs", quantityTolerance);
+    EqualDecimal(50m / 3m, Quantity(faster, "Prayer potion(4)"), "custom rate scales supplies", quantityTolerance);
+}
+
+static decimal Quantity(MoneyMakingResult result, string itemName) =>
+    result.Lines.Single(line => line.Item.Name == itemName).QuantityPerHour;
+
 static void FavouritesChartVolume()
 {
     var now = new DateTimeOffset(2026, 8, 2, 12, 0, 0, TimeSpan.Zero);
@@ -621,23 +656,28 @@ static async Task MoneyMakerViewModelFlow()
 {
     var method = new VyrewatchMethod();
     var secondMethod = new ZulrahMethod();
+    var thirdMethod = new RuneDragonMethod();
     var selection = new MoneyMakerSelectionContext();
     var preferences = new MemoryMoneyMakingPreferenceStore();
     var market = new FakeMarketDataService
     {
         Latest = method.Definition.RequiredItemIds
             .Concat(secondMethod.Definition.RequiredItemIds)
+            .Concat(thirdMethod.Definition.RequiredItemIds)
             .Distinct()
             .ToDictionary(id => id, id => Quote(id, 1_000))
     };
     var viewModel = new MoneyMakersViewModel(
-        [method, secondMethod],
+        [thirdMethod, secondMethod, method],
         new MoneyMakingCalculator(),
         market,
         preferences,
         selection);
 
     await viewModel.LoadAsync();
+    Equal(method.Definition.Slug, viewModel.Methods[0].Method.Definition.Slug, "Vyrewatch display priority");
+    Equal(secondMethod.Definition.Slug, viewModel.Methods[1].Method.Definition.Slug, "Zulrah display priority");
+    Equal(thirdMethod.Definition.Slug, viewModel.Methods[2].Method.Definition.Slug, "remaining methods follow priorities");
     True(viewModel.SelectedMethod is null, "money maker should require an explicit selection");
     var primaryRow = viewModel.Methods.Single(row => row.Method.Definition.Slug == method.Definition.Slug);
     var secondaryRow = viewModel.Methods.Single(row => row.Method.Definition.Slug == secondMethod.Definition.Slug);
