@@ -43,6 +43,7 @@ public partial class XpPlannerRowViewModel : ObservableObject
     private readonly TrainingPlanCalculator calculator;
     private readonly Action changed;
     private readonly Action<XpPlannerRowViewModel>? configure;
+    private readonly Action<XpPlannerRowViewModel>? showPricing;
     private IReadOnlyDictionary<int, ItemPrice> prices;
     private long pendingExperienceCredit;
     private bool suppressChanges;
@@ -69,9 +70,6 @@ public partial class XpPlannerRowViewModel : ObservableObject
     private string economicRate = "Not priced";
 
     [ObservableProperty]
-    private string priceToolTip = "No live Grand Exchange ingredients are defined for this method.";
-
-    [ObservableProperty]
     private string creditSummary = string.Empty;
 
     [ObservableProperty]
@@ -96,13 +94,15 @@ public partial class XpPlannerRowViewModel : ObservableObject
         TrainingSkillPreference? preference,
         IReadOnlyDictionary<int, ItemPrice> prices,
         Action changed,
-        Action<XpPlannerRowViewModel>? configure = null)
+        Action<XpPlannerRowViewModel>? configure = null,
+        Action<XpPlannerRowViewModel>? showPricing = null)
     {
         Definition = definition;
         this.calculator = calculator;
         this.prices = prices;
         this.changed = changed;
         this.configure = configure;
+        this.showPricing = showPricing;
         ProfileExperience = Math.Max(0, profileExperience);
         startExperience = preference?.StartExperienceOverride ?? ProfileExperience;
         targetExperience = preference?.TargetExperience ?? TrainingPlanCalculator.MaximumExperience;
@@ -218,6 +218,9 @@ public partial class XpPlannerRowViewModel : ObservableObject
 
     [RelayCommand]
     private void OpenConfiguration() => configure?.Invoke(this);
+
+    [RelayCommand]
+    private void OpenPriceDetails() => showPricing?.Invoke(this);
 
     [RelayCommand]
     private void ResetSkill()
@@ -343,7 +346,6 @@ public partial class XpPlannerRowViewModel : ObservableObject
                 : Result.AverageGpPerHour.HasValue
                     ? DisplayFormat.GpPerHour(Result.AverageGpPerHour)
                     : "Not priced";
-            PriceToolTip = BuildPriceToolTip(activeBand);
             HasExperienceCredit = Result.AppliedExperienceCredit > 0;
             CreditSummary = HasExperienceCredit
                 ? $"+{Result.AppliedExperienceCredit:N0} XP pending from Slayer"
@@ -361,51 +363,6 @@ public partial class XpPlannerRowViewModel : ObservableObject
         }
     }
 
-    private string BuildPriceToolTip(TrainingRateBand? activeBand)
-    {
-        if (activeBand is null)
-            return "No current training method is available.";
-
-        var lines = new List<string>
-        {
-            activeBand.Method,
-            "Suggested Grand Exchange offers"
-        };
-        var resources = activeBand.Economics?.Resources;
-        if (resources is not { Count: > 0 })
-        {
-            lines.Add("No live Grand Exchange ingredients are defined for this method.");
-        }
-        else
-        {
-            foreach (var resource in resources.DistinctBy(item => (item.ItemId, item.Direction)))
-            {
-                prices.TryGetValue(resource.ItemId, out var quote);
-                var selected = TrainingMarketPricing.Select(resource.Direction, quote);
-                var action = resource.Direction == TrainingFlowDirection.Input ? "Buy" : "Sell";
-                var side = resource.Direction == TrainingFlowDirection.Input ? "high" : "low";
-                var fallbackSide = resource.Direction == TrainingFlowDirection.Input ? "low" : "high";
-                var price = selected.UnitPrice.HasValue
-                    ? $"{selected.UnitPrice.Value:N0} gp"
-                    : "unavailable";
-                var source = !selected.UnitPrice.HasValue
-                    ? "no high or low quote"
-                    : selected.UsedFallbackPrice
-                        ? $"{fallbackSide} fallback"
-                        : side;
-                var timestamp = selected.Timestamp.HasValue
-                    ? $" · {selected.Timestamp.Value.ToUniversalTime():yyyy-MM-dd HH:mm} UTC"
-                    : string.Empty;
-
-                lines.Add($"{action} {resource.Name} @ {price} ({source}{timestamp})");
-            }
-        }
-
-        lines.Add(string.Empty);
-        lines.Add("Inputs use latest high; outputs use latest low.");
-        lines.Add("These are recent completed trades, not guaranteed offers.");
-        return string.Join(Environment.NewLine, lines);
-    }
 }
 
 public partial class XpPlannerViewModel : ObservableObject, IPageViewModel
@@ -419,6 +376,7 @@ public partial class XpPlannerViewModel : ObservableObject, IPageViewModel
     private readonly ICurrentProfileContext profileContext;
     private readonly MoneyMakerSelectionContext moneyMakerSelection;
     private readonly ITrainingConfigurationDialogService? configurationDialogs;
+    private readonly ITrainingPriceDialogService? priceDialogs;
     private CancellationTokenSource? saveCancellation;
     private IReadOnlyDictionary<int, ItemPrice> prices = new Dictionary<int, ItemPrice>();
     private bool initialized;
@@ -477,7 +435,8 @@ public partial class XpPlannerViewModel : ObservableObject, IPageViewModel
         ITrainingPlanStore store,
         ICurrentProfileContext profileContext,
         MoneyMakerSelectionContext moneyMakerSelection,
-        ITrainingConfigurationDialogService? configurationDialogs = null)
+        ITrainingConfigurationDialogService? configurationDialogs = null,
+        ITrainingPriceDialogService? priceDialogs = null)
     {
         this.catalogue = catalogue;
         this.calculator = calculator;
@@ -487,6 +446,7 @@ public partial class XpPlannerViewModel : ObservableObject, IPageViewModel
         this.profileContext = profileContext;
         this.moneyMakerSelection = moneyMakerSelection;
         this.configurationDialogs = configurationDialogs;
+        this.priceDialogs = priceDialogs;
         profileContext.ProfileChanged += (_, _) => initialized = false;
         moneyMakerSelection.SelectionChanged += OnMoneyMakerSelectionChanged;
         UpdateMoneyMakerDisplay();
@@ -546,7 +506,8 @@ public partial class XpPlannerViewModel : ObservableObject, IPageViewModel
                     preference,
                     prices,
                     OnRowChanged,
-                    ConfigureRow));
+                    ConfigureRow,
+                    ShowPriceDetails));
             }
 
             ProfileName = profile.Rsn;
@@ -665,6 +626,9 @@ public partial class XpPlannerViewModel : ObservableObject, IPageViewModel
         if (updated is not null)
             row.ApplyConfiguration(updated);
     }
+
+    private void ShowPriceDetails(XpPlannerRowViewModel row) =>
+        priceDialogs?.Show(row.Skill, row.Result, prices);
 
     private void RecalculateSummary()
     {
