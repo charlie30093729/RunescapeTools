@@ -26,7 +26,8 @@ public static class ServiceCollectionExtensions
         MarketDataOptions? marketOptions = null,
         OsrsHiscoreOptions? hiscoreOptions = null,
         TrainingPlanOptions? trainingPlanOptions = null,
-        MoneyMakingPreferenceOptions? moneyMakingPreferenceOptions = null)
+        MoneyMakingPreferenceOptions? moneyMakingPreferenceOptions = null,
+        ItemIconCacheOptions? itemIconCacheOptions = null)
     {
         hiscoreOptions ??= new OsrsHiscoreOptions { UserAgent = wikiOptions.UserAgent };
         services.AddSingleton(wikiOptions);
@@ -50,6 +51,18 @@ public static class ServiceCollectionExtensions
             client.DefaultRequestHeaders.Accept.ParseAdd("text/plain");
             client.DefaultRequestHeaders.UserAgent.ParseAdd(hiscoreOptions.UserAgent);
         });
+
+        if (itemIconCacheOptions is not null)
+        {
+            services.AddSingleton(itemIconCacheOptions);
+            services.AddHttpClient<IItemIconService, WikiItemIconService>(client =>
+            {
+                client.BaseAddress = itemIconCacheOptions.WikiBaseAddress;
+                client.Timeout = wikiOptions.Timeout;
+                client.DefaultRequestHeaders.Accept.ParseAdd("image/*");
+                client.DefaultRequestHeaders.UserAgent.ParseAdd(wikiOptions.UserAgent);
+            });
+        }
 
         services.AddSingleton<IFavouriteStore, JsonFavouriteStore>();
         services.AddSingleton<IMarketDataService, MarketDataService>();

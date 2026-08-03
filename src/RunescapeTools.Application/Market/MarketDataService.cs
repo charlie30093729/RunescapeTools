@@ -66,6 +66,21 @@ public sealed class MarketDataService(
             .ToArray();
     }
 
+    public async Task<IReadOnlyDictionary<int, ItemMapping>> GetItemMappingsAsync(
+        IEnumerable<int> itemIds,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(itemIds);
+        var wantedIds = itemIds.Where(id => id > 0).Distinct().ToHashSet();
+        if (wantedIds.Count == 0)
+            return new Dictionary<int, ItemMapping>();
+
+        var items = await GetMappingAsync(cancellationToken);
+        return items
+            .Where(item => wantedIds.Contains(item.Id))
+            .ToDictionary(item => item.Id);
+    }
+
     public async Task<IReadOnlyList<PricePoint>> GetHistoryAsync(
         int itemId,
         PriceTimeStep timeStep,

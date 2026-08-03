@@ -1,11 +1,12 @@
 using RunescapeTools.Core.Market;
 using RunescapeTools.Core.Training;
+using RunescapeTools.Application.Market;
 using RunescapeTools.Wpf.ViewModels;
 using RunescapeTools.Wpf.Views;
 
 namespace RunescapeTools.Wpf.Services;
 
-public sealed class TrainingPriceDialogService : ITrainingPriceDialogService
+public sealed class TrainingPriceDialogService(IItemIconService itemIcons) : ITrainingPriceDialogService
 {
     public void Show(
         string skill,
@@ -13,7 +14,7 @@ public sealed class TrainingPriceDialogService : ITrainingPriceDialogService
         IReadOnlyDictionary<int, ItemPrice> prices)
     {
         var dialog = new TrainingPriceDialog(
-            new TrainingPriceDialogViewModel(skill, result, prices))
+            new TrainingPriceDialogViewModel(skill, result, prices, itemIcons))
         {
             Owner = System.Windows.Application.Current?.MainWindow
         };

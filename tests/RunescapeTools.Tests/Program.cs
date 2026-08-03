@@ -33,6 +33,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("latest prices are cached and missing prices are omitted", LatestPricesAreCached),
     ("history windows are filtered and cached by resolution", HistoryWindowsAreFilteredAndCached),
     ("search favours prefix matches and respects limits", SearchOrdering),
+    ("item icons resolve by ID and persist in the local cache", ItemIconCachePersistence),
     ("favourite warmup requests every saved history", FavouriteWarmup),
     ("Wiki client retries transient responses", WikiClientRetries),
     ("JSON store seeds, sorts, and prevents duplicates", JsonStoreSeedsSortsAndDeduplicates),
@@ -74,6 +75,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("money-maker profit applies only to selected non-negative skill hours", () => RunSync(TrainingMoneyMakerAllocation)),
     ("training plans persist independently per RSN", TrainingPlanPersistence),
     ("XP Planner price dialog uses live offers and goal quantities", () => RunSync(XpPlannerPriceDialog)),
+    ("XP Planner price rows load cached item icons without changing item data", XpPlannerPriceDialogIcons),
     ("XP planner allocates money-maker profit to selected skill hours", XpPlannerViewModelFlow),
     ("XP planner remains usable when live prices fail", XpPlannerPriceFailure),
     ("shell navigation loads the requested page", ShellNavigation),
@@ -635,6 +637,74 @@ static async Task FavouritesChartZoomFlow()
         market.HistoryWindows.SequenceEqual(
             [TimeSpan.FromDays(31), TimeSpan.FromDays(8)]),
         "favourites loads a one-day rolling-volume lookback");
+}
+
+static async Task ItemIconCachePersistence()
+{
+    var directory = CreateTempDirectory();
+    try
+    {
+        var mapping = new ItemMapping(
+            3002,
+            "Toadflax potion (unf)",
+            string.Empty,
+            true,
+            10_000,
+            "Toadflax potion (unf).png");
+        var market = new FakeMarketDataService { Mappings = [mapping] };
+        var imageBytes = new byte[] { 137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3, 4 };
+        var response = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new ByteArrayContent(imageBytes)
+        };
+        response.Content.Headers.ContentType =
+            new System.Net.Http.Headers.MediaTypeHeaderValue("image/png");
+        var handler = new SequenceHandler(response);
+        var http = new HttpClient(handler)
+        {
+            BaseAddress = new Uri("https://oldschool.runescape.wiki/")
+        };
+        var options = new ItemIconCacheOptions { DirectoryPath = directory };
+        var service = new WikiItemIconService(
+            http,
+            market,
+            options,
+            NullLogger<WikiItemIconService>.Instance);
+
+        var first = await service.GetAsync(mapping.Id);
+        var second = await service.GetAsync(mapping.Id);
+
+        True(first is not null, "mapped item icon should resolve");
+        Equal(first!.LocalFilePath, second?.LocalFilePath ?? string.Empty, "same cache path is reused");
+        Equal(1, handler.Calls, "icon is downloaded only once");
+        True(File.Exists(first.LocalFilePath), "downloaded icon is persisted");
+        True(
+            (await File.ReadAllBytesAsync(first.LocalFilePath)).SequenceEqual(imageBytes),
+            "persisted icon bytes");
+        True(
+            handler.LastRequestUri?.AbsoluteUri.Contains(
+                "Special:Redirect/file/Toadflax%20potion%20%28unf%29.png",
+                StringComparison.Ordinal) == true,
+            "Wiki filename is URL-encoded through the stable file redirect");
+
+        var reopenedHandler = new SequenceHandler();
+        var reopened = new WikiItemIconService(
+            new HttpClient(reopenedHandler)
+            {
+                BaseAddress = new Uri("https://oldschool.runescape.wiki/")
+            },
+            market,
+            options,
+            NullLogger<WikiItemIconService>.Instance);
+        var cached = await reopened.GetAsync(mapping.Id);
+
+        Equal(first.LocalFilePath, cached?.LocalFilePath ?? string.Empty, "cache survives service restart");
+        Equal(0, reopenedHandler.Calls, "persisted icon avoids a second HTTP request");
+    }
+    finally
+    {
+        Directory.Delete(directory, true);
+    }
 }
 
 static void RuneDragonMethodDefinition()
@@ -2309,6 +2379,32 @@ static void XpPlannerPriceDialog()
     Equal("No high or low quote available", amulet.QuoteDetail, "missing quote state is explained");
 }
 
+static async Task XpPlannerPriceDialogIcons()
+{
+    var prices = new Dictionary<int, ItemPrice>
+    {
+        [3002] = Quote(3002, 2_000),
+        [6693] = Quote(6693, 4_000),
+        [21163] = Quote(21163, 1_000),
+        [6685] = Quote(6685, 6_000)
+    };
+    var definition = new MainEhpCatalogue().Skills.Single(skill => skill.Skill == "Herblore");
+    var result = new TrainingPlanCalculator().Calculate(definition, 13_034_431, 200_000_000, prices);
+    var iconPath = Path.Combine(Path.GetTempPath(), "toadflax.png");
+    var icons = new FakeItemIconService(
+        new ItemIcon(3002, "Toadflax potion (unf).png", iconPath));
+    var dialog = new TrainingPriceDialogViewModel("Herblore", result, prices, icons);
+
+    await dialog.LoadIconsAsync();
+
+    var potion = dialog.Items.Single(item => item.ItemId == 3002);
+    Equal(iconPath, potion.IconPath ?? string.Empty, "resolved icon path");
+    Equal("Toadflax potion (unf)", potion.Name, "item presentation remains intact");
+    True(
+        dialog.Items.Where(item => item.ItemId != 3002).All(item => item.IconPath is null),
+        "missing icons leave their rows readable");
+}
+
 static async Task TrainingPlanPersistence()
 {
     var directory = CreateTempDirectory();
@@ -2818,6 +2914,7 @@ sealed class FakeMarketDataService : IMarketDataService
 {
     public IReadOnlyDictionary<int, ItemPrice> Latest { get; init; } = new Dictionary<int, ItemPrice>();
     public IReadOnlyList<ItemMapping> SearchResults { get; init; } = [];
+    public IReadOnlyList<ItemMapping> Mappings { get; init; } = [];
     public IReadOnlyList<PricePoint> History { get; init; } = [];
     public IReadOnlyDictionary<PriceTimeStep, IReadOnlyList<PricePoint>> HistoryByTimeStep { get; init; } =
         new Dictionary<PriceTimeStep, IReadOnlyList<PricePoint>>();
@@ -2837,6 +2934,15 @@ sealed class FakeMarketDataService : IMarketDataService
 
     public Task<IReadOnlyList<ItemMapping>> SearchItemsAsync(string query, int take = 8, CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<ItemMapping>>(SearchResults.Take(take).ToArray());
+
+    public Task<IReadOnlyDictionary<int, ItemMapping>> GetItemMappingsAsync(
+        IEnumerable<int> itemIds,
+        CancellationToken cancellationToken = default)
+    {
+        var requested = itemIds.ToHashSet();
+        return Task.FromResult<IReadOnlyDictionary<int, ItemMapping>>(
+            Mappings.Where(item => requested.Contains(item.Id)).ToDictionary(item => item.Id));
+    }
 
     public Task<IReadOnlyList<PricePoint>> GetHistoryAsync(
         int itemId,
@@ -2861,6 +2967,23 @@ sealed class FakeMarketDataService : IMarketDataService
             PriceTimeStep.OneHour,
             TimeSpan.FromDays(7),
             cancellationToken);
+}
+
+sealed class FakeItemIconService(params ItemIcon[] icons) : IItemIconService
+{
+    private readonly IReadOnlyDictionary<int, ItemIcon> icons = icons.ToDictionary(icon => icon.ItemId);
+
+    public Task<ItemIcon?> GetAsync(int itemId, CancellationToken cancellationToken = default) =>
+        Task.FromResult(icons.GetValueOrDefault(itemId));
+
+    public Task<IReadOnlyDictionary<int, ItemIcon>> GetManyAsync(
+        IEnumerable<int> itemIds,
+        CancellationToken cancellationToken = default)
+    {
+        var requested = itemIds.ToHashSet();
+        return Task.FromResult<IReadOnlyDictionary<int, ItemIcon>>(
+            icons.Where(pair => requested.Contains(pair.Key)).ToDictionary());
+    }
 }
 
 sealed class SequenceHandler(params HttpResponseMessage[] responses) : HttpMessageHandler

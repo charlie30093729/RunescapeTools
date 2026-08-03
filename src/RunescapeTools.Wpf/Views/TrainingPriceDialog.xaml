@@ -1,6 +1,7 @@
 <Window x:Class="RunescapeTools.Wpf.Views.TrainingPriceDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:RunescapeTools.Wpf.Controls"
         Title="{Binding Title}"
         Width="840"
         Height="650"
@@ -126,15 +127,30 @@
                                         </Style>
                                     </TextBlock.Style>
                                 </TextBlock>
-                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,8,12,8">
-                                    <TextBlock Text="{Binding Name}"
-                                               FontSize="14"
-                                               FontWeight="SemiBold" />
-                                    <TextBlock Text="{Binding ItemNumber}"
-                                               Foreground="{StaticResource MutedBrush}"
-                                               FontSize="11"
-                                               Margin="0,2,0,0" />
-                                </StackPanel>
+                                <Grid Grid.Column="1" VerticalAlignment="Center" Margin="0,8,12,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="38" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <controls:SafeImage Grid.Column="0"
+                                                        Source="{Binding IconPath}"
+                                                        Width="30"
+                                                        Height="30"
+                                                        Margin="0,0,8,0"
+                                                        Stretch="Uniform"
+                                                        HorizontalAlignment="Left"
+                                                        VerticalAlignment="Center"
+                                                        SnapsToDevicePixels="True" />
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Name}"
+                                                   FontSize="14"
+                                                   FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding ItemNumber}"
+                                                   Foreground="{StaticResource MutedBrush}"
+                                                   FontSize="11"
+                                                   Margin="0,2,0,0" />
+                                    </StackPanel>
+                                </Grid>
                                 <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="0,8,12,8">
                                     <TextBlock Text="{Binding Quantity}"
                                                FontSize="15"
