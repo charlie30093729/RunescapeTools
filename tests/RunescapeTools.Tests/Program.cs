@@ -2450,6 +2450,10 @@ static void XpPlannerPriceDialog()
     True(finishedPotion.Quantity.StartsWith("~ ", StringComparison.Ordinal), "expected outputs are visibly approximate");
     True(dialog.GoalSummary.Contains("200,000,000", StringComparison.Ordinal), "dialog identifies the goal XP");
     True(!string.IsNullOrWhiteSpace(dialog.RouteSummary), "dialog identifies the calculated route");
+    Equal(
+        $"{row.Result.GpPerExperience:N2} gp/xp",
+        dialog.GpPerExperience,
+        "dialog displays the calculated skill GP/XP");
 
     var fallbackPrices = new Dictionary<int, ItemPrice>(prices)
     {
@@ -2474,6 +2478,7 @@ static void XpPlannerPriceDialog()
     amulet = dialog.Items.Single(item => item.Name == "Amulet of chemistry");
     Equal("Unavailable", amulet.UnitPrice, "missing ingredient price is visible");
     Equal("No high or low quote available", amulet.QuoteDetail, "missing quote state is explained");
+    Equal("Unavailable", dialog.GpPerExperience, "unpriced route does not report a zero GP/XP");
 }
 
 static async Task XpPlannerPriceDialogIcons()

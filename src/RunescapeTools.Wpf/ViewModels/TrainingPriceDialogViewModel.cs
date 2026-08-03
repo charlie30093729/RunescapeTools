@@ -57,11 +57,7 @@ public sealed class TrainingPriceDialogViewModel
         EstimatedNetGp = result.NetGp.HasValue
             ? DisplayFormat.Gp(result.NetGp)
             : "Not priced";
-        PricingStatus = result.IsFullyPriced
-            ? "Fully priced"
-            : result.PricedExperience > 0
-                ? $"{(decimal)result.PricedExperience / Math.Max(1, result.ExperienceRemaining):P2} priced"
-                : "Rate only";
+        GpPerExperience = DisplayFormat.GpPerExperience(result.GpPerExperience);
 
         Items = new ObservableCollection<TrainingPriceItemRowViewModel>(
             result.ResourceRequirements.Select(requirement =>
@@ -74,7 +70,7 @@ public sealed class TrainingPriceDialogViewModel
     public string GoalSummary { get; }
     public string RouteSummary { get; }
     public string EstimatedNetGp { get; }
-    public string PricingStatus { get; }
+    public string GpPerExperience { get; }
     public bool HasItems => Items.Count > 0;
     public ObservableCollection<TrainingPriceItemRowViewModel> Items { get; }
 
