@@ -1,27 +1,49 @@
 using System.Collections.ObjectModel;
+using CommunityToolkit.Mvvm.ComponentModel;
+using RunescapeTools.Application.Market;
 using RunescapeTools.Core.Market;
 using RunescapeTools.Core.Training;
 
 namespace RunescapeTools.Wpf.ViewModels;
 
-public sealed record TrainingPriceItemRowViewModel(
-    string Action,
-    string Name,
-    string ItemNumber,
-    string Quantity,
-    string QuantityCaption,
-    string UnitPrice,
-    string QuoteDetail,
-    bool IsOutput,
-    bool HasPrice);
+public partial class TrainingPriceItemRowViewModel(
+    int itemId,
+    string action,
+    string name,
+    string itemNumber,
+    string quantity,
+    string quantityCaption,
+    string unitPrice,
+    string quoteDetail,
+    bool isOutput,
+    bool hasPrice) : ObservableObject
+{
+    public int ItemId { get; } = itemId;
+    public string Action { get; } = action;
+    public string Name { get; } = name;
+    public string ItemNumber { get; } = itemNumber;
+    public string Quantity { get; } = quantity;
+    public string QuantityCaption { get; } = quantityCaption;
+    public string UnitPrice { get; } = unitPrice;
+    public string QuoteDetail { get; } = quoteDetail;
+    public bool IsOutput { get; } = isOutput;
+    public bool HasPrice { get; } = hasPrice;
+
+    [ObservableProperty]
+    private string? iconPath;
+}
 
 public sealed class TrainingPriceDialogViewModel
 {
+    private readonly IItemIconService? itemIcons;
+
     public TrainingPriceDialogViewModel(
         string skill,
         TrainingSkillPlanResult result,
-        IReadOnlyDictionary<int, ItemPrice> prices)
+        IReadOnlyDictionary<int, ItemPrice> prices,
+        IItemIconService? itemIcons = null)
     {
+        this.itemIcons = itemIcons;
         Skill = skill;
         Method = result.Method.Name;
         GoalSummary =
@@ -56,6 +78,21 @@ public sealed class TrainingPriceDialogViewModel
     public bool HasItems => Items.Count > 0;
     public ObservableCollection<TrainingPriceItemRowViewModel> Items { get; }
 
+    public async Task LoadIconsAsync(CancellationToken cancellationToken = default)
+    {
+        if (itemIcons is null || Items.Count == 0)
+            return;
+
+        var icons = await itemIcons.GetManyAsync(
+            Items.Select(item => item.ItemId),
+            cancellationToken);
+        foreach (var item in Items)
+        {
+            if (icons.TryGetValue(item.ItemId, out var icon))
+                item.IconPath = icon.LocalFilePath;
+        }
+    }
+
     private static TrainingPriceItemRowViewModel CreateItemRow(
         TrainingResourceRequirement requirement,
         IReadOnlyDictionary<int, ItemPrice> prices)
@@ -76,6 +113,7 @@ public sealed class TrainingPriceDialogViewModel
                   : " - timestamp unavailable");
 
         return new TrainingPriceItemRowViewModel(
+            requirement.ItemId,
             isOutput ? "SELL" : "BUY",
             requirement.Name,
             $"Item {requirement.ItemId}",

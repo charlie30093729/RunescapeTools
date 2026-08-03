@@ -224,6 +224,7 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | FR-XP-037 | The selected training-route ID shall persist per RSN in the training plan and shall fall back safely to the skill's registered default when a saved route is unavailable. |
 | FR-XP-038 | A per-skill reset shall preserve the currently selected training route, restore start XP from the loaded profile, restore the 200m goal, restore the selected route's catalogue XP rate and configuration defaults at that start XP, and clear that skill's money-making allocation. |
 | FR-XP-039 | Herblore potion economics shall conditionally include the user-selected Prescription goggles secondary saving, Alchemist's amulet extra-dose output, and the Amulets of chemistry consumed to recharge it for eligible methods. Ineligible routes shall opt out explicitly, and all finished potions shall be valued as four-dose sale items. |
+| FR-XP-040 | XP Planner item-recommendation rows shall resolve official OSRS Wiki inventory icons by item ID, display each available icon beside its matching item, and preserve the complete textual row when an icon is missing or cannot be loaded. |
 | FR-XP-040 | Herblore shall provide selectable Saradomin brew, Super restore, and 1-tick extended super antifire routes. Super restores shall support both equipment effects; extended super antifires shall support Prescription goggles but not the Alchemist's amulet. |
 | FR-XP-041 | Farming shall provide selectable magic + dragonfruit and magic + palm tree-run routes. The palm route shall retain palms after dragonfruit trees unlock, buy palm saplings and papaya protection, and scale its active XP rates by the resulting daily XP without changing the reviewed run-time assumptions. |
 | FR-XP-042 | Configurable skill rows shall show a cog beside the method selector and use one schema-driven WPF dialog rather than skill-specific view logic. |
@@ -264,6 +265,7 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | FR-DATA-008 | The selected RSN shall persist atomically in `%LocalAppData%\RunescapeTools\data\profile.json`. |
 | FR-DATA-009 | XP goals, overrides, selected training-route IDs, normalized skill-configuration values, and money-making skill allocations shall persist atomically per normalized RSN in `%LocalAppData%\RunescapeTools\data\training-plans.json`. Existing records without configuration values shall load the current skill defaults. |
 | FR-DATA-010 | Positive money-maker actions/hour overrides shall persist atomically by stable method slug in `%LocalAppData%\RunescapeTools\data\money-making-preferences.json` and shall apply across application restarts. |
+| FR-DATA-011 | Wiki item icons requested by a desktop presentation shall be downloaded lazily and persisted under `%LocalAppData%\RunescapeTools\data\item-icons`; the cache key shall change when the mapped Wiki filename changes. |
 | FR-ERR-001 | Item search, latest-price, history, and calculator failures shall produce user-readable messages. |
 | FR-ERR-002 | Temporary API failures shall not delete or overwrite stored favourites. |
 | FR-ERR-003 | HTTP 429 and server-error responses shall be retried up to three attempts with a delay. |
@@ -366,6 +368,7 @@ Requirements:
 | NFR-CACHE-003 | History shall be cached per item and time-series resolution for approximately fifteen minutes. |
 | NFR-CACHE-004 | Concurrent cache refreshes of the same category shall be serialized within the application process. |
 | NFR-CACHE-005 | Startup warming shall use bounded parallelism; the MVP maximum is three history requests at once. |
+| NFR-CACHE-006 | Item-icon downloads shall use bounded concurrency, an identified HTTP client, atomic cache-file publication, and a maximum accepted response size. A cache or network failure shall remain cosmetic. |
 
 ## 11. Non-functional requirements
 
@@ -444,6 +447,7 @@ Requirements:
 | `MarketDataOptions` | Controls latest, mapping, history, window, and warmup cache behavior. | Shared defaults. |
 | `TrainingPlanOptions.FilePath` | Selects the per-RSN XP Planner JSON file. | WPF uses the LocalAppData data directory. |
 | `MoneyMakingPreferenceOptions.FilePath` | Selects the JSON file for actions/hour overrides keyed by method slug. | WPF uses the LocalAppData data directory. |
+| `ItemIconCacheOptions` | Selects the persistent Wiki item-icon directory and bounds icon response size and download concurrency. | WPF uses `%LocalAppData%\RunescapeTools\data\item-icons`. |
 
 ### 12.1 Release packaging
 

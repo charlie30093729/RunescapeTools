@@ -110,6 +110,10 @@ public partial class App : System.Windows.Application
             moneyMakingPreferenceOptions: new MoneyMakingPreferenceOptions
             {
                 FilePath = Path.Combine(localData, "data", "money-making-preferences.json")
+            },
+            itemIconCacheOptions: new ItemIconCacheOptions
+            {
+                DirectoryPath = Path.Combine(localData, "data", "item-icons")
             });
 
         builder.Services.AddSingleton(new ProfilePreferenceOptions

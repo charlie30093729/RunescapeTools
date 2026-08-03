@@ -13,6 +13,10 @@ public interface IMarketDataService
         int take = 8,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyDictionary<int, ItemMapping>> GetItemMappingsAsync(
+        IEnumerable<int> itemIds,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<PricePoint>> GetHistoryAsync(
         int itemId,
         PriceTimeStep timeStep,

@@ -11,7 +11,7 @@ The WPF executable is the active front end. The original Razor/Blazor applicatio
 - Debounced Grand Exchange item search with add, select, and remove favourite actions.
 - One day to one month of Wiki price history rendered with LiveCharts2. The chart defaults to seven days, uses discrete mouse-wheel zoom, local-time tooltips with rolling 24-hour tracked volume, hourly short-range data, and six-hour monthly data while retaining weekly change and volume summaries.
 - Automatically discovered money-making methods with live repricing, persistent per-method actions/hour overrides, adjustable account quantities, and a complete input/output ledger.
-- XP Planner with 21 planned skills, level-banded Main EHP rates, per-skill method dropdowns, reusable cog-driven skill configuration, current-profile start XP, 99/200m goals, editable personal rates, active-hour totals, and per-RSN persistence. Method and configuration changes immediately reprice the route and are saved with the plan. Each skill has a readable item-recommendation dialog showing the complete route's aggregate required inputs, expected outputs, suggested high-price buys, low-price sales, quote timestamps, and fallback states for the current XP goal. A selected Money Makers method can be allocated to specific skill hours through the clickable icon bar and included in Priced Net GP. Attack, Strength, and Hitpoints remain visible in profiles but are omitted from the planner as zero-time skills.
+- XP Planner with 21 planned skills, level-banded Main EHP rates, per-skill method dropdowns, reusable cog-driven skill configuration, current-profile start XP, 99/200m goals, editable personal rates, active-hour totals, and per-RSN persistence. Method and configuration changes immediately reprice the route and are saved with the plan. Each skill has a readable item-recommendation dialog showing Wiki item icons, the complete route's aggregate required inputs, expected outputs, suggested high-price buys, low-price sales, quote timestamps, and fallback states for the current XP goal. A selected Money Makers method can be allocated to specific skill hours through the clickable icon bar and included in Priced Net GP. Attack, Strength, and Hitpoints remain visible in profiles but are omitted from the planner as zero-time skills.
 - Live GP/XP economics with explicit coverage states and reviewed processing, gathering, combat, Runecraft, Hunter, Construction, and Gwenith Glide routes.
 - Herblore provides selectable Saradomin brew, Super restore, and 1-tick extended super antifire routes. Prescription goggles and the Alchemist's amulet are user-selectable, apply only where eligible, price Amulets of chemistry used for charges, and decant all finished potion output to four-dose items for sale.
 - Practical buyable alternatives include dragon bones, adamant darts, air battlestaves, adamant platebodies, rune 2h swords, and oak dungeon doors. Each route retains the existing lower-level path until its real unlock, then prices inputs at live high offers and outputs at live low offers.
@@ -62,6 +62,14 @@ Custom money-maker actions/hour values are stored by stable method slug at:
 ```text
 %LocalAppData%\RunescapeTools\data\money-making-preferences.json
 ```
+
+Wiki item icons actually displayed by the desktop application are downloaded lazily and retained across launches at:
+
+```text
+%LocalAppData%\RunescapeTools\data\item-icons
+```
+
+The cache is keyed by item ID and Wiki icon filename, so changed assets are fetched without replacing unrelated cached icons. An unavailable icon never prevents its item data from being displayed.
 
 Each money maker starts at its coded default. The Actions/hour field reprices per-action inputs, outputs, and experience immediately, and its reset control removes the saved override. Vyrewatch defaults to 102 kills/hour with prayer regeneration potions and 88 without them; Rune Dragons default to 45 kills/hour. A custom override remains active when a method-specific configuration changes until it is reset.
 
