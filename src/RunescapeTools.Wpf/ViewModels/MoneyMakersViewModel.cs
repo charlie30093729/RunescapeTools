@@ -38,6 +38,7 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
     private bool initialized;
     private bool synchronizingAccountCount;
     private bool synchronizingActionsPerHour;
+    private bool synchronizingMethodOptions;
     private bool synchronizingSelection;
     private decimal lastValidActionsPerHour = 1m;
 
@@ -92,6 +93,9 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
     private bool usingRegenPotions = true;
 
     [ObservableProperty]
+    private bool pickingUpFrostDragonBones = true;
+
+    [ObservableProperty]
     private decimal actionsPerHour = 1m;
 
     [ObservableProperty]
@@ -127,6 +131,7 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
     public bool HasMethods => Methods.Count > 0;
     public bool HasSelectedMethod => SelectedMethod is not null;
     public bool ShowRegenPotionOption => SelectedMethod?.Method is VyrewatchMethod;
+    public bool ShowFrostDragonBonesOption => SelectedMethod?.Method is FrostDragonMethod;
     public bool CanDecreaseAccountCount => HasSelectedMethod && AccountCount > 1;
     public bool CanIncreaseAccountCount => HasSelectedMethod && AccountCount < int.MaxValue;
 
@@ -149,6 +154,18 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
                 actionRateOverrides.Clear();
                 foreach (var pair in persistedOverrides.Where(pair => pair.Value > 0m))
                     actionRateOverrides[pair.Key] = pair.Value;
+
+                var frostOptions = await preferenceStore.GetBooleanOptionsAsync(
+                    FrostDragonMethod.Slug,
+                    cancellationToken);
+                if (frostOptions.TryGetValue(
+                        FrostDragonMethod.PickUpBonesOptionKey,
+                        out var pickUpBones))
+                {
+                    synchronizingMethodOptions = true;
+                    PickingUpFrostDragonBones = pickUpBones;
+                    synchronizingMethodOptions = false;
+                }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -184,6 +201,7 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
     partial void OnSelectedMethodChanged(MoneyMethodRow? value)
     {
         OnPropertyChanged(nameof(ShowRegenPotionOption));
+        OnPropertyChanged(nameof(ShowFrostDragonBonesOption));
         OnPropertyChanged(nameof(CanDecreaseAccountCount));
         OnPropertyChanged(nameof(CanIncreaseAccountCount));
         if (synchronizingSelection || !initialized)
@@ -295,6 +313,19 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
             ApplyResult(GetEffectiveDefinition(SelectedMethod), currentPrices);
     }
 
+    partial void OnPickingUpFrostDragonBonesChanged(bool value)
+    {
+        if (synchronizingMethodOptions || SelectedMethod?.Method is not FrostDragonMethod)
+            return;
+
+        if (currentPrices is not null)
+            ApplyResult(GetEffectiveDefinition(SelectedMethod), currentPrices);
+        _ = PersistBooleanOptionAsync(
+            FrostDragonMethod.Slug,
+            FrostDragonMethod.PickUpBonesOptionKey,
+            value ? null : false);
+    }
+
     partial void OnActionsPerHourChanged(decimal value)
     {
         if (synchronizingActionsPerHour || SelectedMethod is null)
@@ -382,9 +413,12 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
     }
 
     private MoneyMakingMethodDefinition GetBaseDefinition(MoneyMethodRow selected) =>
-        selected.Method is VyrewatchMethod
-            ? VyrewatchMethod.CreateDefinition(UsingRegenPotions)
-            : selected.Method.Definition;
+        selected.Method switch
+        {
+            VyrewatchMethod => VyrewatchMethod.CreateDefinition(UsingRegenPotions),
+            FrostDragonMethod => FrostDragonMethod.CreateDefinition(PickingUpFrostDragonBones),
+            _ => selected.Method.Definition
+        };
 
     private MoneyMakingMethodDefinition GetEffectiveDefinition(MoneyMethodRow selected)
     {
@@ -428,6 +462,22 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
         {
             ErrorMessage =
                 "The action-rate override is active for this session but could not be saved.";
+        }
+    }
+
+    private async Task PersistBooleanOptionAsync(
+        string slug,
+        string optionKey,
+        bool? value)
+    {
+        try
+        {
+            await preferenceStore.SetBooleanOptionAsync(slug, optionKey, value);
+        }
+        catch (Exception)
+        {
+            ErrorMessage =
+                "The method option is active for this session but could not be saved.";
         }
     }
 

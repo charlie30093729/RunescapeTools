@@ -60,11 +60,84 @@ public sealed class JsonMoneyMakingPreferenceStore(MoneyMakingPreferenceOptions 
                     pair => pair.Value,
                     StringComparer.OrdinalIgnoreCase);
 
-            Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
-            var temporaryPath = filePath + ".tmp";
-            await using (var stream = File.Create(temporaryPath))
-                await JsonSerializer.SerializeAsync(stream, state, JsonOptions, cancellationToken);
-            File.Move(temporaryPath, filePath, true);
+            await WriteUnsafeAsync(state, cancellationToken);
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    public async Task<IReadOnlyDictionary<string, bool>> GetBooleanOptionsAsync(
+        string methodSlug,
+        CancellationToken cancellationToken = default)
+    {
+        var slug = NormalizeSlug(methodSlug);
+        await gate.WaitAsync(cancellationToken);
+        try
+        {
+            var state = await ReadUnsafeAsync(cancellationToken);
+            if (state.BooleanOptions is null ||
+                !state.BooleanOptions.TryGetValue(slug, out var options))
+            {
+                return new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+            }
+
+            return options
+                .Where(pair => !string.IsNullOrWhiteSpace(pair.Key))
+                .ToDictionary(
+                    pair => pair.Key,
+                    pair => pair.Value,
+                    StringComparer.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    public async Task SetBooleanOptionAsync(
+        string methodSlug,
+        string optionKey,
+        bool? value,
+        CancellationToken cancellationToken = default)
+    {
+        var slug = NormalizeSlug(methodSlug);
+        var key = NormalizeOptionKey(optionKey);
+
+        await gate.WaitAsync(cancellationToken);
+        try
+        {
+            var state = await ReadUnsafeAsync(cancellationToken);
+            state.BooleanOptions ??=
+                new Dictionary<string, Dictionary<string, bool>>(StringComparer.OrdinalIgnoreCase);
+            if (!state.BooleanOptions.TryGetValue(slug, out var options))
+            {
+                options = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+                state.BooleanOptions[slug] = options;
+            }
+
+            if (value.HasValue)
+                options[key] = value.Value;
+            else
+                options.Remove(key);
+
+            if (options.Count == 0)
+                state.BooleanOptions.Remove(slug);
+
+            state.BooleanOptions = state.BooleanOptions
+                .OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    pair => pair.Key,
+                    pair => pair.Value
+                        .OrderBy(option => option.Key, StringComparer.OrdinalIgnoreCase)
+                        .ToDictionary(
+                            option => option.Key,
+                            option => option.Value,
+                            StringComparer.OrdinalIgnoreCase),
+                    StringComparer.OrdinalIgnoreCase);
+
+            await WriteUnsafeAsync(state, cancellationToken);
         }
         finally
         {
@@ -94,9 +167,31 @@ public sealed class JsonMoneyMakingPreferenceStore(MoneyMakingPreferenceOptions 
         return value.ToLowerInvariant();
     }
 
+    private static string NormalizeOptionKey(string optionKey)
+    {
+        var value = optionKey?.Trim();
+        if (string.IsNullOrWhiteSpace(value))
+            throw new ArgumentException("A money-making option key is required.", nameof(optionKey));
+        return value.ToLowerInvariant();
+    }
+
+    private async Task WriteUnsafeAsync(
+        MoneyMakingPreferenceState state,
+        CancellationToken cancellationToken)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
+        var temporaryPath = filePath + ".tmp";
+        await using (var stream = File.Create(temporaryPath))
+            await JsonSerializer.SerializeAsync(stream, state, JsonOptions, cancellationToken);
+        File.Move(temporaryPath, filePath, true);
+    }
+
     private sealed class MoneyMakingPreferenceState
     {
         public Dictionary<string, decimal>? ActionsPerHourOverrides { get; set; } =
+            new(StringComparer.OrdinalIgnoreCase);
+
+        public Dictionary<string, Dictionary<string, bool>>? BooleanOptions { get; set; } =
             new(StringComparer.OrdinalIgnoreCase);
     }
 }

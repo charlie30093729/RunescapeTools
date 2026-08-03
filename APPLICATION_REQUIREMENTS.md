@@ -51,7 +51,7 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 - Price-history graphs with one-day, three-day, seven-day, and one-month windows.
 - Shared item-flow GP-per-hour calculator.
 - Automatic discovery of concrete money-making method classes.
-- Vyrewatch Sentinels and efficient Rune Dragons as registered combat methods.
+- Vyrewatch Sentinels, efficient Rune Dragons, and off-task AFK Frost Dragons as registered combat methods.
 - Startup warming and in-memory API caching.
 - Graceful handling of temporary market-data failures.
 - Self-contained, single-file `win-x64` distribution.
@@ -180,6 +180,7 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | FR-CALC-015 | An actions/hour override shall immediately reprice per-action item flows, experience rewards, per-account profit, all-account profit, and the shared rate supplied to the XP Planner. Per-hour item flows shall remain unchanged. |
 | FR-CALC-016 | The user shall be able to reset actions/hour to the method's current configured default, removing the persisted override. Vyrewatch shall use 102 with prayer regeneration potions and 88 without them when no override is active. |
 | FR-CALC-017 | Rune Dragons shall default to 45 kills per hour and shall scale its reviewed consumable inputs and expected tradeable outputs when the action-rate override changes. |
+| FR-CALC-018 | Frost Dragons shall default to 120 off-task kills per hour using the reviewed full-Inquisitor AFK melee assumptions. Frost dragon bones shall be collected and priced by default; a persisted checkbox shall remove only their expected output when disabled. |
 
 ### 6.7 XP Planner
 
@@ -264,7 +265,7 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | FR-DATA-007 | When the renamed desktop data file does not yet exist, the host shall preserve an existing legacy favourites file by copying it to the new LocalAppData location before applying the seed. |
 | FR-DATA-008 | The selected RSN shall persist atomically in `%LocalAppData%\RunescapeTools\data\profile.json`. |
 | FR-DATA-009 | XP goals, overrides, selected training-route IDs, normalized skill-configuration values, and money-making skill allocations shall persist atomically per normalized RSN in `%LocalAppData%\RunescapeTools\data\training-plans.json`. Existing records without configuration values shall load the current skill defaults. |
-| FR-DATA-010 | Positive money-maker actions/hour overrides shall persist atomically by stable method slug in `%LocalAppData%\RunescapeTools\data\money-making-preferences.json` and shall apply across application restarts. |
+| FR-DATA-010 | Positive money-maker actions/hour overrides and method-specific boolean options shall persist atomically by stable method slug in `%LocalAppData%\RunescapeTools\data\money-making-preferences.json` and shall apply across application restarts. |
 | FR-DATA-011 | Wiki item icons requested by a desktop presentation shall be downloaded lazily and persisted under `%LocalAppData%\RunescapeTools\data\item-icons`; the cache key shall change when the mapped Wiki filename changes. |
 | FR-ERR-001 | Item search, latest-price, history, and calculator failures shall produce user-readable messages. |
 | FR-ERR-002 | Temporary API failures shall not delete or overwrite stored favourites. |
@@ -283,6 +284,7 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | BR-006 | The MVP Vyrewatch method defaults to 102 actions per hour with prayer regeneration potions or 88 without them, uses five accounts, and applies a 2% output tax; a positive persisted user override supersedes either action-rate default until reset. |
 | BR-007 | The MVP prices calculations using the current high/low midpoint, so results are estimates rather than guaranteed realized profit. |
 | BR-008 | Rune Dragons assume the efficient low-intensity Justiciar, dragon hunter lance, dragonfire shield, Piety, Protect from Magic, mounted Digsite pendant route, and Monkey Madness II drop access. The variable rare-drop-table value is excluded. |
+| BR-009 | Frost Dragons assume an off-task full-Inquisitor AFK melee setup with dragon hunter lance on crush, Avernic defender, Protect from Melee, Piety, extended super antifire, 120 kills/hour, and no rare- or gem-drop-table value. Frost dragon bones are optional ledger output and default to collected. |
 
 ## 8. External interface requirements
 
