@@ -29,6 +29,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Vyrewatch supports the no-regen configuration", () => RunSync(VyrewatchNoRegenConfiguration)),
     ("Vyrewatch exposes every required item once", () => RunSync(VyrewatchItemIdsAreDistinct)),
     ("Rune dragons expose reviewed 45-kill economics", () => RunSync(RuneDragonMethodDefinition)),
+    ("Frost dragons expose reviewed 120-kill economics and optional bones", () => RunSync(FrostDragonMethodDefinition)),
     ("mid price falls back to the available quote", () => RunSync(MidPriceFallback)),
     ("latest prices are cached and missing prices are omitted", LatestPricesAreCached),
     ("history windows are filtered and cached by resolution", HistoryWindowsAreFilteredAndCached),
@@ -49,6 +50,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("favourites chart uses discrete one-day to one-month zoom", FavouritesChartZoomFlow),
     ("favourites chart points retain rolling 24-hour volume", () => RunSync(FavouritesChartVolume)),
     ("money-maker view-model shares and resets the priced selection", MoneyMakerViewModelFlow),
+    ("Frost Dragon bone collection persists through the money-maker view-model", FrostDragonViewModelConfiguration),
     ("money-maker action-rate overrides persist atomically", MoneyMakingPreferencePersistence),
     ("profile view-model loads defaults and keeps valid data on errors", ProfileViewModelFlow),
     ("EHP catalogue covers every skill and ordered rate band", () => RunSync(EhpCatalogueCoverage)),
@@ -738,6 +740,38 @@ static void RuneDragonMethodDefinition()
     EqualDecimal(50m / 3m, Quantity(faster, "Prayer potion(4)"), "custom rate scales supplies", quantityTolerance);
 }
 
+static void FrostDragonMethodDefinition()
+{
+    var withBones = new FrostDragonMethod().Definition;
+    var withoutBones = FrostDragonMethod.CreateDefinition(pickUpFrostDragonBones: false);
+    var prices = withBones.RequiredItemIds.ToDictionary(id => id, id => Quote(id, 1_000));
+    var calculator = new MoneyMakingCalculator();
+    var collected = calculator.Calculate(withBones, prices);
+    var leftBehind = calculator.Calculate(withoutBones, prices);
+
+    EqualDecimal(120m, withBones.ActionsPerHour, "default Frost Dragon kills per hour");
+    Equal(1, withBones.Accounts, "default Frost Dragon account count");
+    Equal(withBones.Items.Count, withBones.RequiredItemIds.Count, "Frost Dragon item IDs are distinct");
+    EqualDecimal(16m, Quantity(collected, "Prayer potion(4)"), "hourly prayer potions");
+    EqualDecimal(3m, Quantity(collected, "Divine super combat potion(4)"), "hourly combat potions");
+    EqualDecimal(3m, Quantity(collected, "Extended super antifire(4)"), "hourly antifires");
+    EqualDecimal(7.2m, Quantity(collected, "Teleport to house (tablet)"), "hourly house teleports");
+    EqualDecimal(120m, Quantity(collected, "Frost dragon bones"), "hourly Frost dragon bones");
+    EqualDecimal(1.2m, Quantity(collected, "Dragon metal sheet"), "off-task metal sheets");
+    EqualDecimal(360m / 13m, Quantity(collected, "Dragon nails"), "expected dragon nails", 0.0000001m);
+    True(
+        withoutBones.Items.All(item => item.ItemId != 31729),
+        "disabled bone collection removes Frost dragon bones from the ledger");
+    EqualDecimal(
+        120m * 1_000m * 0.98m,
+        collected.ProfitPerAccount - leftBehind.ProfitPerAccount,
+        "bone collection contributes taxed bone revenue");
+
+    var customRate = calculator.Calculate(withBones with { ActionsPerHour = 100m }, prices);
+    EqualDecimal(100m, Quantity(customRate, "Frost dragon bones"), "custom rate scales per-kill loot");
+    EqualDecimal(16m, Quantity(customRate, "Prayer potion(4)"), "custom rate preserves hourly prayer supplies");
+}
+
 static decimal Quantity(MoneyMakingResult result, string itemName) =>
     result.Lines.Single(line => line.Item.Name == itemName).QuantityPerHour;
 
@@ -886,6 +920,54 @@ static async Task MoneyMakerViewModelFlow()
     EqualDecimal(25m, restoredViewModel.ActionsPerHour, "saved generic override restores after restart");
 }
 
+static async Task FrostDragonViewModelConfiguration()
+{
+    var method = new FrostDragonMethod();
+    var preferences = new MemoryMoneyMakingPreferenceStore();
+    var market = new FakeMarketDataService
+    {
+        Latest = method.Definition.RequiredItemIds
+            .ToDictionary(id => id, id => Quote(id, 1_000))
+    };
+    var viewModel = new MoneyMakersViewModel(
+        [method],
+        new MoneyMakingCalculator(),
+        market,
+        preferences,
+        new MoneyMakerSelectionContext());
+
+    await viewModel.LoadAsync();
+    viewModel.SelectedMethod = viewModel.Methods.Single();
+
+    True(viewModel.ShowFrostDragonBonesOption, "Frost Dragons expose the bone configurator");
+    True(viewModel.PickingUpFrostDragonBones, "Frost Dragon bones default to collected");
+    True(
+        viewModel.FlowRows.Any(row => row.Name == "Frost dragon bones"),
+        "default Frost Dragon ledger includes bones");
+    EqualDecimal(120m, viewModel.ActionsPerHour, "Frost Dragons default to 120 kills per hour");
+
+    viewModel.PickingUpFrostDragonBones = false;
+    True(
+        viewModel.FlowRows.All(row => row.Name != "Frost dragon bones"),
+        "disabled Frost Dragon ledger excludes bones");
+    True(
+        !preferences.BooleanOptions[FrostDragonMethod.Slug][FrostDragonMethod.PickUpBonesOptionKey],
+        "disabled bone collection is persisted");
+
+    var restored = new MoneyMakersViewModel(
+        [method],
+        new MoneyMakingCalculator(),
+        market,
+        preferences,
+        new MoneyMakerSelectionContext());
+    await restored.LoadAsync();
+    restored.SelectedMethod = restored.Methods.Single();
+    True(!restored.PickingUpFrostDragonBones, "saved bone configuration restores after restart");
+    True(
+        restored.FlowRows.All(row => row.Name != "Frost dragon bones"),
+        "restored Frost Dragon ledger respects saved bone configuration");
+}
+
 static async Task MoneyMakingPreferencePersistence()
 {
     var directory = CreateTempDirectory();
@@ -897,14 +979,29 @@ static async Task MoneyMakingPreferencePersistence()
 
         await store.SetActionsPerHourOverrideAsync("Vyrewatch-Sentinels", 95m);
         await store.SetActionsPerHourOverrideAsync("zulrah", 27.5m);
+        await store.SetBooleanOptionAsync(
+            FrostDragonMethod.Slug,
+            FrostDragonMethod.PickUpBonesOptionKey,
+            false);
 
         var saved = await store.GetActionsPerHourOverridesAsync();
         EqualDecimal(95m, saved["vyrewatch-sentinels"], "persisted Vyrewatch override");
         EqualDecimal(27.5m, saved["ZULRAH"], "case-insensitive persisted override");
+        var frostOptions = await store.GetBooleanOptionsAsync("FROST-DRAGONS-AFK-MELEE");
+        True(
+            !frostOptions[FrostDragonMethod.PickUpBonesOptionKey],
+            "case-insensitive Frost Dragon option persistence");
 
         await store.SetActionsPerHourOverrideAsync("zulrah", null);
         var afterReset = await store.GetActionsPerHourOverridesAsync();
         True(!afterReset.ContainsKey("zulrah"), "reset removes persisted override");
+        await store.SetBooleanOptionAsync(
+            FrostDragonMethod.Slug,
+            FrostDragonMethod.PickUpBonesOptionKey,
+            null);
+        True(
+            (await store.GetBooleanOptionsAsync(FrostDragonMethod.Slug)).Count == 0,
+            "default Frost Dragon option removes the persisted override");
         True(!File.Exists(path + ".tmp"), "atomic preference replacement leaves no temporary file");
         await ThrowsAsync<ArgumentOutOfRangeException>(
             () => store.SetActionsPerHourOverrideAsync("vyrewatch-sentinels", 0m),
@@ -2870,6 +2967,8 @@ sealed class MemoryMoneyMakingPreferenceStore : IMoneyMakingPreferenceStore
 {
     public Dictionary<string, decimal> Overrides { get; } =
         new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, Dictionary<string, bool>> BooleanOptions { get; } =
+        new(StringComparer.OrdinalIgnoreCase);
 
     public Task<IReadOnlyDictionary<string, decimal>> GetActionsPerHourOverridesAsync(
         CancellationToken cancellationToken = default) =>
@@ -2885,6 +2984,42 @@ sealed class MemoryMoneyMakingPreferenceStore : IMoneyMakingPreferenceStore
             Overrides[methodSlug] = actionsPerHour.Value;
         else
             Overrides.Remove(methodSlug);
+        return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyDictionary<string, bool>> GetBooleanOptionsAsync(
+        string methodSlug,
+        CancellationToken cancellationToken = default)
+    {
+        if (BooleanOptions.TryGetValue(methodSlug, out var options))
+        {
+            return Task.FromResult<IReadOnlyDictionary<string, bool>>(
+                new Dictionary<string, bool>(options, StringComparer.OrdinalIgnoreCase));
+        }
+
+        return Task.FromResult<IReadOnlyDictionary<string, bool>>(
+            new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase));
+    }
+
+    public Task SetBooleanOptionAsync(
+        string methodSlug,
+        string optionKey,
+        bool? value,
+        CancellationToken cancellationToken = default)
+    {
+        if (!BooleanOptions.TryGetValue(methodSlug, out var options))
+        {
+            options = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+            BooleanOptions[methodSlug] = options;
+        }
+
+        if (value.HasValue)
+            options[optionKey] = value.Value;
+        else
+            options.Remove(optionKey);
+
+        if (options.Count == 0)
+            BooleanOptions.Remove(methodSlug);
         return Task.CompletedTask;
     }
 }

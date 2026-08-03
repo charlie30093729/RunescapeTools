@@ -9,4 +9,14 @@ public interface IMoneyMakingPreferenceStore
         string methodSlug,
         decimal? actionsPerHour,
         CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyDictionary<string, bool>> GetBooleanOptionsAsync(
+        string methodSlug,
+        CancellationToken cancellationToken = default);
+
+    Task SetBooleanOptionAsync(
+        string methodSlug,
+        string optionKey,
+        bool? value,
+        CancellationToken cancellationToken = default);
 }
