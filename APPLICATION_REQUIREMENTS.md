@@ -242,6 +242,7 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | FR-XP-053 | Runecraft shall provide selectable solo mud, solo lava, and solo aether routes, preserving the default solo-mud path until a selected alternative reaches its real unlock and pouch breakpoint. |
 | FR-XP-054 | Runecraft shall provide a per-RSN full-Raiments toggle that increases applicable rune output by up to 60%, using the game's per-craft integer rounding, without changing XP/hour, essence consumption, or active hours. Aether bonus output shall consume matching additional aether catalysts. |
 | FR-XP-055 | Solo aether economics shall buy pure essence, soul runes, aether catalysts, binding necklaces, Magic Imbue and pouch-repair runes where applicable, and rings of dueling, then value taxed aether-rune output. Reusable and untradeable teleport equipment shall remain disclosed exclusions. |
+| FR-XP-056 | Hunter shall provide a selectable Herbiboar route from level 80 with level-banded rates based on 66 catches per hour. Economics shall use the reviewed 99-Herblore magic-secateurs output distribution, consume 0.125 stamina potion(4) per catch, live-price herbs and numulite, and disclose excluded fossils, pet value, reusable equipment, and lower-Herblore variance. |
 
 ### 6.8 Method modularity
 

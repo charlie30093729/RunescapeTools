@@ -56,6 +56,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("EHP catalogue covers every skill and ordered rate band", () => RunSync(EhpCatalogueCoverage)),
     ("catalogue market resources keep valid local item identities", () => RunSync(CatalogueMarketItemIntegrity)),
     ("training definitions support stable default and alternative methods", () => RunSync(TrainingMethodSelection)),
+    ("Hunter exposes live-priced level-banded Herbiboar training", () => RunSync(HerbiboarMethodCatalogue)),
     ("XP Planner rows select and persist training methods", () => RunSync(XpPlannerRowMethodSelection)),
     ("skill configuration defaults and calculation effects are applied centrally", () => RunSync(TrainingSkillConfiguration)),
     ("XP Planner rows persist and reset skill configuration", () => RunSync(XpPlannerRowConfiguration)),
@@ -1063,7 +1064,7 @@ static void EhpCatalogueCoverage()
             "Smithing" => 3,
             "Runecraft" => 3,
             "Farming" => 2,
-            "Prayer" or "Fletching" or "Crafting" or "Construction" => 2,
+            "Prayer" or "Fletching" or "Crafting" or "Hunter" or "Construction" => 2,
             _ => 1
         };
         Equal(expectedMethodCount, skill.AvailableMethods.Count, $"{skill.Skill} method count");
@@ -1154,6 +1155,64 @@ static void TrainingMethodSelection()
     EqualDecimal(10m, defaultResult.Hours, "default method hours");
     Equal("alternative", alternativeResult.Method.Id, "resolved alternative method");
     EqualDecimal(5m, alternativeResult.Hours, "alternative method hours");
+}
+
+static void HerbiboarMethodCatalogue()
+{
+    var hunter = new MainEhpCatalogue().Skills.Single(skill => skill.Skill == "Hunter");
+    var main = hunter.ResolveMethod();
+    var herbiboar = hunter.ResolveMethod("herbiboar");
+    var level80 = herbiboar.Bands.Single(band => band.StartExperience == 1_986_068);
+    var level99 = herbiboar.Bands.Single(band => band.StartExperience == 13_034_431);
+
+    Equal(2, hunter.AvailableMethods.Count, "Hunter method count");
+    Equal("main-ehp", main.Id, "Hunter default method remains Main EHP");
+    Equal(
+        "Black chinchompas - shooting alt",
+        main.Bands.Single(band => band.StartExperience == 992_895).Method,
+        "Hunter default high-level route remains unchanged");
+    Equal("Herbiboar", herbiboar.Name, "Herbiboar method name");
+    Equal("Herbiboar", level80.Method, "Herbiboar unlock method");
+    EqualDecimal(137_148m, level80.ExperiencePerHour, "level 80 Herbiboar XP/hour");
+    EqualDecimal(170_874m, level99.ExperiencePerHour, "level 99 Herbiboar XP/hour");
+    EqualDecimal(
+        0.125m / 2_078m,
+        Resource(level80, 12625).QuantityPerExperience,
+        "stamina potions per level 80 Hunter XP");
+    Equal(TrainingFlowDirection.Input, Resource(level80, 12625).Direction, "stamina direction");
+    EqualDecimal(
+        0.246m / 2_078m,
+        Resource(level80, 207).QuantityPerExperience,
+        "ranarr output per level 80 Hunter XP");
+    Equal(TrainingFlowDirection.Output, Resource(level80, 207).Direction, "ranarr direction");
+    True(Resource(level80, 207).SubjectToGeTax, "Herbiboar herbs should be GE taxed");
+
+    var prices = herbiboar.Bands
+        .SelectMany(band => band.Economics?.Resources ?? [])
+        .Select(resource => resource.ItemId)
+        .Distinct()
+        .ToDictionary(id => id, id => Quote(id, 1_000));
+    var result = new TrainingPlanCalculator().Calculate(
+        hunter,
+        1_986_068,
+        2_192_818,
+        prices,
+        methodId: herbiboar.Id);
+    var expectedCatches = (2_192_818m - 1_986_068m) / 2_078m;
+
+    True(result.IsFullyPriced, "level 80 Herbiboar segment is fully priced");
+    EqualDecimal(expectedCatches / 66m, result.Hours, "level 80 Herbiboar hours", 0.0000001m);
+    EqualDecimal(
+        expectedCatches * 0.125m,
+        result.ResourceRequirements.Single(item => item.ItemId == 12625).Quantity,
+        "Herbiboar stamina quantity",
+        0.0000001m);
+    EqualDecimal(
+        expectedCatches * 0.246m,
+        result.ResourceRequirements.Single(item => item.ItemId == 207).Quantity,
+        "Herbiboar ranarr quantity",
+        0.0000001m);
+    True(result.NetGp > 0m, "reviewed Herbiboar outputs exceed stamina cost at equal prices");
 }
 
 static void XpPlannerRowMethodSelection()
