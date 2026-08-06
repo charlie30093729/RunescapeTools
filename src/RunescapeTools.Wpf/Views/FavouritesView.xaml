@@ -44,10 +44,21 @@
                         <Grid.Style><Style TargetType="Grid"><Setter Property="Visibility" Value="Visible" /><Style.Triggers><DataTrigger Binding="{Binding HasFavourites}" Value="False"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger></Style.Triggers></Style></Grid.Style>
                         <StackPanel Orientation="Horizontal">
                             <Grid Width="54" Height="54">
-                                <Border Style="{StaticResource Monogram}" CornerRadius="27">
+                                <Border CornerRadius="27">
+                                    <Border.Style>
+                                        <Style TargetType="Border" BasedOn="{StaticResource Monogram}">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding ElementName=SelectedFavouriteIcon, Path=HasLoadedImage}" Value="True">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
                                     <TextBlock Text="{Binding SelectedFavourite.Monogram}" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" Foreground="{StaticResource GoldDarkBrush}" />
                                 </Border>
-                                <controls:SafeImage Source="{Binding SelectedFavourite.IconPath}"
+                                <controls:SafeImage x:Name="SelectedFavouriteIcon"
+                                                    Source="{Binding SelectedFavourite.IconPath}"
                                                     Width="42" Height="42" Stretch="Uniform"
                                                     HorizontalAlignment="Center" VerticalAlignment="Center" />
                             </Grid>
@@ -175,8 +186,20 @@
                                 <Border x:Name="Card" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="6" Padding="9" Background="#FCFAF4">
                                     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="42" /><ColumnDefinition /><ColumnDefinition Width="30" /></Grid.ColumnDefinitions>
                                         <Grid Width="34" Height="34">
-                                            <Border Style="{StaticResource Monogram}" CornerRadius="17"><TextBlock Text="{Binding Monogram}" FontSize="10" FontWeight="Bold" Foreground="{StaticResource GoldDarkBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border>
-                                            <controls:SafeImage Source="{Binding IconPath}" Width="28" Height="28" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            <Border CornerRadius="17">
+                                                <Border.Style>
+                                                    <Style TargetType="Border" BasedOn="{StaticResource Monogram}">
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding ElementName=FavouriteIcon, Path=HasLoadedImage}" Value="True">
+                                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <TextBlock Text="{Binding Monogram}" FontSize="10" FontWeight="Bold" Foreground="{StaticResource GoldDarkBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <controls:SafeImage x:Name="FavouriteIcon" Source="{Binding IconPath}" Width="28" Height="28" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center" />
                                         </Grid>
                                         <StackPanel Grid.Column="1" VerticalAlignment="Center"><TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" /><TextBlock Text="{Binding Price}" Foreground="{StaticResource MutedBrush}" FontSize="10" /></StackPanel>
                                         <Button Grid.Column="2" Content="×" Style="{StaticResource TextButton}" Foreground="#9A5A51" ToolTip="Remove favourite"

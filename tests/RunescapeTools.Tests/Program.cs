@@ -2823,6 +2823,19 @@ static Task WpfViewsConstruct()
         {
             application = new RunescapeTools.Wpf.App();
             application.InitializeComponent();
+            var safeImage = new RunescapeTools.Wpf.Controls.SafeImage
+            {
+                Source = new System.Windows.Media.Imaging.WriteableBitmap(
+                    1,
+                    1,
+                    96,
+                    96,
+                    System.Windows.Media.PixelFormats.Bgra32,
+                    null)
+            };
+            True(safeImage.HasLoadedImage, "valid image source hides its fallback");
+            safeImage.Source = null;
+            True(!safeImage.HasLoadedImage, "cleared image source restores its fallback");
             var market = new FakeMarketDataService();
             var profileContext = new CurrentProfileContext(
                 new FakeHiscoreClient(),
