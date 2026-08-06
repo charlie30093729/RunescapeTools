@@ -12,14 +12,21 @@ using SkiaSharp;
 
 namespace RunescapeTools.Wpf.ViewModels;
 
-public sealed record FavouriteRow(
-    FavouriteItem Favourite,
-    string Monogram,
-    string Price,
-    string ItemNumber)
+public partial class FavouriteRow(
+    FavouriteItem favourite,
+    string monogram,
+    string price,
+    string itemNumber) : ObservableObject
 {
+    public FavouriteItem Favourite { get; } = favourite;
+    public string Monogram { get; } = monogram;
+    public string Price { get; } = price;
+    public string ItemNumber { get; } = itemNumber;
     public int ItemId => Favourite.ItemId;
     public string Name => Favourite.Name;
+
+    [ObservableProperty]
+    private string? iconPath;
 }
 
 public sealed record SearchResultRow(ItemMapping Item, string Monogram, string ItemNumber)
@@ -46,6 +53,7 @@ public sealed record FavouritePriceChartPoint(
 public partial class FavouritesViewModel(
     IFavouriteStore favouriteStore,
     IMarketDataService marketData,
+    IItemIconService itemIconService,
     TimeProvider timeProvider) : ObservableObject, IPageViewModel
 {
     private const int DefaultHistoryWindowIndex = 2;
@@ -58,6 +66,7 @@ public partial class FavouritesViewModel(
     ];
 
     private readonly TimeProvider clock = timeProvider;
+    private readonly IItemIconService itemIcons = itemIconService;
     private CancellationTokenSource? searchCancellation;
     private CancellationTokenSource? selectionCancellation;
     private bool suppressSelectionLoad;
@@ -153,9 +162,15 @@ public partial class FavouritesViewModel(
             RebuildFavouriteRows(selectedId);
 
             if (SelectedFavourite is not null)
-                await LoadSelectedHistoryAsync(SelectedFavourite, cancellationToken);
+            {
+                await Task.WhenAll(
+                    LoadSelectedHistoryAsync(SelectedFavourite, cancellationToken),
+                    LoadFavouriteIconsAsync(cancellationToken));
+            }
             else
+            {
                 ResetQuote();
+            }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -262,9 +277,15 @@ public partial class FavouritesViewModel(
             cancellationToken);
         RebuildFavouriteRows(selectedId);
         if (SelectedFavourite is not null)
-            await LoadSelectedHistoryAsync(SelectedFavourite, cancellationToken);
+        {
+            await Task.WhenAll(
+                LoadSelectedHistoryAsync(SelectedFavourite, cancellationToken),
+                LoadFavouriteIconsAsync(cancellationToken));
+        }
         else
+        {
             ResetQuote();
+        }
     }
 
     private void RebuildFavouriteRows(int? selectedId)
@@ -292,6 +313,33 @@ public partial class FavouritesViewModel(
             suppressSelectionLoad = false;
         }
         OnPropertyChanged(nameof(HasFavourites));
+    }
+
+    private async Task LoadFavouriteIconsAsync(CancellationToken cancellationToken)
+    {
+        var rows = FavouriteRows.ToArray();
+        if (rows.Length == 0)
+            return;
+
+        try
+        {
+            var icons = await itemIcons.GetManyAsync(
+                rows.Select(row => row.ItemId),
+                cancellationToken);
+            foreach (var row in rows)
+            {
+                if (icons.TryGetValue(row.ItemId, out var icon))
+                    row.IconPath = icon.LocalFilePath;
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception)
+        {
+            // Icons are optional decoration; favourite data remains fully usable.
+        }
     }
 
     private async Task LoadSelectedHistoryAsync(FavouriteRow row, CancellationToken cancellationToken)

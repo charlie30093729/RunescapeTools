@@ -47,6 +47,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("profile context preserves valid state on failure and publishes refreshes", ProfileContextStateFlow),
     ("dashboard view-model loads and reports failures", DashboardViewModelStates),
     ("favourites view-model searches, adds, selects, and removes", FavouritesViewModelFlow),
+    ("favourites load cached item icons without affecting fallback rows", FavouritesItemIcons),
     ("favourites chart uses discrete one-day to one-month zoom", FavouritesChartZoomFlow),
     ("favourites chart points retain rolling 24-hour volume", () => RunSync(FavouritesChartVolume)),
     ("money-maker view-model shares and resets the priced selection", MoneyMakerViewModelFlow),
@@ -567,7 +568,11 @@ static async Task FavouritesViewModelFlow()
         SearchResults = [Map(2, "Rune platebody")],
         History = [Point(DateTimeOffset.UtcNow.AddDays(-1), 400), Point(DateTimeOffset.UtcNow, 500)]
     };
-    var viewModel = new FavouritesViewModel(store, market, TimeProvider.System);
+    var viewModel = new FavouritesViewModel(
+        store,
+        market,
+        new FakeItemIconService(),
+        TimeProvider.System);
 
     await viewModel.LoadAsync();
     viewModel.SearchText = "rune";
@@ -581,6 +586,45 @@ static async Task FavouritesViewModelFlow()
     await viewModel.RemoveFavouriteCommand.ExecuteAsync(viewModel.SelectedFavourite);
     Equal(1, viewModel.FavouriteCount, "favourite removed");
     Equal(1, viewModel.SelectedFavourite?.ItemId ?? 0, "selection moved after removal");
+}
+
+static async Task FavouritesItemIcons()
+{
+    var store = new MemoryFavouriteStore(
+        new FavouriteItem(1, "Rune bar", DateTimeOffset.UtcNow),
+        new FavouriteItem(2, "Rune platebody", DateTimeOffset.UtcNow));
+    var market = new FakeMarketDataService
+    {
+        Latest = new Dictionary<int, ItemPrice>
+        {
+            [1] = Quote(1, 500),
+            [2] = Quote(2, 900)
+        },
+        History = [Point(DateTimeOffset.UtcNow.AddHours(-1), 500)]
+    };
+    var iconService = new FakeItemIconService(
+        new ItemIcon(1, "Rune bar.png", @"C:\cache\rune-bar.png"));
+    var viewModel = new FavouritesViewModel(
+        store,
+        market,
+        iconService,
+        TimeProvider.System);
+
+    await viewModel.LoadAsync();
+
+    Equal(
+        @"C:\cache\rune-bar.png",
+        viewModel.FavouriteRows.Single(row => row.ItemId == 1).IconPath ?? string.Empty,
+        "resolved favourite icon path");
+    True(
+        viewModel.FavouriteRows.Single(row => row.ItemId == 2).IconPath is null,
+        "missing icon keeps the monogram fallback");
+    True(
+        viewModel.FavouriteRows.All(row => !string.IsNullOrWhiteSpace(row.Name)),
+        "missing icons do not remove favourite data");
+    True(
+        iconService.RequestedItemIds.Order().SequenceEqual([1, 2]),
+        "only persisted favourite IDs request icons");
 }
 
 static async Task FavouritesChartZoomFlow()
@@ -610,6 +654,7 @@ static async Task FavouritesChartZoomFlow()
     var viewModel = new FavouritesViewModel(
         store,
         market,
+        new FakeItemIconService(),
         new TestTimeProvider(now));
 
     await viewModel.LoadAsync();
@@ -2701,7 +2746,11 @@ static async Task ShellNavigation()
     var store = new MemoryFavouriteStore();
     var market = new FakeMarketDataService();
     var dashboard = new DashboardViewModel(store, market, [new VyrewatchMethod()]);
-    var favourites = new FavouritesViewModel(store, market, TimeProvider.System);
+    var favourites = new FavouritesViewModel(
+        store,
+        market,
+        new FakeItemIconService(),
+        TimeProvider.System);
     var moneyMakerSelection = new MoneyMakerSelectionContext();
     var money = new MoneyMakersViewModel(
         [new VyrewatchMethod()],
@@ -2803,6 +2852,7 @@ static Task WpfViewsConstruct()
                 DataContext = new FavouritesViewModel(
                     new MemoryFavouriteStore(),
                     market,
+                    new FakeItemIconService(),
                     TimeProvider.System)
             };
             var window = new System.Windows.Window
@@ -3171,6 +3221,7 @@ sealed class FakeMarketDataService : IMarketDataService
 sealed class FakeItemIconService(params ItemIcon[] icons) : IItemIconService
 {
     private readonly IReadOnlyDictionary<int, ItemIcon> icons = icons.ToDictionary(icon => icon.ItemId);
+    public List<int> RequestedItemIds { get; } = [];
 
     public Task<ItemIcon?> GetAsync(int itemId, CancellationToken cancellationToken = default) =>
         Task.FromResult(icons.GetValueOrDefault(itemId));
@@ -3180,6 +3231,7 @@ sealed class FakeItemIconService(params ItemIcon[] icons) : IItemIconService
         CancellationToken cancellationToken = default)
     {
         var requested = itemIds.ToHashSet();
+        RequestedItemIds.AddRange(requested);
         return Task.FromResult<IReadOnlyDictionary<int, ItemIcon>>(
             icons.Where(pair => requested.Contains(pair.Key)).ToDictionary());
     }

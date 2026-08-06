@@ -122,6 +122,7 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | FR-FAV-009 | Adding an item shall select it and load its current price and graph history. |
 | FR-FAV-010 | Removing the selected item shall select the first remaining favourite when one exists. |
 | FR-FAV-011 | Favourite selection and removal controls shall have distinct accessible names and keyboard actions. |
+| FR-FAV-012 | Persisted favourites shall display their cached OSRS Wiki inventory icon in the watch list and selected-item header when available; an unresolved or failed icon shall retain the monogram and all textual item data. Search-only candidates shall not trigger persistent icon downloads. |
 
 ### 6.4 Market prices and history
 
