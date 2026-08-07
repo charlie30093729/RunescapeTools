@@ -1107,7 +1107,7 @@ static void EhpCatalogueCoverage()
         {
             "Herblore" => 3,
             "Smithing" => 3,
-            "Runecraft" => 3,
+            "Runecraft" => 4,
             "Farming" => 2,
             "Prayer" or "Fletching" or "Crafting" or "Hunter" or "Construction" => 2,
             _ => 1
@@ -1811,7 +1811,7 @@ static void RunecraftAlternativeMethods()
     var emptyPrices = new Dictionary<int, ItemPrice>();
 
     Equal(
-        "main-ehp|solo-lava-runes|solo-aether-runes",
+        "main-ehp|solo-lava-runes|solo-aether-runes|achievement-cape-double-nature-runes",
         string.Join('|', definition.AvailableMethods.Select(method => method.Id)),
         "Runecraft method IDs");
 
@@ -1873,6 +1873,62 @@ static void RunecraftAlternativeMethods()
     EqualDecimal(99_000m, noRaimentsAether.BaseRate, "Raiments do not alter aether XP/hour");
     EqualDecimal(1m / 20m, Resource(noRaimentsAetherBand, 30771).QuantityPerExperience, "base catalyst cost");
     EqualDecimal(1m / 20m, Resource(noRaimentsAetherBand, 30843).QuantityPerExperience, "base aether output");
+
+    var natureMethod = definition.ResolveMethod("achievement-cape-double-nature-runes");
+    var nature91 = natureMethod.Bands.Single(band => band.StartExperience == 5_902_831);
+    EqualDecimal(69_120m, nature91.ExperiencePerHour, "Achievement cape nature rate");
+    EqualDecimal(1m / 9m, Resource(nature91, 7936).QuantityPerExperience, "nature essence per XP");
+    EqualDecimal(0.125m / 576m, Resource(nature91, 9075).QuantityPerExperience, "nature astral runes per XP");
+    EqualDecimal(0.25m / 576m, Resource(nature91, 556).QuantityPerExperience, "nature air runes per XP");
+    EqualDecimal(0.125m / 576m, Resource(nature91, 564).QuantityPerExperience, "nature cosmic runes per XP");
+    EqualDecimal(200m / 576m, Resource(nature91, 561).QuantityPerExperience, "Raiments nature output");
+    True(
+        nature91.Economics!.Resources.All(resource => resource.ItemId != 5521),
+        "nature route does not use binding necklaces");
+
+    var naturePrices = new Dictionary<int, ItemPrice>
+    {
+        [7936] = Quote(7936, 1),
+        [9075] = Quote(9075, 115),
+        [556] = Quote(556, 5),
+        [564] = Quote(564, 126),
+        [561] = Quote(561, 160)
+    };
+    var naturePlan = calculator.Calculate(
+        definition,
+        5_902_831,
+        TrainingPlanCalculator.MaximumExperience,
+        naturePrices,
+        methodId: "achievement-cape-double-nature-runes");
+    EqualDecimal(2_808.1187644675925925925925926m, naturePlan.Hours, "nature hours to 200m", 0.0000001m);
+    EqualDecimal(10_548_852_585.254557291666666667m, naturePlan.NetGp ?? 0m, "nature GP to 200m", 0.01m);
+    EqualDecimal(
+        21_566_352.111111111111111111111m,
+        naturePlan.ResourceRequirements.Single(item => item.ItemId == 7936).Quantity,
+        "nature essence to 200m",
+        0.000001m);
+    EqualDecimal(
+        67_394_850.347222222222222222222m,
+        naturePlan.ResourceRequirements.Single(item => item.ItemId == 561).Quantity,
+        "Raiments nature runes to 200m",
+        0.000001m);
+    True(naturePlan.IsFullyPriced, "level-91 nature route should be fully priced");
+
+    var noRaimentsNature = calculator.Calculate(
+        definition,
+        5_902_831,
+        TrainingPlanCalculator.MaximumExperience,
+        naturePrices,
+        methodId: "achievement-cape-double-nature-runes",
+        configuration: new Dictionary<string, string>
+        {
+            ["raiments-of-the-eye"] = bool.FalseString
+        });
+    EqualDecimal(69_120m, noRaimentsNature.BaseRate, "Raiments do not alter nature XP/hour");
+    EqualDecimal(
+        128m / 576m,
+        Resource(noRaimentsNature.Method.Bands.Last(), 561).QuantityPerExperience,
+        "base double-nature output without Raiments");
 }
 
 static void PhaseTwoMethodCatalogue()

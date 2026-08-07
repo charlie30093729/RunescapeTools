@@ -18,7 +18,8 @@ internal static class RunecraftCatalogue
             [
                 defaultMethod,
                 SoloLavaRunes.Create(settings),
-                SoloAetherRunes.Create(settings)
+                SoloAetherRunes.Create(settings),
+                AchievementCapeNatureRunes.Create(settings)
             ],
             DefaultMethodId: defaultMethod.Id,
             Configurator: RunecraftGlobal.Configurator);
