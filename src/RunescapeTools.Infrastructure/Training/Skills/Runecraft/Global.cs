@@ -58,10 +58,12 @@ internal static class RunecraftGlobal
     {
         var resources = new List<TrainingResourceFlow>
         {
-            Input(Items.PureEssence, essencePerLap / experiencePerLap),
-            Input(Items.BindingNecklace, bindingNecklacesPerLap / experiencePerLap),
-            Input(Items.AstralRune, astralRunesPerLap / experiencePerLap)
+            Input(Items.PureEssence, essencePerLap / experiencePerLap)
         };
+        if (bindingNecklacesPerLap > 0m)
+            resources.Add(Input(Items.BindingNecklace, bindingNecklacesPerLap / experiencePerLap));
+        if (astralRunesPerLap > 0m)
+            resources.Add(Input(Items.AstralRune, astralRunesPerLap / experiencePerLap));
         if (airRunesPerLap > 0m)
             resources.Add(Input(Items.AirRune, airRunesPerLap / experiencePerLap));
         if (cosmicRunesPerLap > 0m)
@@ -79,6 +81,7 @@ internal static class RunecraftGlobal
             "main-ehp" => Methods.SoloMudRunes.Create(settings),
             "solo-lava-runes" => Methods.SoloLavaRunes.Create(settings),
             "solo-aether-runes" => Methods.SoloAetherRunes.Create(settings),
+            "achievement-cape-double-nature-runes" => Methods.AchievementCapeNatureRunes.Create(settings),
             _ => method
         };
     }
