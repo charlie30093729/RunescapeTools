@@ -206,13 +206,12 @@ public partial class FavouritesViewModel(
     }
 
     [RelayCommand]
-    private async Task SelectFavouriteAsync(FavouriteRow? row)
+    private void SelectFavourite(FavouriteRow? row)
     {
         if (row is null)
             return;
 
         SelectedFavourite = row;
-        await Task.CompletedTask;
     }
 
     [RelayCommand]
