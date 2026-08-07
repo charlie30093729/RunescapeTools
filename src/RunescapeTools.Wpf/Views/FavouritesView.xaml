@@ -63,8 +63,8 @@
                                                     HorizontalAlignment="Center" VerticalAlignment="Center" />
                             </Grid>
                             <StackPanel Margin="13,1,0,0">
-                                <TextBlock Text="{Binding SelectedFavourite.ItemNumber}" Style="{StaticResource Kicker}" />
-                                <TextBlock Text="{Binding SelectedFavourite.Name}" Style="{StaticResource SectionTitle}" Margin="0,3,0,0" />
+                                <TextBlock x:Name="SelectedFavouriteItemNumber" Text="{Binding SelectedFavourite.ItemNumber}" Style="{StaticResource Kicker}" />
+                                <TextBlock x:Name="SelectedFavouriteName" Text="{Binding SelectedFavourite.Name}" Style="{StaticResource SectionTitle}" Margin="0,3,0,0" />
                             </StackPanel>
                         </StackPanel>
                         <StackPanel HorizontalAlignment="Right" VerticalAlignment="Center">
@@ -169,7 +169,10 @@
                         </Border>
                     </StackPanel>
 
-                    <ListBox Grid.Row="2" ItemsSource="{Binding FavouriteRows}" SelectedItem="{Binding SelectedFavourite}"
+                    <ListBox x:Name="FavouritesList" Grid.Row="2"
+                             ItemsSource="{Binding FavouriteRows}"
+                             SelectedItem="{Binding SelectedFavourite, Mode=OneWay}"
+                             behaviors:SelectionChangedCommand.Command="{Binding SelectFavouriteCommand}"
                              Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                         <ListBox.ItemContainerStyle>
                             <Style TargetType="ListBoxItem">

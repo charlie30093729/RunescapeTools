@@ -2836,7 +2836,26 @@ static Task WpfViewsConstruct()
             True(safeImage.HasLoadedImage, "valid image source hides its fallback");
             safeImage.Source = null;
             True(!safeImage.HasLoadedImage, "cleared image source restores its fallback");
-            var market = new FakeMarketDataService();
+            var frozenImage = new System.Windows.Media.Imaging.WriteableBitmap(
+                1,
+                1,
+                96,
+                96,
+                System.Windows.Media.PixelFormats.Bgra32,
+                null);
+            frozenImage.Freeze();
+            safeImage.Source = frozenImage;
+            True(safeImage.HasLoadedImage, "frozen cached image is already loaded");
+            safeImage.Source = null;
+            True(!safeImage.HasLoadedImage, "frozen cached image can be replaced safely");
+            var market = new FakeMarketDataService
+            {
+                Latest = new Dictionary<int, ItemPrice>
+                {
+                    [24777] = Quote(24777, 500),
+                    [24511] = Quote(24511, 900)
+                }
+            };
             var profileContext = new CurrentProfileContext(
                 new FakeHiscoreClient(),
                 new HiscoreParser(TimeProvider.System),
@@ -2860,13 +2879,17 @@ static Task WpfViewsConstruct()
             _ = new ProfileView();
             var plannerView = new XpPlannerView { DataContext = viewModel };
             var moneyView = new MoneyMakersView { DataContext = moneyViewModel };
+            var favouritesViewModel = new FavouritesViewModel(
+                new MemoryFavouriteStore(
+                    new FavouriteItem(24777, "Blood shard", DateTimeOffset.UtcNow),
+                    new FavouriteItem(24511, "Harmonised orb", DateTimeOffset.UtcNow)),
+                market,
+                new FakeItemIconService(),
+                TimeProvider.System);
+            favouritesViewModel.LoadAsync().GetAwaiter().GetResult();
             var favouritesView = new FavouritesView
             {
-                DataContext = new FavouritesViewModel(
-                    new MemoryFavouriteStore(),
-                    market,
-                    new FakeItemIconService(),
-                    TimeProvider.System)
+                DataContext = favouritesViewModel
             };
             var window = new System.Windows.Window
             {
@@ -2910,6 +2933,16 @@ static Task WpfViewsConstruct()
             moneyView.UpdateLayout();
             window.Content = favouritesView;
             favouritesView.UpdateLayout();
+            var favouritesList = (System.Windows.Controls.ListBox)favouritesView.FindName("FavouritesList");
+            var selectedFavouriteName = (System.Windows.Controls.TextBlock)favouritesView.FindName("SelectedFavouriteName");
+            var selectedFavouriteItemNumber = (System.Windows.Controls.TextBlock)favouritesView.FindName("SelectedFavouriteItemNumber");
+            Equal(24777, favouritesViewModel.SelectedFavourite?.ItemId ?? 0, "first favourite starts selected");
+            Equal("Blood shard", selectedFavouriteName.Text, "initial favourite header name");
+            favouritesList.SelectedIndex = 1;
+            Equal(24511, favouritesViewModel.SelectedFavourite?.ItemId ?? 0, "list selection reaches the view-model");
+            Equal("Harmonised orb", selectedFavouriteName.Text, "selected favourite header name follows the list");
+            Equal("Item 24511", selectedFavouriteItemNumber.Text, "selected favourite header ID follows the list");
+            Equal("900 gp", favouritesViewModel.CurrentMidpoint, "selected favourite quote follows the list");
             window.Close();
         }
         catch (Exception exception)
