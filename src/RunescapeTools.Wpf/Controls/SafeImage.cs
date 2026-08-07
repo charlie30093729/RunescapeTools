@@ -7,7 +7,7 @@ namespace RunescapeTools.Wpf.Controls;
 
 public sealed class SafeImage : Image
 {
-    private BitmapSource? observedBitmap;
+    private BitmapSource? observedDownloadingBitmap;
 
     private static readonly DependencyPropertyKey HasLoadedImagePropertyKey =
         DependencyProperty.RegisterReadOnly(
@@ -51,11 +51,15 @@ public sealed class SafeImage : Image
 
         if (eventArgs.NewValue is BitmapSource bitmap)
         {
-            observedBitmap = bitmap;
-            if (bitmap.IsDownloading)
+            if (bitmap.IsDownloading && !bitmap.IsFrozen)
+            {
+                observedDownloadingBitmap = bitmap;
                 bitmap.DownloadCompleted += OnBitmapDownloadCompleted;
+            }
             else
+            {
                 UpdateLoadedState(bitmap);
+            }
         }
         else if (eventArgs.NewValue is ImageSource)
         {
@@ -76,7 +80,7 @@ public sealed class SafeImage : Image
 
     private void OnBitmapDownloadCompleted(object? sender, EventArgs eventArgs)
     {
-        if (sender is BitmapSource bitmap && ReferenceEquals(bitmap, observedBitmap))
+        if (sender is BitmapSource bitmap && ReferenceEquals(bitmap, observedDownloadingBitmap))
             UpdateLoadedState(bitmap);
 
         StopObservingBitmap();
@@ -91,9 +95,9 @@ public sealed class SafeImage : Image
 
     private void StopObservingBitmap()
     {
-        if (observedBitmap is not null)
-            observedBitmap.DownloadCompleted -= OnBitmapDownloadCompleted;
-
-        observedBitmap = null;
+        var bitmap = observedDownloadingBitmap;
+        observedDownloadingBitmap = null;
+        if (bitmap is not null && !bitmap.IsFrozen)
+            bitmap.DownloadCompleted -= OnBitmapDownloadCompleted;
     }
 }

@@ -2836,6 +2836,18 @@ static Task WpfViewsConstruct()
             True(safeImage.HasLoadedImage, "valid image source hides its fallback");
             safeImage.Source = null;
             True(!safeImage.HasLoadedImage, "cleared image source restores its fallback");
+            var frozenImage = new System.Windows.Media.Imaging.WriteableBitmap(
+                1,
+                1,
+                96,
+                96,
+                System.Windows.Media.PixelFormats.Bgra32,
+                null);
+            frozenImage.Freeze();
+            safeImage.Source = frozenImage;
+            True(safeImage.HasLoadedImage, "frozen cached image is already loaded");
+            safeImage.Source = null;
+            True(!safeImage.HasLoadedImage, "frozen cached image can be replaced safely");
             var market = new FakeMarketDataService
             {
                 Latest = new Dictionary<int, ItemPrice>
