@@ -58,6 +58,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("catalogue market resources keep valid local item identities", () => RunSync(CatalogueMarketItemIntegrity)),
     ("training definitions support stable default and alternative methods", () => RunSync(TrainingMethodSelection)),
     ("Hunter exposes live-priced level-banded Herbiboar training", () => RunSync(HerbiboarMethodCatalogue)),
+    ("Red chinchompas and one-tick karambwans expose reviewed rates and economics", () => RunSync(RedChinsAndKarambwans)),
     ("XP Planner rows select and persist training methods", () => RunSync(XpPlannerRowMethodSelection)),
     ("skill configuration defaults and calculation effects are applied centrally", () => RunSync(TrainingSkillConfiguration)),
     ("XP Planner rows persist and reset skill configuration", () => RunSync(XpPlannerRowConfiguration)),
@@ -1108,8 +1109,9 @@ static void EhpCatalogueCoverage()
             "Herblore" => 3,
             "Smithing" => 3,
             "Runecraft" => 4,
-            "Farming" => 2,
-            "Prayer" or "Fletching" or "Crafting" or "Hunter" or "Construction" => 2,
+            "Hunter" => 3,
+            "Farming" or "Cooking" => 2,
+            "Prayer" or "Fletching" or "Crafting" or "Construction" => 2,
             _ => 1
         };
         Equal(expectedMethodCount, skill.AvailableMethods.Count, $"{skill.Skill} method count");
@@ -1210,7 +1212,7 @@ static void HerbiboarMethodCatalogue()
     var level80 = herbiboar.Bands.Single(band => band.StartExperience == 1_986_068);
     var level99 = herbiboar.Bands.Single(band => band.StartExperience == 13_034_431);
 
-    Equal(2, hunter.AvailableMethods.Count, "Hunter method count");
+    Equal(3, hunter.AvailableMethods.Count, "Hunter method count");
     Equal("main-ehp", main.Id, "Hunter default method remains Main EHP");
     Equal(
         "Black chinchompas - shooting alt",
@@ -1258,6 +1260,71 @@ static void HerbiboarMethodCatalogue()
         "Herbiboar ranarr quantity",
         0.0000001m);
     True(result.NetGp > 0m, "reviewed Herbiboar outputs exceed stamina cost at equal prices");
+}
+
+static void RedChinsAndKarambwans()
+{
+    var catalogue = new MainEhpCatalogue();
+    var calculator = new TrainingPlanCalculator();
+
+    var hunter = catalogue.Skills.Single(skill => skill.Skill == "Hunter");
+    Equal(
+        "main-ehp|herbiboar|red-chinchompas",
+        string.Join('|', hunter.AvailableMethods.Select(method => method.Id)),
+        "Hunter method IDs");
+    var redChins = hunter.ResolveMethod("red-chinchompas");
+    var red63 = redChins.Bands.Single(band => band.StartExperience == 368_599);
+    var red80 = redChins.Bands.Single(band => band.StartExperience == 1_986_068);
+    var red99 = redChins.Bands.Single(band => band.StartExperience == 13_034_431);
+    EqualDecimal(70_000m, red63.ExperiencePerHour, "level 63 red chin rate");
+    EqualDecimal(143_900m, red80.ExperiencePerHour, "level 80 red chin rate");
+    EqualDecimal(210_000m, red99.ExperiencePerHour, "level 99 red chin rate");
+    EqualDecimal(1m / 265m, Resource(red99, 10034).QuantityPerExperience, "red chins per XP");
+    Equal(TrainingFlowDirection.Output, Resource(red99, 10034).Direction, "red chin direction");
+    var redResult = calculator.Calculate(
+        hunter,
+        13_034_431,
+        13_244_431,
+        new Dictionary<int, ItemPrice> { [10034] = Quote(10034, 1_000) },
+        methodId: redChins.Id);
+    EqualDecimal(1m, redResult.Hours, "210k red chin calculation hours");
+    EqualDecimal(
+        210_000m / 265m,
+        redResult.ResourceRequirements.Single().Quantity,
+        "red chin output per hour",
+        0.0000001m);
+    True(redResult.IsFullyPriced, "red chin route should be fully priced");
+
+    var cooking = catalogue.Skills.Single(skill => skill.Skill == "Cooking");
+    Equal(
+        "main-ehp|one-tick-karambwans",
+        string.Join('|', cooking.AvailableMethods.Select(method => method.Id)),
+        "Cooking method IDs");
+    var karambwans = cooking.ResolveMethod("one-tick-karambwans");
+    var karambwan90 = karambwans.Bands.Single(band => band.StartExperience == 5_346_332);
+    var karambwan99 = karambwans.Bands.Single(band => band.StartExperience == 13_034_431);
+    EqualDecimal(948_100m, karambwan90.ExperiencePerHour, "level 90 karambwan rate");
+    EqualDecimal(980_000m, karambwan99.ExperiencePerHour, "level 99 karambwan rate");
+    EqualDecimal(5_000m / 948_100m, Resource(karambwan90, 3142).QuantityPerExperience, "level 90 raw karambwan per XP");
+    EqualDecimal(1m / 190m, Resource(karambwan99, 3142).QuantityPerExperience, "level 99 raw karambwan per XP");
+    EqualDecimal(1m / 190m, Resource(karambwan99, 3144).QuantityPerExperience, "cooked karambwan per XP");
+    var karambwanResult = calculator.Calculate(
+        cooking,
+        13_034_431,
+        14_014_431,
+        new Dictionary<int, ItemPrice>
+        {
+            [3142] = Quote(3142, 1_000),
+            [3144] = Quote(3144, 1_000)
+        },
+        methodId: karambwans.Id);
+    EqualDecimal(1m, karambwanResult.Hours, "980k karambwan calculation hours");
+    EqualDecimal(
+        980_000m / 190m,
+        karambwanResult.ResourceRequirements.Single(item => item.ItemId == 3142).Quantity,
+        "raw karambwan per max-rate hour",
+        0.0000001m);
+    True(karambwanResult.IsFullyPriced, "karambwan route should be fully priced");
 }
 
 static void XpPlannerRowMethodSelection()
