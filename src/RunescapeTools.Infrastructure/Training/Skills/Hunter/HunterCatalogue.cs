@@ -15,7 +15,8 @@ internal static class HunterCatalogue
             Methods:
             [
                 defaultMethod,
-                Herbiboar.Create()
+                Herbiboar.Create(),
+                RedChinchompas.Create()
             ],
             DefaultMethodId: defaultMethod.Id);
     }
