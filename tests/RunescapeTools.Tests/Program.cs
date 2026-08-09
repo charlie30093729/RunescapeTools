@@ -1110,7 +1110,7 @@ static void EhpCatalogueCoverage()
             "Smithing" => 3,
             "Runecraft" => 6,
             "Hunter" => 3,
-            "Farming" or "Cooking" => 2,
+            "Farming" or "Cooking" or "Firemaking" => 2,
             "Prayer" or "Fletching" or "Crafting" or "Construction" => 2,
             _ => 1
         };
@@ -1479,11 +1479,53 @@ static void TrainingSkillConfiguration()
             ["pyromancer-outfit"] = bool.TrueString,
             ["bonfire"] = bool.TrueString
         });
-    EqualDecimal(268m * 975m * 1.025m, bonfire.BaseRate, "manual bonfire rate");
+    EqualDecimal(268m * 665m * 1.025m, bonfire.BaseRate, "automatic bonfire rate");
     Equal(
         "Rosewood logs - bonfire",
         bonfire.Method.Bands[^1].Method,
         "bonfire method label");
+
+    Equal(
+        "main-ehp|redwood-logs",
+        string.Join('|', firemaking.AvailableMethods.Select(method => method.Id)),
+        "Firemaking method IDs");
+    var redwood = calculator.Calculate(
+        firemaking,
+        5_346_332,
+        5_346_332 + 532_744,
+        prices,
+        methodId: "redwood-logs");
+    EqualDecimal(350m * 1_485m * 1.025m, redwood.BaseRate, "normal redwood rate");
+    Equal(
+        "Redwood logs - normal burning",
+        redwood.Method.Bands[^1].Method,
+        "normal redwood method label");
+    EqualDecimal(
+        1m / (350m * 1.025m),
+        Resource(redwood.Method.Bands[^1], 19669).QuantityPerExperience,
+        "Pyromancer redwood consumption",
+        0.0000000001m);
+
+    var redwoodBonfire = calculator.Calculate(
+        firemaking,
+        5_346_332,
+        5_346_332 + 349_782,
+        prices,
+        methodId: "redwood-logs",
+        configuration: new Dictionary<string, string>
+        {
+            ["pyromancer-outfit"] = bool.TrueString,
+            ["bonfire"] = bool.TrueString
+        });
+    EqualDecimal(350m * 665m * 1.025m, redwoodBonfire.BaseRate, "redwood bonfire rate");
+    Equal(
+        "Redwood logs - bonfire",
+        redwoodBonfire.Method.Bands[^1].Method,
+        "redwood bonfire method label");
+    EqualDecimal(
+        Resource(redwood.Method.Bands[^1], 19669).QuantityPerExperience,
+        Resource(redwoodBonfire.Method.Bands[^1], 19669).QuantityPerExperience,
+        "redwood bonfire preserves XP per log");
 
     var fletching = catalogue.Skills.Single(skill => skill.Skill == "Fletching");
     var counted = calculator.Calculate(fletching, 5_346_332, 6_346_332, prices);
