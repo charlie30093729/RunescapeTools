@@ -8,6 +8,8 @@ internal static class RunecraftGlobal
 {
     public const string RaimentsOfTheEyeKey = "raiments-of-the-eye";
     private const decimal FullRaimentsBonusPerTenRunes = 6m;
+    private const decimal DarkAltarBindingExperiencePerFragment = 0.625m;
+    private const decimal ArceuusFragmentsPerCraft = 100m;
 
     public const string Note =
         "Full Raiments of the Eye follow the saved Runecraft configuration. The outfit adds 60% rune " +
@@ -48,6 +50,29 @@ internal static class RunecraftGlobal
         Band(33_210, 45_000m, "Guardians of the Rift rewards")
     ];
 
+    public static TrainingRateBand CreateArceuusRuneBand(
+        long startExperience,
+        decimal experiencePerHour,
+        decimal altarExperiencePerFragment,
+        string method,
+        CatalogueItem outputRune,
+        RunecraftSettings settings)
+    {
+        var experiencePerFragment =
+            altarExperiencePerFragment + DarkAltarBindingExperiencePerFragment;
+        var outputPerCraft = OutputPerLap(ArceuusFragmentsPerCraft, settings);
+        return Band(
+            startExperience,
+            experiencePerHour,
+            method,
+            new TrainingEconomics(
+            [
+                Output(
+                    outputRune,
+                    outputPerCraft / (ArceuusFragmentsPerCraft * experiencePerFragment))
+            ]));
+    }
+
     public static List<TrainingResourceFlow> CreateCommonResources(
         decimal experiencePerLap,
         decimal essencePerLap,
@@ -82,6 +107,8 @@ internal static class RunecraftGlobal
             "solo-lava-runes" => Methods.SoloLavaRunes.Create(settings),
             "solo-aether-runes" => Methods.SoloAetherRunes.Create(settings),
             "achievement-cape-double-nature-runes" => Methods.AchievementCapeNatureRunes.Create(settings),
+            "arceuus-blood-runes" => Methods.ArceuusBloodRunes.Create(settings),
+            "arceuus-soul-runes" => Methods.ArceuusSoulRunes.Create(settings),
             _ => method
         };
     }

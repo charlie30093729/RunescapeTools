@@ -1108,7 +1108,7 @@ static void EhpCatalogueCoverage()
         {
             "Herblore" => 3,
             "Smithing" => 3,
-            "Runecraft" => 4,
+            "Runecraft" => 6,
             "Hunter" => 3,
             "Farming" or "Cooking" => 2,
             "Prayer" or "Fletching" or "Crafting" or "Construction" => 2,
@@ -1878,7 +1878,7 @@ static void RunecraftAlternativeMethods()
     var emptyPrices = new Dictionary<int, ItemPrice>();
 
     Equal(
-        "main-ehp|solo-lava-runes|solo-aether-runes|achievement-cape-double-nature-runes",
+        "main-ehp|solo-lava-runes|solo-aether-runes|achievement-cape-double-nature-runes|arceuus-blood-runes|arceuus-soul-runes",
         string.Join('|', definition.AvailableMethods.Select(method => method.Id)),
         "Runecraft method IDs");
 
@@ -1996,6 +1996,74 @@ static void RunecraftAlternativeMethods()
         128m / 576m,
         Resource(noRaimentsNature.Method.Bands.Last(), 561).QuantityPerExperience,
         "base double-nature output without Raiments");
+
+    var bloodMethod = definition.ResolveMethod("arceuus-blood-runes");
+    var blood77 = bloodMethod.Bands.Single(band => band.StartExperience == 1_475_581);
+    EqualDecimal(36_000m, blood77.ExperiencePerHour, "Arceuus blood rate");
+    EqualDecimal(
+        1.6m / 24.425m,
+        Resource(blood77, 565).QuantityPerExperience,
+        "Raiments blood output per XP");
+    True(
+        blood77.Economics!.Resources.All(resource => resource.Direction == TrainingFlowDirection.Output),
+        "gathered dark essence should not create tradeable inputs");
+
+    var soulMethod = definition.ResolveMethod("arceuus-soul-runes");
+    var soul90 = soulMethod.Bands.Single(band => band.StartExperience == 5_346_332);
+    EqualDecimal(44_000m, soul90.ExperiencePerHour, "Arceuus soul rate");
+    EqualDecimal(
+        1.6m / 30.325m,
+        Resource(soul90, 566).QuantityPerExperience,
+        "Raiments soul output per XP");
+
+    var gatheredRunePrices = new Dictionary<int, ItemPrice>
+    {
+        [565] = Quote(565, 1_000),
+        [566] = Quote(566, 1_000)
+    };
+    var bloodPlan = calculator.Calculate(
+        definition,
+        1_475_581,
+        1_511_581,
+        gatheredRunePrices,
+        methodId: bloodMethod.Id);
+    EqualDecimal(1m, bloodPlan.Hours, "Arceuus blood calculation hours");
+    EqualDecimal(
+        36_000m * 1.6m / 24.425m,
+        bloodPlan.ResourceRequirements.Single().Quantity,
+        "Raiments blood runes per hour",
+        0.0000001m);
+    True(bloodPlan.IsFullyPriced, "Arceuus blood route should be fully priced");
+
+    var soulPlan = calculator.Calculate(
+        definition,
+        5_346_332,
+        5_390_332,
+        gatheredRunePrices,
+        methodId: soulMethod.Id);
+    EqualDecimal(1m, soulPlan.Hours, "Arceuus soul calculation hours");
+    EqualDecimal(
+        44_000m * 1.6m / 30.325m,
+        soulPlan.ResourceRequirements.Single().Quantity,
+        "Raiments soul runes per hour",
+        0.0000001m);
+    True(soulPlan.IsFullyPriced, "Arceuus soul route should be fully priced");
+
+    var noRaimentsBlood = calculator.Calculate(
+        definition,
+        1_475_581,
+        1_511_581,
+        gatheredRunePrices,
+        methodId: bloodMethod.Id,
+        configuration: new Dictionary<string, string>
+        {
+            ["raiments-of-the-eye"] = bool.FalseString
+        });
+    EqualDecimal(36_000m, noRaimentsBlood.BaseRate, "Raiments do not alter blood XP/hour");
+    EqualDecimal(
+        1m / 24.425m,
+        Resource(noRaimentsBlood.Method.Bands.Last(), 565).QuantityPerExperience,
+        "base blood output without Raiments");
 }
 
 static void PhaseTwoMethodCatalogue()
