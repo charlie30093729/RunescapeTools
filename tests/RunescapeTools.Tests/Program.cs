@@ -549,11 +549,17 @@ static async Task DashboardViewModelStates()
 {
     var store = new MemoryFavouriteStore(new FavouriteItem(1, "Rune bar", DateTimeOffset.UtcNow));
     var market = new FakeMarketDataService { Latest = new Dictionary<int, ItemPrice> { [1] = Quote(1, 500) } };
-    var viewModel = new DashboardViewModel(store, market, [new VyrewatchMethod()]);
+    var iconPath = @"C:\cache\rune-bar.png";
+    var viewModel = new DashboardViewModel(
+        store,
+        market,
+        new FakeItemIconService(new ItemIcon(1, "Rune bar.png", iconPath)),
+        [new VyrewatchMethod()]);
 
     await viewModel.LoadAsync();
     Equal(1, viewModel.FavouriteCount, "dashboard favourite count");
     Equal(1, viewModel.Prices.Count, "dashboard price rows");
+    Equal(iconPath, viewModel.Prices[0].IconPath ?? string.Empty, "dashboard favourite icon");
 
     market.Failure = new HttpRequestException("offline");
     await viewModel.LoadAsync();
@@ -2978,7 +2984,11 @@ static async Task ShellNavigation()
 {
     var store = new MemoryFavouriteStore();
     var market = new FakeMarketDataService();
-    var dashboard = new DashboardViewModel(store, market, [new VyrewatchMethod()]);
+    var dashboard = new DashboardViewModel(
+        store,
+        market,
+        new FakeItemIconService(),
+        [new VyrewatchMethod()]);
     var favourites = new FavouritesViewModel(
         store,
         market,

@@ -7,13 +7,29 @@ using RunescapeTools.Core.MoneyMaking;
 
 namespace RunescapeTools.Wpf.ViewModels;
 
-public sealed record DashboardPriceRow(string Monogram, string Name, int ItemId, string Price);
+public partial class DashboardPriceRow(
+    string monogram,
+    string name,
+    int itemId,
+    string price) : ObservableObject
+{
+    public string Monogram { get; } = monogram;
+    public string Name { get; } = name;
+    public int ItemId { get; } = itemId;
+    public string Price { get; } = price;
+
+    [ObservableProperty]
+    private string? iconPath;
+}
 
 public partial class DashboardViewModel(
     IFavouriteStore favouriteStore,
     IMarketDataService marketData,
+    IItemIconService itemIconService,
     IEnumerable<IMoneyMakingMethod> moneyMakingMethods) : ObservableObject, IPageViewModel
 {
+    private readonly IItemIconService itemIcons = itemIconService;
+
     [ObservableProperty]
     private bool isLoading;
 
@@ -55,6 +71,7 @@ public partial class DashboardViewModel(
             }
 
             OnPropertyChanged(nameof(HasPrices));
+            await LoadFavouriteIconsAsync(cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -67,6 +84,33 @@ public partial class DashboardViewModel(
         finally
         {
             IsLoading = false;
+        }
+    }
+
+    private async Task LoadFavouriteIconsAsync(CancellationToken cancellationToken)
+    {
+        var rows = Prices.ToArray();
+        if (rows.Length == 0)
+            return;
+
+        try
+        {
+            var icons = await itemIcons.GetManyAsync(
+                rows.Select(row => row.ItemId),
+                cancellationToken);
+            foreach (var row in rows)
+            {
+                if (icons.TryGetValue(row.ItemId, out var icon))
+                    row.IconPath = icon.LocalFilePath;
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception)
+        {
+            // Icons are optional decoration; price data remains fully usable.
         }
     }
 }
