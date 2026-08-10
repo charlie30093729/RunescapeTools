@@ -250,7 +250,7 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
         ErrorMessage = null;
         try
         {
-            var definition = selected.Method.Definition;
+            var definition = GetEffectiveDefinition(selected);
             var prices = await marketData.GetLatestForAsync(definition.RequiredItemIds, cancellationToken);
             if (!ReferenceEquals(selected, SelectedMethod) || cancellationToken.IsCancellationRequested)
                 return;
@@ -309,8 +309,7 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
             SetActionsPerHour(GetBaseDefinition(SelectedMethod).ActionsPerHour);
         UpdateActionsPerHourDisplay(SelectedMethod);
 
-        if (currentPrices is not null)
-            ApplyResult(GetEffectiveDefinition(SelectedMethod), currentPrices);
+        RepriceForCurrentMethodOptions();
     }
 
     partial void OnPickingUpFrostDragonBonesChanged(bool value)
@@ -318,12 +317,31 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
         if (synchronizingMethodOptions || SelectedMethod?.Method is not FrostDragonMethod)
             return;
 
-        if (currentPrices is not null)
-            ApplyResult(GetEffectiveDefinition(SelectedMethod), currentPrices);
+        RepriceForCurrentMethodOptions();
         _ = PersistBooleanOptionAsync(
             FrostDragonMethod.Slug,
             FrostDragonMethod.PickUpBonesOptionKey,
             value ? null : false);
+    }
+
+    private void RepriceForCurrentMethodOptions()
+    {
+        var selected = SelectedMethod;
+        if (selected is null)
+            return;
+
+        var definition = GetEffectiveDefinition(selected);
+        if (currentPrices is not null
+            && definition.RequiredItemIds.All(currentPrices.ContainsKey))
+        {
+            ApplyResult(definition, currentPrices);
+            return;
+        }
+
+        calculationCancellation?.Cancel();
+        calculationCancellation?.Dispose();
+        calculationCancellation = new CancellationTokenSource();
+        _ = PriceMethodAsync(selected, calculationCancellation.Token);
     }
 
     partial void OnActionsPerHourChanged(decimal value)

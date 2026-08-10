@@ -867,6 +867,7 @@ static async Task MoneyMakerViewModelFlow()
     var market = new FakeMarketDataService
     {
         Latest = method.Definition.RequiredItemIds
+            .Append(30125)
             .Concat(secondMethod.Definition.RequiredItemIds)
             .Concat(thirdMethod.Definition.RequiredItemIds)
             .Distinct()
@@ -923,6 +924,9 @@ static async Task MoneyMakerViewModelFlow()
     True(
         viewModel.FlowRows.Any(row => row.Name == "Prayer regeneration potion(4)"),
         "regen ledger contains the prayer regeneration potion row");
+    True(
+        viewModel.FlowRows.Single(row => row.Name == "Prayer regeneration potion(4)").UnitPrice != "Unavailable",
+        "enabling regen potions fetches the newly required live price");
     viewModel.UsingRegenPotions = false;
     Equal(9, viewModel.FlowRows.Count, "no-regen ledger removes the prayer regeneration potion");
     True(
