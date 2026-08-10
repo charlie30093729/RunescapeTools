@@ -90,7 +90,7 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
     private bool hasMissingPrices;
 
     [ObservableProperty]
-    private bool usingRegenPotions = true;
+    private bool usingRegenPotions = VyrewatchMethod.DefaultUsingRegenPotions;
 
     [ObservableProperty]
     private bool pickingUpFrostDragonBones = true;

@@ -6,7 +6,10 @@ namespace RunescapeTools.Core.MoneyMaking.Methods;
 /// </summary>
 public sealed class VyrewatchMethod : IMoneyMakingMethod
 {
-    public MoneyMakingMethodDefinition Definition { get; } = CreateDefinition(usingRegenPotions: true);
+    public const bool DefaultUsingRegenPotions = false;
+
+    public MoneyMakingMethodDefinition Definition { get; } =
+        CreateDefinition(DefaultUsingRegenPotions);
 
     public static MoneyMakingMethodDefinition CreateDefinition(bool usingRegenPotions)
     {
