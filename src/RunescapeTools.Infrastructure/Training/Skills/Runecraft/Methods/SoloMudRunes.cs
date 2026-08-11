@@ -19,9 +19,9 @@ internal static class SoloMudRunes
     internal static IReadOnlyList<TrainingRateBand> CreateMethodBands(
         RunecraftGlobal.RunecraftSettings settings) =>
     [
-        CreateBand(1_210_421, 74_500m, 475m, 50m, 2.1m, 0.2m, 0.1m, settings),
-        CreateBand(3_258_594, 96_900m, 598.5m, 63m, 2.125m, 0.25m, 0.125m, settings),
-        CreateBand(13_034_431, 98_200m, 598.5m, 63m, 2m, 0m, 0m, settings)
+        CreateBand(1_210_421, 74_500m, 475m, 50m, 2m, 0.1m, settings),
+        CreateBand(3_258_594, 96_900m, 598.5m, 63m, 2m, 0.125m, settings),
+        CreateBand(RunecraftGlobal.RunecraftCapeExperience, 98_200m, 598.5m, 63m, 2m, 0m, settings)
     ];
 
     private static TrainingRateBand CreateBand(
@@ -29,18 +29,16 @@ internal static class SoloMudRunes
         decimal experiencePerHour,
         decimal experiencePerLap,
         decimal essencePerLap,
-        decimal astralRunesPerLap,
-        decimal airRunesPerLap,
-        decimal cosmicRunesPerLap,
+        decimal magicImbueAstralRunesPerLap,
+        decimal pouchRepairsPerLap,
         RunecraftGlobal.RunecraftSettings settings)
     {
         var resources = RunecraftGlobal.CreateCommonResources(
             experiencePerLap,
             essencePerLap,
             0.2m,
-            astralRunesPerLap,
-            airRunesPerLap,
-            cosmicRunesPerLap);
+            magicImbueAstralRunesPerLap,
+            pouchRepairsPerLap);
         resources.Add(Input(Items.EarthRune, essencePerLap / experiencePerLap));
         resources.Add(Output(
             Items.MudRune,

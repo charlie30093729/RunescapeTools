@@ -1965,12 +1965,19 @@ static void RunecraftAlternativeMethods()
     var lavaMethod = definition.ResolveMethod("solo-lava-runes");
     Equal(6_291L, lavaMethod.Bands[1].StartExperience, "solo lava unlock XP");
     EqualDecimal(40_000m, lavaMethod.Bands[1].ExperiencePerHour, "solo lava entry rate");
-    var lava85 = lavaMethod.Bands.Last();
+    var lava85 = lavaMethod.Bands.Single(band => band.StartExperience == 3_258_594);
     Equal(3_258_594L, lava85.StartExperience, "solo lava colossal-pouch unlock XP");
     EqualDecimal(102_100m, lava85.ExperiencePerHour, "solo lava colossal-pouch rate");
     EqualDecimal(1m / 10.5m, Resource(lava85, 7936).QuantityPerExperience, "lava essence per XP");
     EqualDecimal(1m / 10.5m, Resource(lava85, 557).QuantityPerExperience, "lava earth runes per XP");
     EqualDecimal(99m / 661.5m, Resource(lava85, 4699).QuantityPerExperience, "Raiments lava output");
+    var lava99 = lavaMethod.Bands.Last();
+    Equal(13_034_431L, lava99.StartExperience, "solo lava cape threshold");
+    EqualDecimal(102_100m, lava99.ExperiencePerHour, "solo lava cape rate");
+    EqualDecimal(2m / 661.5m, Resource(lava99, 9075).QuantityPerExperience, "lava Magic Imbue astrals");
+    True(
+        lava99.Economics!.Resources.All(resource => resource.ItemId is not 556 and not 564),
+        "Runecraft cape removes lava pouch-repair runes");
 
     var aetherMethod = definition.ResolveMethod("solo-aether-runes");
     var aether90 = aetherMethod.Bands.Single(band => band.StartExperience == 5_346_332);
@@ -1982,6 +1989,7 @@ static void RunecraftAlternativeMethods()
     EqualDecimal(0.125m / 1_260m, Resource(aether90, 2552).QuantityPerExperience, "aether rings of dueling per XP");
     var aether99 = aetherMethod.Bands.Last();
     EqualDecimal(102_000m, aether99.ExperiencePerHour, "solo aether level-99 rate");
+    EqualDecimal(2m / 1_260m, Resource(aether99, 9075).QuantityPerExperience, "aether Magic Imbue astrals");
     True(
         aether99.Economics!.Resources.All(resource => resource.ItemId is not 556 and not 564),
         "Runecraft cape removes aether pouch-repair runes");
@@ -2013,6 +2021,11 @@ static void RunecraftAlternativeMethods()
     True(
         nature91.Economics!.Resources.All(resource => resource.ItemId != 5521),
         "nature route does not use binding necklaces");
+    var nature99 = natureMethod.Bands.Last();
+    Equal(13_034_431L, nature99.StartExperience, "nature cape threshold");
+    True(
+        nature99.Economics!.Resources.All(resource => resource.ItemId is not 9075 and not 556 and not 564),
+        "Runecraft cape removes every nature pouch-repair rune");
 
     var naturePrices = new Dictionary<int, ItemPrice>
     {
@@ -2029,7 +2042,7 @@ static void RunecraftAlternativeMethods()
         naturePrices,
         methodId: "achievement-cape-double-nature-runes");
     EqualDecimal(2_808.1187644675925925925925926m, naturePlan.Hours, "nature hours to 200m", 0.0000001m);
-    EqualDecimal(10_548_852_585.254557291666666667m, naturePlan.NetGp ?? 0m, "nature GP to 200m", 0.01m);
+    EqualDecimal(10_559_036_690.684027777777777777m, naturePlan.NetGp ?? 0m, "nature GP to 200m", 0.01m);
     EqualDecimal(
         21_566_352.111111111111111111111m,
         naturePlan.ResourceRequirements.Single(item => item.ItemId == 7936).Quantity,
@@ -2202,6 +2215,7 @@ static void PhaseTwoMethodCatalogue()
     True(
         runecraft99.Economics!.Resources.All(resource => resource.ItemId is not 556 and not 564),
         "Runecraft cape should remove NPC Contact rune costs");
+    EqualDecimal(2m / 598.5m, Resource(runecraft99, 9075).QuantityPerExperience, "level-99 Magic Imbue astrals");
 
     foreach (var band in new[] { woodcutting, fishing, mining, hunter, runecraft75, runecraft85, runecraft99 })
         True(band.Economics is { IsComplete: true }, $"{band.Method} should expose reviewed economics");

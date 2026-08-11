@@ -7,6 +7,7 @@ namespace RunescapeTools.Infrastructure.Training.Skills.Runecraft;
 internal static class RunecraftGlobal
 {
     public const string RaimentsOfTheEyeKey = "raiments-of-the-eye";
+    public const long RunecraftCapeExperience = 13_034_431;
     private const decimal FullRaimentsBonusPerTenRunes = 6m;
     private const decimal DarkAltarBindingExperiencePerFragment = 0.625m;
     private const decimal ArceuusFragmentsPerCraft = 100m;
@@ -14,8 +15,9 @@ internal static class RunecraftGlobal
     public const string Note =
         "Full Raiments of the Eye follow the saved Runecraft configuration. The outfit adds 60% rune " +
         "output but no Runecraft XP; aether bonus runes consume matching aether catalysts. Magic Imbue, " +
-        "binding-necklace disposal, and pouch repair are priced where applicable. Reusable equipment and " +
-        "untradeable unlock costs are excluded.";
+        "binding-necklace disposal, and pouch repair are priced where applicable. Pouch-repair runes " +
+        "automatically stop at 13,034,431 XP when the Runecraft cape prevents further degradation. " +
+        "Reusable equipment and untradeable unlock costs are excluded.";
 
     public static ITrainingSkillConfigurator Configurator { get; } =
         new TrainingSkillConfigurator(
@@ -77,10 +79,12 @@ internal static class RunecraftGlobal
         decimal experiencePerLap,
         decimal essencePerLap,
         decimal bindingNecklacesPerLap,
-        decimal astralRunesPerLap,
-        decimal airRunesPerLap,
-        decimal cosmicRunesPerLap)
+        decimal magicImbueAstralRunesPerLap,
+        decimal pouchRepairsPerLap)
     {
+        var astralRunesPerLap = magicImbueAstralRunesPerLap + pouchRepairsPerLap;
+        var airRunesPerLap = pouchRepairsPerLap * 2m;
+        var cosmicRunesPerLap = pouchRepairsPerLap;
         var resources = new List<TrainingResourceFlow>
         {
             Input(Items.PureEssence, essencePerLap / experiencePerLap)
