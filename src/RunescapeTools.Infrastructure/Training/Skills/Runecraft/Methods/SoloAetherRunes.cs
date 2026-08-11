@@ -17,8 +17,8 @@ internal static class SoloAetherRunes
                 .. RunecraftGlobal.CreateBaseBands(),
                 .. SoloMudRunes.CreateMethodBands(settings)
                     .Where(band => band.StartExperience < 5_346_332),
-                CreateBand(5_346_332, 99_000m, 2.125m, 0.25m, 0.125m, settings),
-                CreateBand(13_034_431, 102_000m, 2m, 0m, 0m, settings)
+                CreateBand(5_346_332, 99_000m, 2m, 0.125m, settings),
+                CreateBand(RunecraftGlobal.RunecraftCapeExperience, 102_000m, 2m, 0m, settings)
             ],
             RunecraftGlobal.Note +
             " Requires level 90 Runecraft and assumes a colossal pouch, POH fairy ring, Construction cape, and Castle Wars banking. Rings of dueling are priced; untradeable teleport unlocks are excluded.");
@@ -26,9 +26,8 @@ internal static class SoloAetherRunes
     private static TrainingRateBand CreateBand(
         long startExperience,
         decimal experiencePerHour,
-        decimal astralRunesPerLap,
-        decimal airRunesPerLap,
-        decimal cosmicRunesPerLap,
+        decimal magicImbueAstralRunesPerLap,
+        decimal pouchRepairsPerLap,
         RunecraftGlobal.RunecraftSettings settings)
     {
         var experiencePerLap = EssencePerLap * ExperiencePerEssence;
@@ -37,9 +36,8 @@ internal static class SoloAetherRunes
             experiencePerLap,
             EssencePerLap,
             0.2m,
-            astralRunesPerLap,
-            airRunesPerLap,
-            cosmicRunesPerLap);
+            magicImbueAstralRunesPerLap,
+            pouchRepairsPerLap);
         resources.Add(Input(Items.SoulRune, EssencePerLap / experiencePerLap));
         resources.Add(Input(Items.AetherCatalyst, outputPerLap / experiencePerLap));
         resources.Add(Input(Items.RingOfDueling8, 0.125m / experiencePerLap));
