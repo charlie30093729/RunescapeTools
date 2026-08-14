@@ -14,7 +14,8 @@ public sealed record TrainingResourceFlow(
     decimal QuantityPerExperience,
     TrainingFlowDirection Direction,
     bool SubjectToGeTax = true,
-    decimal QuantityPerHour = 0m);
+    decimal QuantityPerHour = 0m,
+    bool RequiresMarketPrice = true);
 
 public sealed record TrainingExperienceFlow(
     string Skill,
@@ -86,7 +87,8 @@ public sealed record TrainingResourceRequirement(
     string Name,
     TrainingFlowDirection Direction,
     decimal Quantity,
-    bool SubjectToGeTax);
+    bool SubjectToGeTax,
+    bool RequiresMarketPrice);
 
 public sealed record TrainingSkillPlanResult(
     TrainingSkillDefinition Definition,
@@ -146,7 +148,10 @@ public sealed class TrainingPlanCalculator
         var configurationValues =
             definition.Configurator?.Definition.Normalize(configuration)
             ?? TrainingConfigurationValues.Empty;
-        var method = definition.Configurator?.ConfigureMethod(baseMethod, configurationValues)
+        var method = definition.Configurator?.ConfigureMethod(
+                         baseMethod,
+                         configurationValues,
+                         new TrainingCalculationContext(effectiveStart, target))
                      ?? baseMethod;
         var includesActiveHours =
             !definition.IsZeroTime
@@ -222,6 +227,9 @@ public sealed class TrainingPlanCalculator
 
                 foreach (var resource in economics.Resources)
                 {
+                    if (!resource.RequiresMarketPrice)
+                        continue;
+
                     if (!prices.TryGetValue(resource.ItemId, out var quote))
                     {
                         segmentMissing = true;
@@ -309,7 +317,8 @@ public sealed class TrainingPlanCalculator
                     value.Resource.Name,
                     value.Resource.Direction,
                     value.Quantity,
-                    value.Resource.SubjectToGeTax))
+                    value.Resource.SubjectToGeTax,
+                    value.Resource.RequiresMarketPrice))
                 .OrderBy(value => value.Direction)
                 .ThenBy(value => value.Name, StringComparer.OrdinalIgnoreCase)
                 .ToArray(),

@@ -1,9 +1,12 @@
+using System.Globalization;
+
 namespace RunescapeTools.Core.Training;
 
 public enum TrainingConfigurationOptionKind
 {
     Toggle,
-    Choice
+    Choice,
+    Number
 }
 
 public sealed record TrainingConfigurationChoice(
@@ -19,7 +22,11 @@ public sealed record TrainingConfigurationOption(
     string DefaultValue,
     string? Description = null,
     IReadOnlyList<TrainingConfigurationChoice>? Choices = null,
-    IReadOnlyList<string>? ApplicableMethodIds = null)
+    IReadOnlyList<string>? ApplicableMethodIds = null,
+    decimal? MinimumValue = null,
+    decimal? MaximumValue = null,
+    bool AllowsEmpty = false,
+    bool WholeNumbersOnly = false)
 {
     public bool AppliesTo(string? methodId) =>
         ApplicableMethodIds is not { Count: > 0 }
@@ -57,6 +64,24 @@ public sealed class TrainingConfigurationDefinition(
                 : bool.FalseString;
         }
 
+        if (option.Kind == TrainingConfigurationOptionKind.Number)
+        {
+            if (string.IsNullOrWhiteSpace(value) && option.AllowsEmpty)
+                return string.Empty;
+
+            if (TryParseNumber(value, out var number)
+                && (!option.WholeNumbersOnly || number == decimal.Truncate(number)))
+            {
+                if (option.MinimumValue.HasValue)
+                    number = Math.Max(option.MinimumValue.Value, number);
+                if (option.MaximumValue.HasValue)
+                    number = Math.Min(option.MaximumValue.Value, number);
+                return number.ToString(CultureInfo.InvariantCulture);
+            }
+
+            return NormalizeNumberDefault(option);
+        }
+
         var selected = option.Choices?.FirstOrDefault(choice =>
             choice.IsEnabled
             && string.Equals(choice.Value, value, StringComparison.OrdinalIgnoreCase));
@@ -72,6 +97,34 @@ public sealed class TrainingConfigurationDefinition(
                ?? option.Choices?.FirstOrDefault(choice => choice.IsEnabled)?.Value
                ?? option.DefaultValue;
     }
+
+    private static string NormalizeNumberDefault(TrainingConfigurationOption option)
+    {
+        if (string.IsNullOrWhiteSpace(option.DefaultValue) && option.AllowsEmpty)
+            return string.Empty;
+
+        if (!TryParseNumber(option.DefaultValue, out var number))
+            number = option.MinimumValue ?? 0m;
+        if (option.WholeNumbersOnly)
+            number = decimal.Truncate(number);
+        if (option.MinimumValue.HasValue)
+            number = Math.Max(option.MinimumValue.Value, number);
+        if (option.MaximumValue.HasValue)
+            number = Math.Min(option.MaximumValue.Value, number);
+        return number.ToString(CultureInfo.InvariantCulture);
+    }
+
+    internal static bool TryParseNumber(string? value, out decimal number) =>
+        decimal.TryParse(
+            value,
+            NumberStyles.Number,
+            CultureInfo.CurrentCulture,
+            out number)
+        || decimal.TryParse(
+            value,
+            NumberStyles.Number,
+            CultureInfo.InvariantCulture,
+            out number);
 }
 
 public sealed class TrainingConfigurationValues(
@@ -94,9 +147,25 @@ public sealed class TrainingConfigurationValues(
         return Values.TryGetValue(key, out var value) ? value : string.Empty;
     }
 
+    public long? GetOptionalWholeNumber(string key)
+    {
+        if (!Values.TryGetValue(key, out var value)
+            || string.IsNullOrWhiteSpace(value)
+            || !long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var number))
+        {
+            return null;
+        }
+
+        return number;
+    }
+
     public Dictionary<string, string> ToDictionary() =>
         new(Values, StringComparer.OrdinalIgnoreCase);
 }
+
+public sealed record TrainingCalculationContext(
+    long StartExperience,
+    long TargetExperience);
 
 public interface ITrainingSkillConfigurator
 {
@@ -104,7 +173,8 @@ public interface ITrainingSkillConfigurator
 
     TrainingMethodDefinition ConfigureMethod(
         TrainingMethodDefinition method,
-        TrainingConfigurationValues configuration);
+        TrainingConfigurationValues configuration,
+        TrainingCalculationContext context);
 
     bool IncludeHours(
         TrainingMethodDefinition method,

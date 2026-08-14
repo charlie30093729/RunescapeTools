@@ -2,18 +2,48 @@ using RunescapeTools.Core.Training;
 
 namespace RunescapeTools.Infrastructure.Training;
 
-internal sealed class TrainingSkillConfigurator(
-    TrainingConfigurationDefinition definition,
-    Func<TrainingMethodDefinition, TrainingConfigurationValues, TrainingMethodDefinition>? configure = null,
-    Func<TrainingMethodDefinition, TrainingConfigurationValues, bool>? includeHours = null)
-    : ITrainingSkillConfigurator
+internal sealed class TrainingSkillConfigurator : ITrainingSkillConfigurator
 {
-    public TrainingConfigurationDefinition Definition { get; } = definition;
+    private readonly Func<
+        TrainingMethodDefinition,
+        TrainingConfigurationValues,
+        TrainingCalculationContext,
+        TrainingMethodDefinition>? configure;
+    private readonly Func<TrainingMethodDefinition, TrainingConfigurationValues, bool>? includeHours;
+
+    public TrainingSkillConfigurator(
+        TrainingConfigurationDefinition definition,
+        Func<TrainingMethodDefinition, TrainingConfigurationValues, TrainingMethodDefinition>? configure = null,
+        Func<TrainingMethodDefinition, TrainingConfigurationValues, bool>? includeHours = null)
+    {
+        Definition = definition;
+        this.configure = configure is null
+            ? null
+            : (method, values, _) => configure(method, values);
+        this.includeHours = includeHours;
+    }
+
+    public TrainingSkillConfigurator(
+        TrainingConfigurationDefinition definition,
+        Func<
+            TrainingMethodDefinition,
+            TrainingConfigurationValues,
+            TrainingCalculationContext,
+            TrainingMethodDefinition> configure,
+        Func<TrainingMethodDefinition, TrainingConfigurationValues, bool>? includeHours = null)
+    {
+        Definition = definition;
+        this.configure = configure;
+        this.includeHours = includeHours;
+    }
+
+    public TrainingConfigurationDefinition Definition { get; }
 
     public TrainingMethodDefinition ConfigureMethod(
         TrainingMethodDefinition method,
-        TrainingConfigurationValues configuration) =>
-        configure?.Invoke(method, configuration) ?? method;
+        TrainingConfigurationValues configuration,
+        TrainingCalculationContext context) =>
+        configure?.Invoke(method, configuration, context) ?? method;
 
     public bool IncludeHours(
         TrainingMethodDefinition method,

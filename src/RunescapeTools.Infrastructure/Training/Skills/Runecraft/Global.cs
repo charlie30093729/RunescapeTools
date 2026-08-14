@@ -7,7 +7,10 @@ namespace RunescapeTools.Infrastructure.Training.Skills.Runecraft;
 internal static class RunecraftGlobal
 {
     public const string RaimentsOfTheEyeKey = "raiments-of-the-eye";
+    public const string UseDaeyaltEssenceKey = "use-daeyalt-essence";
+    public const string DaeyaltEssenceQuantityKey = "daeyalt-essence-quantity";
     public const long RunecraftCapeExperience = 13_034_431;
+    private const decimal DaeyaltExperienceMultiplier = 1.5m;
     private const decimal FullRaimentsBonusPerTenRunes = 6m;
     private const decimal DarkAltarBindingExperiencePerFragment = 0.625m;
     private const decimal ArceuusFragmentsPerCraft = 100m;
@@ -17,7 +20,9 @@ internal static class RunecraftGlobal
         "output but no Runecraft XP; aether bonus runes consume matching aether catalysts. Magic Imbue, " +
         "binding-necklace disposal, and pouch repair are priced where applicable. Pouch-repair runes " +
         "automatically stop at 13,034,431 XP when the Runecraft cape prevents further degradation. " +
-        "Reusable equipment and untradeable unlock costs are excluded.";
+        "Configured Daeyalt essence replaces pure essence in eligible segments and grants 50% bonus XP; " +
+        "dark-essence Arceuus segments are unaffected. Reusable equipment and untradeable unlock costs " +
+        "are excluded.";
 
     public static ITrainingSkillConfigurator Configurator { get; } =
         new TrainingSkillConfigurator(
@@ -28,7 +33,25 @@ internal static class RunecraftGlobal
                     "Full Raiments of the Eye",
                     TrainingConfigurationOptionKind.Toggle,
                     bool.TrueString,
-                    "Create 60% more runes without changing XP/hour or essence consumption.")
+                    "Create 60% more runes without changing XP/hour or essence consumption."),
+                new TrainingConfigurationOption(
+                    UseDaeyaltEssenceKey,
+                    "Use Daeyalt essence",
+                    TrainingConfigurationOptionKind.Toggle,
+                    bool.FalseString,
+                    "Replace pure essence with owned Daeyalt essence for 50% more Runecraft XP. " +
+                    "This does not apply to dark essence fragments."),
+                new TrainingConfigurationOption(
+                    DaeyaltEssenceQuantityKey,
+                    "Daeyalt essence available",
+                    TrainingConfigurationOptionKind.Number,
+                    string.Empty,
+                    "Optional. Leave blank for unlimited Daeyalt essence; otherwise the route returns " +
+                    "to pure essence after using this amount.",
+                    MinimumValue: 0m,
+                    MaximumValue: 1_000_000_000m,
+                    AllowsEmpty: true,
+                    WholeNumbersOnly: true)
             ]),
             ConfigureMethod);
 
@@ -36,7 +59,10 @@ internal static class RunecraftGlobal
         TrainingConfigurationValues? configuration = null)
     {
         var values = configuration ?? Configurator.Definition.Normalize();
-        return new RunecraftSettings(values.GetToggle(RaimentsOfTheEyeKey));
+        return new RunecraftSettings(
+            values.GetToggle(RaimentsOfTheEyeKey),
+            values.GetToggle(UseDaeyaltEssenceKey),
+            values.GetOptionalWholeNumber(DaeyaltEssenceQuantityKey));
     }
 
     public static decimal OutputPerLap(
@@ -102,10 +128,11 @@ internal static class RunecraftGlobal
 
     private static TrainingMethodDefinition ConfigureMethod(
         TrainingMethodDefinition method,
-        TrainingConfigurationValues values)
+        TrainingConfigurationValues values,
+        TrainingCalculationContext context)
     {
         var settings = ResolveSettings(values);
-        return method.Id switch
+        var configured = method.Id switch
         {
             "main-ehp" => Methods.SoloMudRunes.Create(settings),
             "solo-lava-runes" => Methods.SoloLavaRunes.Create(settings),
@@ -115,13 +142,127 @@ internal static class RunecraftGlobal
             "arceuus-soul-runes" => Methods.ArceuusSoulRunes.Create(settings),
             _ => method
         };
+
+        return ApplyDaeyaltEssence(configured, settings, context);
     }
 
-    internal readonly record struct RunecraftSettings(bool RaimentsOfTheEye);
+    private static TrainingMethodDefinition ApplyDaeyaltEssence(
+        TrainingMethodDefinition method,
+        RunecraftSettings settings,
+        TrainingCalculationContext context)
+    {
+        if (!settings.UseDaeyaltEssence || settings.DaeyaltEssenceQuantity is 0)
+            return method;
+
+        decimal? remainingEssence = settings.DaeyaltEssenceQuantity;
+        var ordered = method.Bands.OrderBy(band => band.StartExperience).ToArray();
+        var bands = new List<TrainingRateBand>(ordered.Length * 2);
+
+        for (var index = 0; index < ordered.Length; index++)
+        {
+            var band = ordered[index];
+            bands.Add(band);
+
+            var nextStart = index + 1 < ordered.Length
+                ? ordered[index + 1].StartExperience
+                : TrainingPlanCalculator.MaximumExperience;
+            var segmentStart = Math.Max(context.StartExperience, band.StartExperience);
+            var segmentEnd = Math.Min(context.TargetExperience, nextStart);
+            if (segmentEnd <= segmentStart || remainingEssence is <= 0m)
+                continue;
+
+            var pureEssence = band.Economics?.Resources.FirstOrDefault(resource =>
+                resource.ItemId == Items.PureEssence.Id
+                && resource.Direction == TrainingFlowDirection.Input
+                && resource.QuantityPerExperience > 0m);
+            if (pureEssence is null)
+                continue;
+
+            var segmentExperience = segmentEnd - segmentStart;
+            var availableDaeyaltExperience = remainingEssence.HasValue
+                ? decimal.Floor(
+                    remainingEssence.Value
+                    / pureEssence.QuantityPerExperience
+                    * DaeyaltExperienceMultiplier)
+                : segmentExperience;
+            var daeyaltExperience = (long)Math.Min(
+                segmentExperience,
+                Math.Max(0m, availableDaeyaltExperience));
+            if (daeyaltExperience <= 0)
+                continue;
+
+            bands.Add(CreateDaeyaltBand(band, segmentStart));
+            if (daeyaltExperience < segmentExperience)
+            {
+                bands.Add(band with
+                {
+                    StartExperience = segmentStart + daeyaltExperience
+                });
+            }
+
+            if (remainingEssence.HasValue)
+            {
+                remainingEssence = Math.Max(
+                    0m,
+                    remainingEssence.Value
+                    - daeyaltExperience
+                    * pureEssence.QuantityPerExperience
+                    / DaeyaltExperienceMultiplier);
+            }
+        }
+
+        return method with { Bands = bands };
+    }
+
+    private static TrainingRateBand CreateDaeyaltBand(
+        TrainingRateBand band,
+        long startExperience)
+    {
+        var economics = band.Economics;
+        return band with
+        {
+            StartExperience = startExperience,
+            ExperiencePerHour = band.ExperiencePerHour * DaeyaltExperienceMultiplier,
+            Method = $"{band.Method} - Daeyalt essence",
+            Economics = economics is null
+                ? null
+                : economics with
+                {
+                    Resources = economics.Resources.Select(resource =>
+                    {
+                        var scaled = resource with
+                        {
+                            QuantityPerExperience =
+                                resource.QuantityPerExperience / DaeyaltExperienceMultiplier
+                        };
+                        return resource.ItemId == Items.PureEssence.Id
+                               && resource.Direction == TrainingFlowDirection.Input
+                            ? scaled with
+                            {
+                                ItemId = Items.DaeyaltEssence.Id,
+                                Name = Items.DaeyaltEssence.Name,
+                                SubjectToGeTax = false,
+                                RequiresMarketPrice = false
+                            }
+                            : scaled;
+                    }).ToArray(),
+                    FixedGpPerExperience =
+                        economics.FixedGpPerExperience / DaeyaltExperienceMultiplier,
+                    FixedGpOutputPerExperience =
+                        economics.FixedGpOutputPerExperience / DaeyaltExperienceMultiplier
+                }
+        };
+    }
+
+    internal readonly record struct RunecraftSettings(
+        bool RaimentsOfTheEye,
+        bool UseDaeyaltEssence,
+        long? DaeyaltEssenceQuantity);
 
     private static class Items
     {
         public static readonly CatalogueItem PureEssence = new(7936, "Pure essence");
+        public static readonly CatalogueItem DaeyaltEssence = new(24704, "Daeyalt essence");
         public static readonly CatalogueItem BindingNecklace = new(5521, "Binding necklace");
         public static readonly CatalogueItem AstralRune = new(9075, "Astral rune");
         public static readonly CatalogueItem AirRune = new(556, "Air rune");
