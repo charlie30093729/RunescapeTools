@@ -123,6 +123,9 @@
                                                 <DataTrigger Binding="{Binding IsOutput}" Value="True">
                                                     <Setter Property="Foreground" Value="{StaticResource PositiveBrush}" />
                                                 </DataTrigger>
+                                                <DataTrigger Binding="{Binding IsSupplied}" Value="True">
+                                                    <Setter Property="Foreground" Value="{StaticResource GoldDarkBrush}" />
+                                                </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
                                     </TextBlock.Style>
@@ -200,7 +203,7 @@
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <TextBlock Text="Inputs use the latest high price; outputs use the latest low price. Quantities cover the complete calculated route to your current goal. Recent completed trades do not guarantee offer execution."
+            <TextBlock Text="Inputs use the latest high price; outputs use the latest low price. Untradeable configured stock is shown without a GP value. Quantities cover the complete calculated route to your current goal. Recent completed trades do not guarantee offer execution."
                        Foreground="{StaticResource MutedBrush}"
                        FontSize="12"
                        TextWrapping="Wrap"

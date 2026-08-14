@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using RunescapeTools.Core.Training;
@@ -29,11 +30,13 @@ public partial class TrainingConfigurationOptionViewModel : ObservableObject
         this.definition = definition;
         IsToggle = definition.Kind == TrainingConfigurationOptionKind.Toggle;
         IsChoice = definition.Kind == TrainingConfigurationOptionKind.Choice;
+        IsNumber = definition.Kind == TrainingConfigurationOptionKind.Number;
         IsApplicable = definition.AppliesTo(methodId);
         Choices = new ObservableCollection<TrainingConfigurationChoiceViewModel>(
             (definition.Choices ?? [])
             .Select(choice => new TrainingConfigurationChoiceViewModel(choice)));
         toggleValue = bool.TryParse(value, out var enabled) && enabled;
+        numberValue = IsNumber ? value : string.Empty;
         selectedChoice = Choices.FirstOrDefault(choice =>
                              string.Equals(
                                  choice.Value,
@@ -47,6 +50,7 @@ public partial class TrainingConfigurationOptionViewModel : ObservableObject
     public string? Description => definition.Description;
     public bool IsToggle { get; }
     public bool IsChoice { get; }
+    public bool IsNumber { get; }
     public bool IsApplicable { get; }
     public string AvailabilityMessage => IsApplicable
         ? string.Empty
@@ -59,10 +63,22 @@ public partial class TrainingConfigurationOptionViewModel : ObservableObject
     [ObservableProperty]
     private TrainingConfigurationChoiceViewModel? selectedChoice;
 
-    public string GetValue() =>
-        IsToggle
-            ? ToggleValue ? bool.TrueString : bool.FalseString
-            : SelectedChoice?.Value ?? definition.DefaultValue;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsValid))]
+    [NotifyPropertyChangedFor(nameof(ValidationMessage))]
+    private string numberValue = string.Empty;
+
+    public bool IsValid => !IsApplicable || !IsNumber || ValidateNumber() is null;
+    public string ValidationMessage => ValidateNumber() ?? string.Empty;
+
+    public string GetValue()
+    {
+        if (IsToggle)
+            return ToggleValue ? bool.TrueString : bool.FalseString;
+        if (IsChoice)
+            return SelectedChoice?.Value ?? definition.DefaultValue;
+        return NumberValue;
+    }
 
     public void Reset()
     {
@@ -74,6 +90,12 @@ public partial class TrainingConfigurationOptionViewModel : ObservableObject
             return;
         }
 
+        if (IsNumber)
+        {
+            NumberValue = definition.DefaultValue;
+            return;
+        }
+
         SelectedChoice = Choices.FirstOrDefault(choice =>
                              choice.IsEnabled
                              && string.Equals(
@@ -82,6 +104,27 @@ public partial class TrainingConfigurationOptionViewModel : ObservableObject
                                  StringComparison.OrdinalIgnoreCase))
                          ?? Choices.FirstOrDefault(choice => choice.IsEnabled);
     }
+
+    private string? ValidateNumber()
+    {
+        if (!IsNumber || !IsApplicable)
+            return null;
+        if (string.IsNullOrWhiteSpace(NumberValue))
+            return definition.AllowsEmpty ? null : "Enter a value.";
+        if (!TryParseNumber(NumberValue, out var number))
+            return "Enter a valid number.";
+        if (definition.WholeNumbersOnly && number != decimal.Truncate(number))
+            return "Enter a whole number.";
+        if (definition.MinimumValue.HasValue && number < definition.MinimumValue.Value)
+            return $"Minimum: {definition.MinimumValue.Value:N0}.";
+        if (definition.MaximumValue.HasValue && number > definition.MaximumValue.Value)
+            return $"Maximum: {definition.MaximumValue.Value:N0}.";
+        return null;
+    }
+
+    private static bool TryParseNumber(string value, out decimal number) =>
+        decimal.TryParse(value, NumberStyles.Number, CultureInfo.CurrentCulture, out number)
+        || decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out number);
 }
 
 public partial class TrainingConfigurationDialogViewModel : ObservableObject
@@ -105,12 +148,21 @@ public partial class TrainingConfigurationDialogViewModel : ObservableObject
                     option,
                     normalized.Values[option.Key],
                     methodId)));
+        foreach (var option in Options)
+        {
+            option.PropertyChanged += (_, args) =>
+            {
+                if (args.PropertyName == nameof(TrainingConfigurationOptionViewModel.IsValid))
+                    OnPropertyChanged(nameof(IsValid));
+            };
+        }
     }
 
     public string Skill { get; }
     public string Method { get; }
     public string Title => $"{Skill} configuration";
     public bool HasOptions => Options.Count > 0;
+    public bool IsValid => Options.All(option => option.IsValid);
     public ObservableCollection<TrainingConfigurationOptionViewModel> Options { get; }
 
     public Dictionary<string, string> ToValues() =>

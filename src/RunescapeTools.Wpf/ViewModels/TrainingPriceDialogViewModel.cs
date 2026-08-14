@@ -16,7 +16,8 @@ public partial class TrainingPriceItemRowViewModel(
     string unitPrice,
     string quoteDetail,
     bool isOutput,
-    bool hasPrice) : ObservableObject
+    bool hasPrice,
+    bool isSupplied = false) : ObservableObject
 {
     public int ItemId { get; } = itemId;
     public string Action { get; } = action;
@@ -28,6 +29,7 @@ public partial class TrainingPriceItemRowViewModel(
     public string QuoteDetail { get; } = quoteDetail;
     public bool IsOutput { get; } = isOutput;
     public bool HasPrice { get; } = hasPrice;
+    public bool IsSupplied { get; } = isSupplied;
 
     [ObservableProperty]
     private string? iconPath;
@@ -93,9 +95,25 @@ public sealed class TrainingPriceDialogViewModel
         TrainingResourceRequirement requirement,
         IReadOnlyDictionary<int, ItemPrice> prices)
     {
+        var isOutput = requirement.Direction == TrainingFlowDirection.Output;
+        if (!requirement.RequiresMarketPrice)
+        {
+            return new TrainingPriceItemRowViewModel(
+                requirement.ItemId,
+                "USE",
+                requirement.Name,
+                $"Item {requirement.ItemId}",
+                Math.Ceiling(requirement.Quantity).ToString("N0"),
+                "required from your stock",
+                "Untradeable",
+                "No Grand Exchange price is applied",
+                isOutput: false,
+                hasPrice: true,
+                isSupplied: true);
+        }
+
         prices.TryGetValue(requirement.ItemId, out var quote);
         var selected = TrainingMarketPricing.Select(requirement.Direction, quote);
-        var isOutput = requirement.Direction == TrainingFlowDirection.Output;
         var preferredSide = isOutput ? "low" : "high";
         var fallbackSide = isOutput ? "high" : "low";
         var unitPrice = selected.UnitPrice.HasValue

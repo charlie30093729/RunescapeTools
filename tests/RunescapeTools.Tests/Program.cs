@@ -67,6 +67,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Herblore alternatives preserve unlock routes and reviewed rates", () => RunSync(HerbloreAlternativeMethods)),
     ("practical buyable alternatives expose reviewed unlocks, rates, and economics", () => RunSync(PracticalBuyableMethods)),
     ("Runecraft alternatives and Raiments configuration preserve reviewed mechanics", () => RunSync(RunecraftAlternativeMethods)),
+    ("Runecraft Daeyalt configuration supports unlimited and finite stock", () => RunSync(RunecraftDaeyaltConfiguration)),
     ("phase-two methods expose reviewed unlocks, rates, and item flows", () => RunSync(PhaseTwoMethodCatalogue)),
     ("phase-two calculations reproduce reviewed resource totals and pricing", () => RunSync(PhaseTwoTrainingCalculations)),
     ("phase-three methods expose reviewed rates and Sailing item flows", () => RunSync(PhaseThreeMethodCatalogue)),
@@ -2140,6 +2141,142 @@ static void RunecraftAlternativeMethods()
         "base blood output without Raiments");
 }
 
+static void RunecraftDaeyaltConfiguration()
+{
+    const long startExperience = 13_034_431;
+    const long daeyaltExperience = 15_750;
+    var definition = new MainEhpCatalogue().Skills.Single(skill => skill.Skill == "Runecraft");
+    var calculator = new TrainingPlanCalculator();
+    var prices = new Dictionary<int, ItemPrice>
+    {
+        [7936] = Quote(7936, 1),
+        [5521] = Quote(5521, 1_000),
+        [9075] = Quote(9075, 100),
+        [557] = Quote(557, 5),
+        [4699] = Quote(4699, 20)
+    };
+    var unlimitedConfiguration = new Dictionary<string, string>
+    {
+        ["use-daeyalt-essence"] = bool.TrueString,
+        ["daeyalt-essence-quantity"] = string.Empty
+    };
+
+    var unlimited = calculator.Calculate(
+        definition,
+        startExperience,
+        startExperience + daeyaltExperience,
+        prices,
+        methodId: "solo-lava-runes",
+        configuration: unlimitedConfiguration);
+    EqualDecimal(153_150m, unlimited.BaseRate, "Daeyalt lava XP/hour");
+    EqualDecimal(daeyaltExperience / 153_150m, unlimited.Hours, "Daeyalt lava hours");
+    EqualDecimal(
+        1_000m,
+        unlimited.ResourceRequirements.Single(resource => resource.ItemId == 24704).Quantity,
+        "unlimited Daeyalt quantity",
+        0.000001m);
+    True(
+        !unlimited.ResourceRequirements.Single(resource => resource.ItemId == 24704).RequiresMarketPrice,
+        "Daeyalt is supplied untradeable stock");
+    True(
+        unlimited.ResourceRequirements.All(resource => resource.ItemId != 7936),
+        "unlimited Daeyalt replaces pure essence");
+    True(unlimited.IsFullyPriced, "Daeyalt does not require a GE quote");
+
+    var finite = calculator.Calculate(
+        definition,
+        startExperience,
+        startExperience + daeyaltExperience * 2,
+        prices,
+        methodId: "solo-lava-runes",
+        configuration: new Dictionary<string, string>
+        {
+            ["use-daeyalt-essence"] = bool.TrueString,
+            ["daeyalt-essence-quantity"] = "1,000"
+        });
+    Equal(2, finite.Bands.Count, "finite Daeyalt splits the calculated route");
+    Equal(daeyaltExperience, finite.Bands[0].Experience, "Daeyalt segment XP");
+    True(finite.Bands[0].Band.Method.EndsWith("Daeyalt essence", StringComparison.Ordinal), "Daeyalt segment label");
+    True(!finite.Bands[1].Band.Method.EndsWith("Daeyalt essence", StringComparison.Ordinal), "pure essence fallback label");
+    EqualDecimal(
+        daeyaltExperience / 153_150m + daeyaltExperience / 102_100m,
+        finite.Hours,
+        "finite Daeyalt then pure essence hours");
+    EqualDecimal(
+        1_000m,
+        finite.ResourceRequirements.Single(resource => resource.ItemId == 24704).Quantity,
+        "finite Daeyalt stock consumed",
+        0.000001m);
+    EqualDecimal(
+        1_500m,
+        finite.ResourceRequirements.Single(resource => resource.ItemId == 7936).Quantity,
+        "pure essence resumes after Daeyalt stock",
+        0.000001m);
+
+    var disabled = calculator.Calculate(
+        definition,
+        startExperience,
+        startExperience + daeyaltExperience,
+        prices,
+        methodId: "solo-lava-runes",
+        configuration: new Dictionary<string, string>
+        {
+            ["use-daeyalt-essence"] = bool.FalseString,
+            ["daeyalt-essence-quantity"] = "1,000"
+        });
+    EqualDecimal(102_100m, disabled.BaseRate, "disabled Daeyalt uses the normal rate");
+    True(disabled.ResourceRequirements.All(resource => resource.ItemId != 24704), "disabled Daeyalt is ignored");
+
+    var arceuus = calculator.Calculate(
+        definition,
+        1_475_581,
+        1_511_581,
+        new Dictionary<int, ItemPrice> { [565] = Quote(565, 1_000) },
+        methodId: "arceuus-blood-runes",
+        configuration: unlimitedConfiguration);
+    EqualDecimal(36_000m, arceuus.BaseRate, "Daeyalt does not alter dark-essence blood runes");
+    True(arceuus.ResourceRequirements.All(resource => resource.ItemId != 24704), "Arceuus route uses no Daeyalt");
+
+    var configurationDefinition = definition.Configurator!.Definition;
+    var defaults = configurationDefinition.Normalize();
+    Equal(bool.FalseString, defaults.Values["use-daeyalt-essence"], "Daeyalt toggle default");
+    Equal(string.Empty, defaults.Values["daeyalt-essence-quantity"], "blank Daeyalt quantity means unlimited");
+    var dialog = new TrainingConfigurationDialogViewModel(
+        "Runecraft",
+        "Solo lava runes",
+        configurationDefinition,
+        defaults.Values,
+        "solo-lava-runes");
+    var quantity = dialog.Options.Single(option => option.Key == "daeyalt-essence-quantity");
+    True(quantity.IsNumber && quantity.IsValid, "Daeyalt quantity is an optional numeric field");
+    quantity.NumberValue = "1,000";
+    True(quantity.IsValid, "formatted whole-number Daeyalt quantity is valid");
+    Equal("1000", dialog.ToValues()["daeyalt-essence-quantity"], "Daeyalt quantity normalizes for persistence");
+    quantity.NumberValue = "1.5";
+    True(!quantity.IsValid && !dialog.IsValid, "fractional Daeyalt quantities are rejected");
+
+    var priceDialog = new TrainingPriceDialogViewModel("Runecraft", unlimited, prices);
+    var daeyaltRow = priceDialog.Items.Single(item => item.ItemId == 24704);
+    Equal("USE", daeyaltRow.Action, "Daeyalt stock action");
+    Equal("Untradeable", daeyaltRow.UnitPrice, "Daeyalt stock has no GE price");
+
+    var plannerRow = new XpPlannerRowViewModel(
+        definition,
+        calculator,
+        startExperience,
+        null,
+        prices,
+        () => { });
+    plannerRow.ApplyConfiguration(new Dictionary<string, string>
+    {
+        ["use-daeyalt-essence"] = bool.TrueString,
+        ["daeyalt-essence-quantity"] = "1,000"
+    });
+    var savedConfiguration = plannerRow.ToPreference().Configuration!;
+    Equal(bool.TrueString, savedConfiguration["use-daeyalt-essence"], "Daeyalt toggle persists per profile");
+    Equal("1000", savedConfiguration["daeyalt-essence-quantity"], "Daeyalt quantity persists per profile");
+}
+
 static void PhaseTwoMethodCatalogue()
 {
     var catalogue = new MainEhpCatalogue();
@@ -3171,16 +3308,16 @@ static Task WpfViewsConstruct()
             };
             window.Show();
             plannerView.UpdateLayout();
-            var farmingConfiguration = new MainEhpCatalogue().Skills
-                .Single(skill => skill.Skill == "Farming")
+            var runecraftConfiguration = new MainEhpCatalogue().Skills
+                .Single(skill => skill.Skill == "Runecraft")
                 .Configurator!;
             var configurationDialog = new TrainingConfigurationDialog(
                 new TrainingConfigurationDialogViewModel(
-                    "Farming",
-                    "Magic + dragonfruit tree runs",
-                    farmingConfiguration.Definition,
-                    farmingConfiguration.Definition.Normalize().Values,
-                    "main-ehp"))
+                    "Runecraft",
+                    "Solo lava runes",
+                    runecraftConfiguration.Definition,
+                    runecraftConfiguration.Definition.Normalize().Values,
+                    "solo-lava-runes"))
             {
                 Owner = window
             };
