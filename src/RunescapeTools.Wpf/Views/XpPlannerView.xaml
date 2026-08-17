@@ -287,7 +287,7 @@
                                     <Grid Grid.Column="4" Margin="0,9,8,9">
                                         <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="28" /></Grid.ColumnDefinitions>
                                         <TextBox Text="{Binding PersonalRate, UpdateSourceTrigger=LostFocus, StringFormat=0}"
-                                                 ToolTip="Personal base XP/hour. Selected XP bonuses are applied on top."
+                                                 ToolTip="Enter your personal base XP/hour. The active configured XP bonuses are then applied and displayed here."
                                                  Style="{StaticResource Input}"
                                                  Padding="8,5"
                                                  FontSize="12"

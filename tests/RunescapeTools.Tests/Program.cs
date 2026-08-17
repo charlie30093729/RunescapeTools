@@ -2277,7 +2277,7 @@ static void RunecraftDaeyaltConfiguration()
     Equal(bool.TrueString, savedConfiguration["use-daeyalt-essence"], "Daeyalt toggle persists per profile");
     Equal("1000", savedConfiguration["daeyalt-essence-quantity"], "Daeyalt quantity persists per profile");
     plannerRow.PersonalRate = 100_000m;
-    EqualDecimal(100_000m, plannerRow.PersonalRate, "planner keeps the typed Runecraft base rate");
+    EqualDecimal(150_000m, plannerRow.PersonalRate, "planner displays the Daeyalt-adjusted personal rate");
     EqualDecimal(150_000m, plannerRow.Result.EffectiveRate, "planner applies Daeyalt to the typed rate");
     EqualDecimal(
         100_000m,
@@ -2288,7 +2288,31 @@ static void RunecraftDaeyaltConfiguration()
         ["use-daeyalt-essence"] = bool.FalseString,
         ["daeyalt-essence-quantity"] = "1,000"
     });
+    EqualDecimal(100_000m, plannerRow.PersonalRate, "disabling Daeyalt displays the personal base rate");
     EqualDecimal(100_000m, plannerRow.Result.EffectiveRate, "disabling Daeyalt preserves the typed base rate");
+
+    var natureRow = new XpPlannerRowViewModel(
+        definition,
+        calculator,
+        startExperience,
+        null,
+        prices,
+        () => { });
+    natureRow.SelectedMethodOption = natureRow.MethodOptions.Single(option =>
+        option.Id == "achievement-cape-double-nature-runes");
+    natureRow.PersonalRate = 75_000m;
+    EqualDecimal(75_000m, natureRow.PersonalRate, "double-nature custom rate before Daeyalt");
+    natureRow.ApplyConfiguration(new Dictionary<string, string>
+    {
+        ["use-daeyalt-essence"] = bool.TrueString,
+        ["daeyalt-essence-quantity"] = string.Empty
+    });
+    EqualDecimal(112_500m, natureRow.PersonalRate, "double-nature XP/hour displays the Daeyalt bonus");
+    EqualDecimal(112_500m, natureRow.Result.EffectiveRate, "double-nature calculation uses the Daeyalt bonus");
+    EqualDecimal(
+        75_000m,
+        natureRow.ToPreference().ExperiencePerHourOverride ?? 0m,
+        "double-nature plan persists the pre-Daeyalt personal base rate");
 }
 
 static void PhaseTwoMethodCatalogue()

@@ -47,6 +47,7 @@ public partial class XpPlannerRowViewModel : ObservableObject
     private IReadOnlyDictionary<int, ItemPrice> prices;
     private long pendingExperienceCredit;
     private bool hasPersonalRateOverride;
+    private decimal personalBaseRate;
     private bool suppressChanges;
 
     [ObservableProperty]
@@ -135,9 +136,10 @@ public partial class XpPlannerRowViewModel : ObservableObject
             methodId: selectedMethodOption.Id,
             configuration: ConfigurationValues);
         hasPersonalRateOverride = preference?.ExperiencePerHourOverride is > 0m;
-        personalRate = hasPersonalRateOverride
+        personalBaseRate = hasPersonalRateOverride
             ? preference!.ExperiencePerHourOverride!.Value
-            : baseline.BaseRate;
+            : UnconfiguredBaseRate(baseline);
+        personalRate = hasPersonalRateOverride ? personalBaseRate : baseline.BaseRate;
         Recalculate();
     }
 
@@ -154,7 +156,7 @@ public partial class XpPlannerRowViewModel : ObservableObject
 
     public TrainingSkillPreference ToPreference()
     {
-        decimal? rateOverride = hasPersonalRateOverride ? PersonalRate : null;
+        decimal? rateOverride = hasPersonalRateOverride ? personalBaseRate : null;
         return new TrainingSkillPreference(
             Skill,
             TargetExperience,
@@ -209,6 +211,7 @@ public partial class XpPlannerRowViewModel : ObservableObject
         if (!hasPersonalRateOverride)
         {
             suppressChanges = true;
+            personalBaseRate = UnconfiguredBaseRate(baseline);
             PersonalRate = baseline.BaseRate;
             suppressChanges = false;
         }
@@ -243,6 +246,7 @@ public partial class XpPlannerRowViewModel : ObservableObject
                 methodId: SelectedMethodOption?.Id,
                 pendingExperienceCredit: pendingExperienceCredit,
                 configuration: ConfigurationValues);
+            personalBaseRate = UnconfiguredBaseRate(baseline);
             PersonalRate = baseline.BaseRate;
         }
         finally
@@ -270,6 +274,7 @@ public partial class XpPlannerRowViewModel : ObservableObject
                 pendingExperienceCredit: pendingExperienceCredit,
                 configuration: ConfigurationValues);
             suppressChanges = true;
+            personalBaseRate = UnconfiguredBaseRate(baseline);
             PersonalRate = baseline.BaseRate;
             suppressChanges = false;
         }
@@ -280,7 +285,10 @@ public partial class XpPlannerRowViewModel : ObservableObject
     partial void OnPersonalRateChanged(decimal value)
     {
         if (!suppressChanges)
+        {
             hasPersonalRateOverride = value > 0m;
+            personalBaseRate = value;
+        }
         ChangedAndRecalculate();
     }
     partial void OnIsMoneyMakingSelectedChanged(bool value) => changed();
@@ -299,6 +307,7 @@ public partial class XpPlannerRowViewModel : ObservableObject
             configuration: ConfigurationValues);
         suppressChanges = true;
         hasPersonalRateOverride = false;
+        personalBaseRate = UnconfiguredBaseRate(baseline);
         PersonalRate = baseline.BaseRate;
         suppressChanges = false;
         ChangedAndRecalculate();
@@ -322,13 +331,20 @@ public partial class XpPlannerRowViewModel : ObservableObject
                 StartExperience,
                 TargetExperience,
                 prices,
-                hasPersonalRateOverride && PersonalRate > 0m ? PersonalRate : null,
+                hasPersonalRateOverride && personalBaseRate > 0m ? personalBaseRate : null,
                 SelectedMethodOption?.Id,
                 pendingExperienceCredit: pendingExperienceCredit,
                 configuration: ConfigurationValues);
 
-            if (!hasPersonalRateOverride)
+            if (hasPersonalRateOverride)
+            {
+                PersonalRate = Result.EffectiveRate;
+            }
+            else
+            {
+                personalBaseRate = UnconfiguredBaseRate(Result);
                 PersonalRate = Result.BaseRate;
+            }
 
             foreach (var option in MethodOptions)
                 option.UpdateName(
@@ -369,6 +385,18 @@ public partial class XpPlannerRowViewModel : ObservableObject
         {
             suppressChanges = false;
         }
+    }
+
+    private static decimal UnconfiguredBaseRate(TrainingSkillPlanResult result)
+    {
+        var activeBand = result.Method.Bands
+            .OrderBy(band => band.StartExperience)
+            .LastOrDefault(band => band.StartExperience <= result.EffectiveStartExperience)
+            ?? result.Method.Bands.FirstOrDefault();
+        var multiplier = activeBand?.ConfigurationRateMultiplier is > 0m
+            ? activeBand.ConfigurationRateMultiplier
+            : 1m;
+        return result.BaseRate / multiplier;
     }
 
 }
@@ -748,4 +776,5 @@ public partial class XpPlannerViewModel : ObservableObject, IPageViewModel
             SaveStatus = "Could not save changes";
         }
     }
+
 }
