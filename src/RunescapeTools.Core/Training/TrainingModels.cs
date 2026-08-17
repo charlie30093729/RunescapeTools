@@ -34,7 +34,8 @@ public sealed record TrainingRateBand(
     long StartExperience,
     decimal ExperiencePerHour,
     string Method,
-    TrainingEconomics? Economics = null);
+    TrainingEconomics? Economics = null,
+    decimal ConfigurationRateMultiplier = 1m);
 
 public sealed record TrainingMethodDefinition(
     string Id,
@@ -160,14 +161,21 @@ public sealed class TrainingPlanCalculator
         var activeBand = ordered.LastOrDefault(band => band.StartExperience <= effectiveStart)
                          ?? ordered.FirstOrDefault();
         var baseRate = activeBand?.ExperiencePerHour ?? 0m;
-        var multiplier = personalRate is > 0m && baseRate > 0m
-            ? personalRate.Value / baseRate
+        var activeConfigurationMultiplier = activeBand?.ConfigurationRateMultiplier is > 0m
+            ? activeBand.ConfigurationRateMultiplier
             : 1m;
+        var unconfiguredBaseRate = baseRate / activeConfigurationMultiplier;
+        var personalRateMultiplier = personalRate is > 0m && unconfiguredBaseRate > 0m
+            ? personalRate.Value / unconfiguredBaseRate
+            : 1m;
+        var effectiveRate = personalRate is > 0m
+            ? personalRate.Value * activeConfigurationMultiplier
+            : baseRate;
 
         if (target == effectiveStart || ordered.Length == 0)
         {
             return new TrainingSkillPlanResult(
-                definition, method, start, target, baseRate, personalRate ?? baseRate, 0m, 0m,
+                definition, method, start, target, baseRate, effectiveRate, 0m, 0m,
                 target - effectiveStart, false, false, [], [], appliedCredit,
                 new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase),
                 includesActiveHours);
@@ -196,7 +204,7 @@ public sealed class TrainingPlanCalculator
                 continue;
 
             var experience = segmentEnd - segmentStart;
-            var effectiveBandRate = band.ExperiencePerHour * multiplier;
+            var effectiveBandRate = band.ExperiencePerHour * personalRateMultiplier;
             var hours = effectiveBandRate > 0m ? experience / effectiveBandRate : 0m;
             calculationHours += hours;
 
@@ -303,7 +311,7 @@ public sealed class TrainingPlanCalculator
             start,
             target,
             baseRate,
-            personalRate ?? baseRate,
+            effectiveRate,
             includesActiveHours ? calculationHours : 0m,
             hasAnyPrice ? totalGp : null,
             pricedExperience,

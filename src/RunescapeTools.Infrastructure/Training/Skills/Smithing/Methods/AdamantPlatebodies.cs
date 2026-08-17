@@ -23,7 +23,12 @@ internal static class AdamantPlatebodies
             [
                 Input(Items.AdamantiteBar, 5m / ExperiencePerPlatebody),
                 Output(Items.AdamantPlatebody, 1m / ExperiencePerPlatebody)
-            ]));
+            ])) with
+        {
+            ConfigurationRateMultiplier = smithsUniform
+                ? UniformExperiencePerHour / BaseExperiencePerHour
+                : 1m
+        };
 
         return new TrainingMethodDefinition(
             "adamant-platebodies",

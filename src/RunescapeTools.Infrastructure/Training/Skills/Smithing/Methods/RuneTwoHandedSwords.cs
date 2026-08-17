@@ -24,7 +24,12 @@ internal static class RuneTwoHandedSwords
             [
                 Input(Items.RuniteBar, 3m / ExperiencePerSword),
                 Output(Items.Rune2hSword, 1m / ExperiencePerSword)
-            ]));
+            ])) with
+        {
+            ConfigurationRateMultiplier = smithsUniform
+                ? StandardCycleTicks / UniformCycleTicks
+                : 1m
+        };
 
         return new TrainingMethodDefinition(
             "rune-2h-swords",

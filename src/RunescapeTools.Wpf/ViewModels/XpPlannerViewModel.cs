@@ -46,6 +46,7 @@ public partial class XpPlannerRowViewModel : ObservableObject
     private readonly Action<XpPlannerRowViewModel>? showPricing;
     private IReadOnlyDictionary<int, ItemPrice> prices;
     private long pendingExperienceCredit;
+    private bool hasPersonalRateOverride;
     private bool suppressChanges;
 
     [ObservableProperty]
@@ -133,7 +134,10 @@ public partial class XpPlannerRowViewModel : ObservableObject
             prices,
             methodId: selectedMethodOption.Id,
             configuration: ConfigurationValues);
-        personalRate = preference?.ExperiencePerHourOverride ?? baseline.BaseRate;
+        hasPersonalRateOverride = preference?.ExperiencePerHourOverride is > 0m;
+        personalRate = hasPersonalRateOverride
+            ? preference!.ExperiencePerHourOverride!.Value
+            : baseline.BaseRate;
         Recalculate();
     }
 
@@ -150,9 +154,7 @@ public partial class XpPlannerRowViewModel : ObservableObject
 
     public TrainingSkillPreference ToPreference()
     {
-        decimal? rateOverride = Result.BaseRate > 0m && Math.Abs(PersonalRate - Result.BaseRate) < 0.001m
-            ? null
-            : PersonalRate;
+        decimal? rateOverride = hasPersonalRateOverride ? PersonalRate : null;
         return new TrainingSkillPreference(
             Skill,
             TargetExperience,
@@ -195,8 +197,6 @@ public partial class XpPlannerRowViewModel : ObservableObject
         if (definition is null)
             return;
 
-        var wasUsingCatalogueRate = Result is not null
-                                    && Math.Abs(PersonalRate - Result.BaseRate) < 0.001m;
         ConfigurationValues = definition.Normalize(values).ToDictionary();
         var baseline = calculator.Calculate(
             Definition,
@@ -206,7 +206,7 @@ public partial class XpPlannerRowViewModel : ObservableObject
             methodId: SelectedMethodOption?.Id,
             pendingExperienceCredit: pendingExperienceCredit,
             configuration: ConfigurationValues);
-        if (wasUsingCatalogueRate)
+        if (!hasPersonalRateOverride)
         {
             suppressChanges = true;
             PersonalRate = baseline.BaseRate;
@@ -234,6 +234,7 @@ public partial class XpPlannerRowViewModel : ObservableObject
             ConfigurationValues =
                 Definition.Configurator?.Definition.Normalize().ToDictionary()
                 ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            hasPersonalRateOverride = false;
             var baseline = calculator.Calculate(
                 Definition,
                 StartExperience,
@@ -258,9 +259,7 @@ public partial class XpPlannerRowViewModel : ObservableObject
         if (suppressChanges)
             return;
 
-        var wasUsingCatalogueRate = Result is not null
-                                    && Math.Abs(PersonalRate - Result.BaseRate) < 0.001m;
-        if (wasUsingCatalogueRate)
+        if (!hasPersonalRateOverride)
         {
             var baseline = calculator.Calculate(
                 Definition,
@@ -278,7 +277,12 @@ public partial class XpPlannerRowViewModel : ObservableObject
         ChangedAndRecalculate();
     }
     partial void OnTargetExperienceChanged(long value) => ChangedAndRecalculate();
-    partial void OnPersonalRateChanged(decimal value) => ChangedAndRecalculate();
+    partial void OnPersonalRateChanged(decimal value)
+    {
+        if (!suppressChanges)
+            hasPersonalRateOverride = value > 0m;
+        ChangedAndRecalculate();
+    }
     partial void OnIsMoneyMakingSelectedChanged(bool value) => changed();
     partial void OnSelectedMethodOptionChanged(TrainingMethodOptionViewModel? value)
     {
@@ -294,6 +298,7 @@ public partial class XpPlannerRowViewModel : ObservableObject
             pendingExperienceCredit: pendingExperienceCredit,
             configuration: ConfigurationValues);
         suppressChanges = true;
+        hasPersonalRateOverride = false;
         PersonalRate = baseline.BaseRate;
         suppressChanges = false;
         ChangedAndRecalculate();
@@ -317,10 +322,13 @@ public partial class XpPlannerRowViewModel : ObservableObject
                 StartExperience,
                 TargetExperience,
                 prices,
-                PersonalRate > 0m ? PersonalRate : null,
+                hasPersonalRateOverride && PersonalRate > 0m ? PersonalRate : null,
                 SelectedMethodOption?.Id,
                 pendingExperienceCredit: pendingExperienceCredit,
                 configuration: ConfigurationValues);
+
+            if (!hasPersonalRateOverride)
+                PersonalRate = Result.BaseRate;
 
             foreach (var option in MethodOptions)
                 option.UpdateName(
