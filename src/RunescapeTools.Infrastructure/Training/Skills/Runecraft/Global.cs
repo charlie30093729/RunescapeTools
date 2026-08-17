@@ -223,6 +223,8 @@ internal static class RunecraftGlobal
         {
             StartExperience = startExperience,
             ExperiencePerHour = band.ExperiencePerHour * DaeyaltExperienceMultiplier,
+            ConfigurationRateMultiplier =
+                band.ConfigurationRateMultiplier * DaeyaltExperienceMultiplier,
             Method = $"{band.Method} - Daeyalt essence",
             Economics = economics is null
                 ? null

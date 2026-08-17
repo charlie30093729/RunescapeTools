@@ -77,6 +77,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Slayer credit reduces zero-time Magic cost without changing profile XP", () => RunSync(CombatDependencyCalculations)),
     ("Construction route reproduces Main EHP hours and live-price economics", () => RunSync(ConstructionTrainingCalculation)),
     ("training rate overrides scale hours without changing total resources", () => RunSync(TrainingRateOverride)),
+    ("configured XP gains apply on top of personal base rates", () => RunSync(ConfiguredTrainingRateOverrides)),
     ("hourly training costs respond to personal rate overrides", () => RunSync(HourlyTrainingEconomics)),
     ("money-maker profit applies only to selected non-negative skill hours", () => RunSync(TrainingMoneyMakerAllocation)),
     ("training plans persist independently per RSN", TrainingPlanPersistence),
@@ -2275,6 +2276,43 @@ static void RunecraftDaeyaltConfiguration()
     var savedConfiguration = plannerRow.ToPreference().Configuration!;
     Equal(bool.TrueString, savedConfiguration["use-daeyalt-essence"], "Daeyalt toggle persists per profile");
     Equal("1000", savedConfiguration["daeyalt-essence-quantity"], "Daeyalt quantity persists per profile");
+    plannerRow.PersonalRate = 100_000m;
+    EqualDecimal(150_000m, plannerRow.PersonalRate, "planner displays the Daeyalt-adjusted personal rate");
+    EqualDecimal(150_000m, plannerRow.Result.EffectiveRate, "planner applies Daeyalt to the typed rate");
+    EqualDecimal(
+        100_000m,
+        plannerRow.ToPreference().ExperiencePerHourOverride ?? 0m,
+        "planner persists the personal base rate");
+    plannerRow.ApplyConfiguration(new Dictionary<string, string>
+    {
+        ["use-daeyalt-essence"] = bool.FalseString,
+        ["daeyalt-essence-quantity"] = "1,000"
+    });
+    EqualDecimal(100_000m, plannerRow.PersonalRate, "disabling Daeyalt displays the personal base rate");
+    EqualDecimal(100_000m, plannerRow.Result.EffectiveRate, "disabling Daeyalt preserves the typed base rate");
+
+    var natureRow = new XpPlannerRowViewModel(
+        definition,
+        calculator,
+        startExperience,
+        null,
+        prices,
+        () => { });
+    natureRow.SelectedMethodOption = natureRow.MethodOptions.Single(option =>
+        option.Id == "achievement-cape-double-nature-runes");
+    natureRow.PersonalRate = 75_000m;
+    EqualDecimal(75_000m, natureRow.PersonalRate, "double-nature custom rate before Daeyalt");
+    natureRow.ApplyConfiguration(new Dictionary<string, string>
+    {
+        ["use-daeyalt-essence"] = bool.TrueString,
+        ["daeyalt-essence-quantity"] = string.Empty
+    });
+    EqualDecimal(112_500m, natureRow.PersonalRate, "double-nature XP/hour displays the Daeyalt bonus");
+    EqualDecimal(112_500m, natureRow.Result.EffectiveRate, "double-nature calculation uses the Daeyalt bonus");
+    EqualDecimal(
+        75_000m,
+        natureRow.ToPreference().ExperiencePerHourOverride ?? 0m,
+        "double-nature plan persists the pre-Daeyalt personal base rate");
 }
 
 static void PhaseTwoMethodCatalogue()
@@ -2827,6 +2865,86 @@ static void TrainingRateOverride()
 
     EqualDecimal(baseline.Hours / 2m, doubled.Hours, "double-rate hours", 0.0001m);
     EqualDecimal(baseline.NetGp ?? 0m, doubled.NetGp ?? 0m, "rate override total GP", 0.01m);
+}
+
+static void ConfiguredTrainingRateOverrides()
+{
+    var catalogue = new MainEhpCatalogue();
+    var calculator = new TrainingPlanCalculator();
+
+    var runecraft = catalogue.Skills.Single(skill => skill.Skill == "Runecraft");
+    const long runecraftStart = 13_034_431;
+    const long daeyaltExperience = 15_750;
+    var runecraftResult = calculator.Calculate(
+        runecraft,
+        runecraftStart,
+        runecraftStart + daeyaltExperience * 2,
+        new Dictionary<int, ItemPrice>
+        {
+            [7936] = Quote(7936, 1),
+            [5521] = Quote(5521, 1_000),
+            [9075] = Quote(9075, 100),
+            [557] = Quote(557, 5),
+            [4699] = Quote(4699, 20)
+        },
+        personalRate: 100_000m,
+        methodId: "solo-lava-runes",
+        configuration: new Dictionary<string, string>
+        {
+            ["use-daeyalt-essence"] = bool.TrueString,
+            ["daeyalt-essence-quantity"] = "1000"
+        });
+    EqualDecimal(150_000m, runecraftResult.EffectiveRate, "Daeyalt personal effective rate");
+    EqualDecimal(
+        daeyaltExperience / 150_000m + daeyaltExperience / 100_000m,
+        runecraftResult.Hours,
+        "Daeyalt custom rate applies only while its stock lasts");
+
+    var firemaking = calculator.Calculate(
+        catalogue.Skills.Single(skill => skill.Skill == "Firemaking"),
+        13_034_431,
+        13_034_431 + 246_000,
+        new Dictionary<int, ItemPrice>(),
+        personalRate: 240_000m,
+        methodId: "redwood-logs",
+        configuration: new Dictionary<string, string>
+        {
+            ["pyromancer-outfit"] = bool.TrueString,
+            ["bonfire"] = bool.FalseString
+        });
+    EqualDecimal(246_000m, firemaking.EffectiveRate, "Pyromancer personal effective rate");
+    EqualDecimal(1m, firemaking.Hours, "Pyromancer custom-rate hours", 0.000001m);
+
+    var construction = calculator.Calculate(
+        catalogue.Skills.Single(skill => skill.Skill == "Construction"),
+        13_034_431,
+        14_059_431,
+        new Dictionary<int, ItemPrice>(),
+        personalRate: 1_000_000m,
+        configuration: new Dictionary<string, string>
+        {
+            ["carpenters-outfit"] = bool.TrueString
+        });
+    EqualDecimal(1_025_000m, construction.EffectiveRate, "Carpenter personal effective rate");
+    EqualDecimal(1m, construction.Hours, "Carpenter custom-rate hours", 0.000001m);
+
+    var smithing = calculator.Calculate(
+        catalogue.Skills.Single(skill => skill.Skill == "Smithing"),
+        4_382_299,
+        4_707_299,
+        new Dictionary<int, ItemPrice>(),
+        personalRate: 260_400m,
+        methodId: "adamant-platebodies",
+        configuration: new Dictionary<string, string>
+        {
+            ["smiths-uniform"] = bool.TrueString
+        });
+    EqualDecimal(
+        325_000m,
+        smithing.EffectiveRate,
+        "Smiths' uniform personal effective rate",
+        0.000001m);
+    EqualDecimal(1m, smithing.Hours, "Smiths' uniform custom-rate hours", 0.000001m);
 }
 
 static void HourlyTrainingEconomics()

@@ -69,6 +69,8 @@ internal static class TrainingConfigurationTransforms
                         ? band with
                         {
                             ExperiencePerHour = band.ExperiencePerHour * multiplier,
+                            ConfigurationRateMultiplier =
+                                band.ConfigurationRateMultiplier * multiplier,
                             Economics = ScaleEconomics(band.Economics, multiplier)
                         }
                         : band)

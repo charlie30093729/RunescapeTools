@@ -286,7 +286,12 @@
                                     </StackPanel>
                                     <Grid Grid.Column="4" Margin="0,9,8,9">
                                         <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="28" /></Grid.ColumnDefinitions>
-                                        <TextBox Text="{Binding PersonalRate, UpdateSourceTrigger=LostFocus, StringFormat=0}" Style="{StaticResource Input}" Padding="8,5" FontSize="12" VerticalContentAlignment="Center" />
+                                        <TextBox Text="{Binding PersonalRate, UpdateSourceTrigger=LostFocus, StringFormat=0}"
+                                                 ToolTip="Enter your personal base XP/hour. The active configured XP bonuses are then applied and displayed here."
+                                                 Style="{StaticResource Input}"
+                                                 Padding="8,5"
+                                                 FontSize="12"
+                                                 VerticalContentAlignment="Center" />
                                         <Button Grid.Column="1" Content="↺" Command="{Binding ResetSkillCommand}" Style="{StaticResource TextButton}" Margin="3,0,0,0" Padding="0" FontSize="16" ToolTip="Reset this skill to profile XP, a 200m goal, the selected method's original rate, and no money-making allocation" AutomationProperties.Name="Reset skill plan" />
                                     </Grid>
                                     <TextBlock Grid.Column="5" Text="{Binding Hours}" FontFamily="Georgia" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" />
