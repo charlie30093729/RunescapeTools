@@ -7,6 +7,7 @@ namespace RunescapeTools.Infrastructure.Training.Skills.Runecraft;
 internal static class RunecraftGlobal
 {
     public const string RaimentsOfTheEyeKey = "raiments-of-the-eye";
+    public const string ArdougneMediumDiaryKey = "ardougne-medium-diary";
     public const string UseDaeyaltEssenceKey = "use-daeyalt-essence";
     public const string DaeyaltEssenceQuantityKey = "daeyalt-essence-quantity";
     public const long RunecraftCapeExperience = 13_034_431;
@@ -21,8 +22,8 @@ internal static class RunecraftGlobal
         "binding-necklace disposal, and pouch repair are priced where applicable. Pouch-repair runes " +
         "automatically stop at 13,034,431 XP when the Runecraft cape prevents further degradation. " +
         "Configured Daeyalt essence replaces pure essence in eligible segments and grants 50% bonus XP; " +
-        "dark-essence Arceuus segments are unaffected. Reusable equipment and untradeable unlock costs " +
-        "are excluded.";
+        "dark-essence Arceuus segments are unaffected. The saved Ardougne medium diary setting applies " +
+        "only to Ourania Altar output. Reusable equipment and untradeable unlock costs are excluded.";
 
     public static ITrainingSkillConfigurator Configurator { get; } =
         new TrainingSkillConfigurator(
@@ -34,6 +35,13 @@ internal static class RunecraftGlobal
                     TrainingConfigurationOptionKind.Toggle,
                     bool.TrueString,
                     "Create 60% more runes without changing XP/hour or essence consumption."),
+                new TrainingConfigurationOption(
+                    ArdougneMediumDiaryKey,
+                    "Ardougne medium diary",
+                    TrainingConfigurationOptionKind.Toggle,
+                    bool.TrueString,
+                    "Apply the diary's type-specific chance to create a bonus rune at the Ourania Altar. " +
+                    "This changes rune output but not XP/hour."),
                 new TrainingConfigurationOption(
                     UseDaeyaltEssenceKey,
                     "Use Daeyalt essence",
@@ -61,6 +69,7 @@ internal static class RunecraftGlobal
         var values = configuration ?? Configurator.Definition.Normalize();
         return new RunecraftSettings(
             values.GetToggle(RaimentsOfTheEyeKey),
+            values.GetToggle(ArdougneMediumDiaryKey),
             values.GetToggle(UseDaeyaltEssenceKey),
             values.GetOptionalWholeNumber(DaeyaltEssenceQuantityKey));
     }
@@ -140,6 +149,7 @@ internal static class RunecraftGlobal
             "achievement-cape-double-nature-runes" => Methods.AchievementCapeNatureRunes.Create(settings),
             "arceuus-blood-runes" => Methods.ArceuusBloodRunes.Create(settings),
             "arceuus-soul-runes" => Methods.ArceuusSoulRunes.Create(settings),
+            "ourania-altar-zmi" => Methods.OuraniaAltarZmi.Create(settings),
             _ => method
         };
 
@@ -258,6 +268,7 @@ internal static class RunecraftGlobal
 
     internal readonly record struct RunecraftSettings(
         bool RaimentsOfTheEye,
+        bool ArdougneMediumDiary,
         bool UseDaeyaltEssence,
         long? DaeyaltEssenceQuantity);
 

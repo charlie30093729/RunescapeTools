@@ -67,6 +67,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Herblore alternatives preserve unlock routes and reviewed rates", () => RunSync(HerbloreAlternativeMethods)),
     ("practical buyable alternatives expose reviewed unlocks, rates, and economics", () => RunSync(PracticalBuyableMethods)),
     ("Runecraft alternatives and Raiments configuration preserve reviewed mechanics", () => RunSync(RunecraftAlternativeMethods)),
+    ("Ourania Altar exposes level-banded ZMI rates, outputs, and Daeyalt", () => RunSync(OuraniaAltarZmiMethod)),
     ("Runecraft Daeyalt configuration supports unlimited and finite stock", () => RunSync(RunecraftDaeyaltConfiguration)),
     ("phase-two methods expose reviewed unlocks, rates, and item flows", () => RunSync(PhaseTwoMethodCatalogue)),
     ("phase-two calculations reproduce reviewed resource totals and pricing", () => RunSync(PhaseTwoTrainingCalculations)),
@@ -1129,7 +1130,7 @@ static void EhpCatalogueCoverage()
         {
             "Herblore" => 3,
             "Smithing" => 3,
-            "Runecraft" => 6,
+            "Runecraft" => 7,
             "Hunter" => 3,
             "Farming" or "Cooking" or "Firemaking" => 2,
             "Prayer" or "Fletching" or "Crafting" or "Construction" => 2,
@@ -1941,7 +1942,7 @@ static void RunecraftAlternativeMethods()
     var emptyPrices = new Dictionary<int, ItemPrice>();
 
     Equal(
-        "main-ehp|solo-lava-runes|solo-aether-runes|achievement-cape-double-nature-runes|arceuus-blood-runes|arceuus-soul-runes",
+        "main-ehp|solo-lava-runes|solo-aether-runes|achievement-cape-double-nature-runes|ourania-altar-zmi|arceuus-blood-runes|arceuus-soul-runes",
         string.Join('|', definition.AvailableMethods.Select(method => method.Id)),
         "Runecraft method IDs");
 
@@ -2140,6 +2141,89 @@ static void RunecraftAlternativeMethods()
         1m / 24.425m,
         Resource(noRaimentsBlood.Method.Bands.Last(), 565).QuantityPerExperience,
         "base blood output without Raiments");
+}
+
+static void OuraniaAltarZmiMethod()
+{
+    const decimal level99ExperiencePerEssence = 15.5788m;
+    var definition = new MainEhpCatalogue().Skills.Single(skill => skill.Skill == "Runecraft");
+    var method = definition.ResolveMethod("ourania-altar-zmi");
+
+    Equal(14, method.Bands.Count, "ZMI level and pouch bands");
+    EqualDecimal(20_423m, method.Bands.Single(band => band.StartExperience == 0).ExperiencePerHour, "ZMI level-1 rate");
+    EqualDecimal(28_797m, method.Bands.Single(band => band.StartExperience == 7_842).ExperiencePerHour, "ZMI level-25 rate");
+    EqualDecimal(57_270m, method.Bands.Single(band => band.StartExperience == 1_210_421).ExperiencePerHour, "ZMI level-75 rate");
+    EqualDecimal(72_526m, method.Bands.Single(band => band.StartExperience == 3_258_594).ExperiencePerHour, "ZMI level-85 rate");
+
+    var level99 = method.Bands.Single(band => band.StartExperience == 13_034_431);
+    EqualDecimal(77_121m, level99.ExperiencePerHour, "ZMI level-99 pure-essence rate");
+    EqualDecimal(
+        1m / level99ExperiencePerEssence,
+        DirectedResource(level99, 7936, TrainingFlowDirection.Input).QuantityPerExperience,
+        "ZMI pure essence per XP");
+    EqualDecimal(
+        20m / (66m * level99ExperiencePerEssence),
+        DirectedResource(level99, 558, TrainingFlowDirection.Input).QuantityPerExperience,
+        "ZMI Eniola mind runes per XP");
+    EqualDecimal(
+        2m / (66m * level99ExperiencePerEssence),
+        DirectedResource(level99, 9075, TrainingFlowDirection.Input).QuantityPerExperience,
+        "ZMI Ourania Teleport astrals per XP");
+    EqualDecimal(
+        1m / (66m * level99ExperiencePerEssence),
+        DirectedResource(level99, 563, TrainingFlowDirection.Input).QuantityPerExperience,
+        "ZMI Ourania Teleport laws per XP");
+    EqualDecimal(
+        0.09m * 1.10m * 1.6m / level99ExperiencePerEssence,
+        DirectedResource(level99, 566, TrainingFlowDirection.Output).QuantityPerExperience,
+        "ZMI soul output includes diary and Raiments");
+    Equal(
+        14,
+        level99.Economics!.Resources.Count(resource => resource.Direction == TrainingFlowDirection.Output),
+        "ZMI prices every possible rune output");
+    True(
+        level99.Economics.Resources.All(resource => resource.ItemId is not 556 || resource.Direction == TrainingFlowDirection.Output),
+        "dust battlestaff removes NPC Contact air-rune inputs");
+
+    var calculator = new TrainingPlanCalculator();
+    var noDiary = calculator.Calculate(
+        definition,
+        13_034_431,
+        13_111_552,
+        new Dictionary<int, ItemPrice>(),
+        methodId: method.Id,
+        configuration: new Dictionary<string, string>
+        {
+            ["ardougne-medium-diary"] = bool.FalseString
+        });
+    var noDiary99 = noDiary.Method.Bands.Single(band => band.StartExperience == 13_034_431);
+    EqualDecimal(77_121m, noDiary.BaseRate, "Ardougne diary does not alter ZMI XP/hour");
+    EqualDecimal(
+        0.09m * 1.6m / level99ExperiencePerEssence,
+        DirectedResource(noDiary99, 566, TrainingFlowDirection.Output).QuantityPerExperience,
+        "disabled diary removes only its soul-rune bonus");
+
+    var daeyalt = calculator.Calculate(
+        definition,
+        13_034_431,
+        13_150_112,
+        new Dictionary<int, ItemPrice>(),
+        methodId: method.Id,
+        configuration: new Dictionary<string, string>
+        {
+            ["use-daeyalt-essence"] = bool.TrueString,
+            ["daeyalt-essence-quantity"] = string.Empty
+        });
+    EqualDecimal(115_681.5m, daeyalt.BaseRate, "ZMI level-99 Daeyalt rate");
+    EqualDecimal(
+        115_681m / (level99ExperiencePerEssence * 1.5m),
+        daeyalt.ResourceRequirements.Single(resource => resource.ItemId == 24704).Quantity,
+        "ZMI Daeyalt essence required",
+        0.000001m);
+    True(daeyalt.ResourceRequirements.All(resource => resource.ItemId != 7936), "ZMI Daeyalt replaces pure essence");
+
+    var defaults = definition.Configurator!.Definition.Normalize();
+    Equal(bool.TrueString, defaults.Values["ardougne-medium-diary"], "efficient ZMI diary default");
 }
 
 static void RunecraftDaeyaltConfiguration()
@@ -2998,6 +3082,14 @@ static TrainingRateBand TrainingBand(MainEhpCatalogue catalogue, string skill, l
 static TrainingResourceFlow Resource(TrainingRateBand band, int itemId) =>
     band.Economics?.Resources.Single(resource => resource.ItemId == itemId)
     ?? throw new InvalidOperationException($"{band.Method} is missing item {itemId}.");
+
+static TrainingResourceFlow DirectedResource(
+    TrainingRateBand band,
+    int itemId,
+    TrainingFlowDirection direction) =>
+    band.Economics?.Resources.Single(resource =>
+        resource.ItemId == itemId && resource.Direction == direction)
+    ?? throw new InvalidOperationException($"{band.Method} is missing {direction} item {itemId}.");
 
 static decimal TotalResourceQuantity(
     MainEhpCatalogue catalogue,
