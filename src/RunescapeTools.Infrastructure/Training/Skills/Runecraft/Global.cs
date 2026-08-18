@@ -7,18 +7,21 @@ namespace RunescapeTools.Infrastructure.Training.Skills.Runecraft;
 internal static class RunecraftGlobal
 {
     public const string RaimentsOfTheEyeKey = "raiments-of-the-eye";
+    public const string AbyssalLanternMagicLogsKey = "abyssal-lantern-magic-logs";
     public const string ArdougneMediumDiaryKey = "ardougne-medium-diary";
     public const string UseDaeyaltEssenceKey = "use-daeyalt-essence";
     public const string DaeyaltEssenceQuantityKey = "daeyalt-essence-quantity";
     public const long RunecraftCapeExperience = 13_034_431;
     private const decimal DaeyaltExperienceMultiplier = 1.5m;
     private const decimal FullRaimentsBonusPerTenRunes = 6m;
+    private const decimal MagicLogLanternRuneBonus = 0.1m;
     private const decimal DarkAltarBindingExperiencePerFragment = 0.625m;
     private const decimal ArceuusFragmentsPerCraft = 100m;
 
     public const string Note =
-        "Full Raiments of the Eye follow the saved Runecraft configuration. The outfit adds 60% rune " +
-        "output but no Runecraft XP; aether bonus runes consume matching aether catalysts. Magic Imbue, " +
+        "Full Raiments of the Eye and an Abyssal lantern lit with magic logs follow the saved Runecraft " +
+        "configuration. They add rune output but no Runecraft XP; aether bonus runes consume matching " +
+        "aether catalysts. Magic Imbue, " +
         "binding-necklace disposal, and pouch repair are priced where applicable. Pouch-repair runes " +
         "automatically stop at 13,034,431 XP when the Runecraft cape prevents further degradation. " +
         "Configured Daeyalt essence replaces pure essence in eligible segments and grants 50% bonus XP; " +
@@ -35,6 +38,13 @@ internal static class RunecraftGlobal
                     TrainingConfigurationOptionKind.Toggle,
                     bool.TrueString,
                     "Create 60% more runes without changing XP/hour or essence consumption."),
+                new TrainingConfigurationOption(
+                    AbyssalLanternMagicLogsKey,
+                    "Abyssal lantern - magic logs",
+                    TrainingConfigurationOptionKind.Toggle,
+                    bool.TrueString,
+                    "Create 10% more runes without changing XP/hour or essence consumption. " +
+                    "Requires the lantern to be lit with magic logs and used outside Guardians of the Rift."),
                 new TrainingConfigurationOption(
                     ArdougneMediumDiaryKey,
                     "Ardougne medium diary",
@@ -69,6 +79,7 @@ internal static class RunecraftGlobal
         var values = configuration ?? Configurator.Definition.Normalize();
         return new RunecraftSettings(
             values.GetToggle(RaimentsOfTheEyeKey),
+            values.GetToggle(AbyssalLanternMagicLogsKey),
             values.GetToggle(ArdougneMediumDiaryKey),
             values.GetToggle(UseDaeyaltEssenceKey),
             values.GetOptionalWholeNumber(DaeyaltEssenceQuantityKey));
@@ -76,10 +87,20 @@ internal static class RunecraftGlobal
 
     public static decimal OutputPerLap(
         decimal baseRunesPerLap,
-        RunecraftSettings settings) =>
-        settings.RaimentsOfTheEye
+        RunecraftSettings settings)
+    {
+        var output = settings.RaimentsOfTheEye
             ? baseRunesPerLap + (decimal.Floor(baseRunesPerLap / 10m) * FullRaimentsBonusPerTenRunes)
             : baseRunesPerLap;
+        return settings.AbyssalLanternMagicLogs
+            ? output + (baseRunesPerLap * MagicLogLanternRuneBonus)
+            : output;
+    }
+
+    public static decimal ExpectedOutputMultiplier(RunecraftSettings settings) =>
+        1m
+        + (settings.RaimentsOfTheEye ? 0.6m : 0m)
+        + (settings.AbyssalLanternMagicLogs ? MagicLogLanternRuneBonus : 0m);
 
     public static IReadOnlyList<TrainingRateBand> CreateBaseBands() =>
     [
@@ -268,6 +289,7 @@ internal static class RunecraftGlobal
 
     internal readonly record struct RunecraftSettings(
         bool RaimentsOfTheEye,
+        bool AbyssalLanternMagicLogs,
         bool ArdougneMediumDiary,
         bool UseDaeyaltEssence,
         long? DaeyaltEssenceQuantity);

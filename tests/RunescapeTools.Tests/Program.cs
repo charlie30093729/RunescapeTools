@@ -1948,7 +1948,7 @@ static void RunecraftAlternativeMethods()
 
     var mud = definition.ResolveMethod("main-ehp").Bands.Last();
     EqualDecimal(98_200m, mud.ExperiencePerHour, "solo mud 99 rate");
-    EqualDecimal(99m / 598.5m, Resource(mud, 4698).QuantityPerExperience, "Raiments mud output");
+    EqualDecimal(105.3m / 598.5m, Resource(mud, 4698).QuantityPerExperience, "Raiments and lantern mud output");
     var noRaimentsMud = calculator.Calculate(
         definition,
         13_034_431,
@@ -1961,9 +1961,25 @@ static void RunecraftAlternativeMethods()
         });
     EqualDecimal(98_200m, noRaimentsMud.BaseRate, "Raiments do not alter mud XP/hour");
     EqualDecimal(
-        1m / 9.5m,
+        1.1m / 9.5m,
         Resource(noRaimentsMud.Method.Bands.Last(), 4698).QuantityPerExperience,
-        "mud output without Raiments");
+        "lantern mud output without Raiments");
+
+    var noOutputBonusesMud = calculator.Calculate(
+        definition,
+        13_034_431,
+        13_132_631,
+        emptyPrices,
+        methodId: "main-ehp",
+        configuration: new Dictionary<string, string>
+        {
+            ["raiments-of-the-eye"] = bool.FalseString,
+            ["abyssal-lantern-magic-logs"] = bool.FalseString
+        });
+    EqualDecimal(
+        1m / 9.5m,
+        Resource(noOutputBonusesMud.Method.Bands.Last(), 4698).QuantityPerExperience,
+        "disabled lantern and Raiments preserve base mud output");
 
     var lavaMethod = definition.ResolveMethod("solo-lava-runes");
     Equal(6_291L, lavaMethod.Bands[1].StartExperience, "solo lava unlock XP");
@@ -1973,7 +1989,7 @@ static void RunecraftAlternativeMethods()
     EqualDecimal(102_100m, lava85.ExperiencePerHour, "solo lava colossal-pouch rate");
     EqualDecimal(1m / 10.5m, Resource(lava85, 7936).QuantityPerExperience, "lava essence per XP");
     EqualDecimal(1m / 10.5m, Resource(lava85, 557).QuantityPerExperience, "lava earth runes per XP");
-    EqualDecimal(99m / 661.5m, Resource(lava85, 4699).QuantityPerExperience, "Raiments lava output");
+    EqualDecimal(105.3m / 661.5m, Resource(lava85, 4699).QuantityPerExperience, "Raiments and lantern lava output");
     var lava99 = lavaMethod.Bands.Last();
     Equal(13_034_431L, lava99.StartExperience, "solo lava cape threshold");
     EqualDecimal(102_100m, lava99.ExperiencePerHour, "solo lava cape rate");
@@ -1987,8 +2003,8 @@ static void RunecraftAlternativeMethods()
     EqualDecimal(99_000m, aether90.ExperiencePerHour, "solo aether level-90 rate");
     EqualDecimal(1m / 20m, Resource(aether90, 7936).QuantityPerExperience, "aether essence per XP");
     EqualDecimal(1m / 20m, Resource(aether90, 566).QuantityPerExperience, "aether soul runes per XP");
-    EqualDecimal(99m / 1_260m, Resource(aether90, 30771).QuantityPerExperience, "Raiments catalyst cost");
-    EqualDecimal(99m / 1_260m, Resource(aether90, 30843).QuantityPerExperience, "Raiments aether output");
+    EqualDecimal(105.3m / 1_260m, Resource(aether90, 30771).QuantityPerExperience, "Raiments and lantern catalyst cost");
+    EqualDecimal(105.3m / 1_260m, Resource(aether90, 30843).QuantityPerExperience, "Raiments and lantern aether output");
     EqualDecimal(0.125m / 1_260m, Resource(aether90, 2552).QuantityPerExperience, "aether rings of dueling per XP");
     var aether99 = aetherMethod.Bands.Last();
     EqualDecimal(102_000m, aether99.ExperiencePerHour, "solo aether level-99 rate");
@@ -2010,8 +2026,8 @@ static void RunecraftAlternativeMethods()
     var noRaimentsAetherBand = noRaimentsAether.Method.Bands
         .Single(band => band.StartExperience == 5_346_332);
     EqualDecimal(99_000m, noRaimentsAether.BaseRate, "Raiments do not alter aether XP/hour");
-    EqualDecimal(1m / 20m, Resource(noRaimentsAetherBand, 30771).QuantityPerExperience, "base catalyst cost");
-    EqualDecimal(1m / 20m, Resource(noRaimentsAetherBand, 30843).QuantityPerExperience, "base aether output");
+    EqualDecimal(1.1m / 20m, Resource(noRaimentsAetherBand, 30771).QuantityPerExperience, "lantern catalyst cost");
+    EqualDecimal(1.1m / 20m, Resource(noRaimentsAetherBand, 30843).QuantityPerExperience, "lantern aether output");
 
     var natureMethod = definition.ResolveMethod("achievement-cape-double-nature-runes");
     var nature91 = natureMethod.Bands.Single(band => band.StartExperience == 5_902_831);
@@ -2020,7 +2036,7 @@ static void RunecraftAlternativeMethods()
     EqualDecimal(0.125m / 576m, Resource(nature91, 9075).QuantityPerExperience, "nature astral runes per XP");
     EqualDecimal(0.25m / 576m, Resource(nature91, 556).QuantityPerExperience, "nature air runes per XP");
     EqualDecimal(0.125m / 576m, Resource(nature91, 564).QuantityPerExperience, "nature cosmic runes per XP");
-    EqualDecimal(200m / 576m, Resource(nature91, 561).QuantityPerExperience, "Raiments nature output");
+    EqualDecimal(212.8m / 576m, Resource(nature91, 561).QuantityPerExperience, "Raiments and lantern nature output");
     True(
         nature91.Economics!.Resources.All(resource => resource.ItemId != 5521),
         "nature route does not use binding necklaces");
@@ -2045,16 +2061,16 @@ static void RunecraftAlternativeMethods()
         naturePrices,
         methodId: "achievement-cape-double-nature-runes");
     EqualDecimal(2_808.1187644675925925925925926m, naturePlan.Hours, "nature hours to 200m", 0.0000001m);
-    EqualDecimal(10_559_036_690.684027777777777777m, naturePlan.NetGp ?? 0m, "nature GP to 200m", 0.01m);
+    EqualDecimal(11_236_220_146.972916666666666665m, naturePlan.NetGp ?? 0m, "nature GP to 200m", 0.01m);
     EqualDecimal(
         21_566_352.111111111111111111111m,
         naturePlan.ResourceRequirements.Single(item => item.ItemId == 7936).Quantity,
         "nature essence to 200m",
         0.000001m);
     EqualDecimal(
-        67_394_850.347222222222222222222m,
+        71_708_120.769444444444444444444m,
         naturePlan.ResourceRequirements.Single(item => item.ItemId == 561).Quantity,
-        "Raiments nature runes to 200m",
+        "Raiments and lantern nature runes to 200m",
         0.000001m);
     True(naturePlan.IsFullyPriced, "level-91 nature route should be fully priced");
 
@@ -2070,17 +2086,17 @@ static void RunecraftAlternativeMethods()
         });
     EqualDecimal(69_120m, noRaimentsNature.BaseRate, "Raiments do not alter nature XP/hour");
     EqualDecimal(
-        128m / 576m,
+        140.8m / 576m,
         Resource(noRaimentsNature.Method.Bands.Last(), 561).QuantityPerExperience,
-        "base double-nature output without Raiments");
+        "lantern double-nature output without Raiments");
 
     var bloodMethod = definition.ResolveMethod("arceuus-blood-runes");
     var blood77 = bloodMethod.Bands.Single(band => band.StartExperience == 1_475_581);
     EqualDecimal(36_000m, blood77.ExperiencePerHour, "Arceuus blood rate");
     EqualDecimal(
-        1.6m / 24.425m,
+        1.7m / 24.425m,
         Resource(blood77, 565).QuantityPerExperience,
-        "Raiments blood output per XP");
+        "Raiments and lantern blood output per XP");
     True(
         blood77.Economics!.Resources.All(resource => resource.Direction == TrainingFlowDirection.Output),
         "gathered dark essence should not create tradeable inputs");
@@ -2089,9 +2105,9 @@ static void RunecraftAlternativeMethods()
     var soul90 = soulMethod.Bands.Single(band => band.StartExperience == 5_346_332);
     EqualDecimal(44_000m, soul90.ExperiencePerHour, "Arceuus soul rate");
     EqualDecimal(
-        1.6m / 30.325m,
+        1.7m / 30.325m,
         Resource(soul90, 566).QuantityPerExperience,
-        "Raiments soul output per XP");
+        "Raiments and lantern soul output per XP");
 
     var gatheredRunePrices = new Dictionary<int, ItemPrice>
     {
@@ -2106,9 +2122,9 @@ static void RunecraftAlternativeMethods()
         methodId: bloodMethod.Id);
     EqualDecimal(1m, bloodPlan.Hours, "Arceuus blood calculation hours");
     EqualDecimal(
-        36_000m * 1.6m / 24.425m,
+        36_000m * 1.7m / 24.425m,
         bloodPlan.ResourceRequirements.Single().Quantity,
-        "Raiments blood runes per hour",
+        "Raiments and lantern blood runes per hour",
         0.0000001m);
     True(bloodPlan.IsFullyPriced, "Arceuus blood route should be fully priced");
 
@@ -2120,9 +2136,9 @@ static void RunecraftAlternativeMethods()
         methodId: soulMethod.Id);
     EqualDecimal(1m, soulPlan.Hours, "Arceuus soul calculation hours");
     EqualDecimal(
-        44_000m * 1.6m / 30.325m,
+        44_000m * 1.7m / 30.325m,
         soulPlan.ResourceRequirements.Single().Quantity,
-        "Raiments soul runes per hour",
+        "Raiments and lantern soul runes per hour",
         0.0000001m);
     True(soulPlan.IsFullyPriced, "Arceuus soul route should be fully priced");
 
@@ -2138,9 +2154,9 @@ static void RunecraftAlternativeMethods()
         });
     EqualDecimal(36_000m, noRaimentsBlood.BaseRate, "Raiments do not alter blood XP/hour");
     EqualDecimal(
-        1m / 24.425m,
+        1.1m / 24.425m,
         Resource(noRaimentsBlood.Method.Bands.Last(), 565).QuantityPerExperience,
-        "base blood output without Raiments");
+        "lantern blood output without Raiments");
 }
 
 static void OuraniaAltarZmiMethod()
@@ -2174,9 +2190,9 @@ static void OuraniaAltarZmiMethod()
         DirectedResource(level99, 563, TrainingFlowDirection.Input).QuantityPerExperience,
         "ZMI Ourania Teleport laws per XP");
     EqualDecimal(
-        0.09m * 1.10m * 1.6m / level99ExperiencePerEssence,
+        0.09m * 1.10m * 1.7m / level99ExperiencePerEssence,
         DirectedResource(level99, 566, TrainingFlowDirection.Output).QuantityPerExperience,
-        "ZMI soul output includes diary and Raiments");
+        "ZMI soul output includes diary, Raiments, and lantern");
     Equal(
         14,
         level99.Economics!.Resources.Count(resource => resource.Direction == TrainingFlowDirection.Output),
@@ -2199,7 +2215,7 @@ static void OuraniaAltarZmiMethod()
     var noDiary99 = noDiary.Method.Bands.Single(band => band.StartExperience == 13_034_431);
     EqualDecimal(77_121m, noDiary.BaseRate, "Ardougne diary does not alter ZMI XP/hour");
     EqualDecimal(
-        0.09m * 1.6m / level99ExperiencePerEssence,
+        0.09m * 1.7m / level99ExperiencePerEssence,
         DirectedResource(noDiary99, 566, TrainingFlowDirection.Output).QuantityPerExperience,
         "disabled diary removes only its soul-rune bonus");
 
@@ -2224,6 +2240,7 @@ static void OuraniaAltarZmiMethod()
 
     var defaults = definition.Configurator!.Definition.Normalize();
     Equal(bool.TrueString, defaults.Values["ardougne-medium-diary"], "efficient ZMI diary default");
+    Equal(bool.TrueString, defaults.Values["abyssal-lantern-magic-logs"], "magic-log lantern default");
 }
 
 static void RunecraftDaeyaltConfiguration()
@@ -2456,14 +2473,14 @@ static void PhaseTwoMethodCatalogue()
     var runecraft75 = TrainingBand(catalogue, "Runecraft", 1_210_421);
     EqualDecimal(74_500m, runecraft75.ExperiencePerHour, "Runecraft level-75 rate");
     EqualDecimal(50m / 475m, Resource(runecraft75, 7936).QuantityPerExperience, "level-75 essence per XP");
-    EqualDecimal(80m / 475m, Resource(runecraft75, 4698).QuantityPerExperience, "level-75 mud runes per XP");
+    EqualDecimal(85m / 475m, Resource(runecraft75, 4698).QuantityPerExperience, "level-75 mud runes per XP");
     EqualDecimal(0.2m / 475m, Resource(runecraft75, 5521).QuantityPerExperience, "level-75 necklaces per XP");
     EqualDecimal(2.1m / 475m, Resource(runecraft75, 9075).QuantityPerExperience, "level-75 astrals per XP");
 
     var runecraft85 = TrainingBand(catalogue, "Runecraft", 3_258_594);
     EqualDecimal(96_900m, runecraft85.ExperiencePerHour, "Runecraft level-85 rate");
     EqualDecimal(63m / 598.5m, Resource(runecraft85, 7936).QuantityPerExperience, "level-85 essence per XP");
-    EqualDecimal(99m / 598.5m, Resource(runecraft85, 4698).QuantityPerExperience, "level-85 mud runes per XP");
+    EqualDecimal(105.3m / 598.5m, Resource(runecraft85, 4698).QuantityPerExperience, "level-85 mud runes per XP");
     EqualDecimal(2.125m / 598.5m, Resource(runecraft85, 9075).QuantityPerExperience, "level-85 astrals per XP");
     EqualDecimal(0.25m / 598.5m, Resource(runecraft85, 556).QuantityPerExperience, "level-85 air runes per XP");
     EqualDecimal(0.125m / 598.5m, Resource(runecraft85, 564).QuantityPerExperience, "level-85 cosmic runes per XP");

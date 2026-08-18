@@ -6,7 +6,6 @@ namespace RunescapeTools.Infrastructure.Training.Skills.Runecraft.Methods;
 
 internal static class OuraniaAltarZmi
 {
-    private const decimal FullRaimentsMultiplier = 1.6m;
     private const decimal OuraniaExperienceMultiplier = 1.7m;
     private const decimal MindRunesPerBank = 20m;
     private const decimal AstralRunesPerTeleport = 2m;
@@ -102,7 +101,7 @@ internal static class OuraniaAltarZmi
         if (pouchRepairsPerLap > 0m)
             resources.Add(Input(Items.CosmicRune, pouchRepairsPerLap / experiencePerLap));
 
-        var raimentsMultiplier = settings.RaimentsOfTheEye ? FullRaimentsMultiplier : 1m;
+        var configuredOutputMultiplier = RunecraftGlobal.ExpectedOutputMultiplier(settings);
         for (var index = 0; index < Runes.Length; index++)
         {
             var rune = Runes[index];
@@ -111,7 +110,7 @@ internal static class OuraniaAltarZmi
                 : 1m;
             resources.Add(Output(
                 rune.Item,
-                distribution.Chances[index] * diaryMultiplier * raimentsMultiplier
+                distribution.Chances[index] * diaryMultiplier * configuredOutputMultiplier
                 / experiencePerEssence));
         }
 
