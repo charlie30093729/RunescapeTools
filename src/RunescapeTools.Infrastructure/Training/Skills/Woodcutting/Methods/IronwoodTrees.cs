@@ -26,7 +26,8 @@ internal static class IronwoodTrees
             "Farming for a private tree. Rates apply the crystal felling axe's 10% XP bonus to " +
             "the regular-crystal-axe planning curve. One Forester's ration is consumed per " +
             "successful chop; 20% of chops award no log. Received ironwood logs are banked and " +
-            "sold, and crystal charges are priced.");
+            "sold, and crystal charges are priced.",
+            UseStableDisplayName: true);
 
     private static TrainingRateBand CreateBand(long startExperience, decimal experiencePerHour) =>
         Band(

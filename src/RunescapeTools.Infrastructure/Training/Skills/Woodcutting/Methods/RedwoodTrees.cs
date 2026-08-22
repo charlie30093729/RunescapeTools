@@ -24,7 +24,8 @@ internal static class RedwoodTrees
             "Requires level 90 Woodcutting, access to the Woodcutting Guild, and Forester's " +
             "rations. Rates apply the crystal felling axe's 10% XP bonus to the current Wiki " +
             "crystal-axe range. One ration is consumed per successful chop; 20% of chops award " +
-            "no log. Received redwood logs are banked and sold, and crystal charges are priced.");
+            "no log. Received redwood logs are banked and sold, and crystal charges are priced.",
+            UseStableDisplayName: true);
 
     private static TrainingRateBand CreateBand(long startExperience, decimal experiencePerHour) =>
         Band(

@@ -1357,6 +1357,28 @@ static void WoodcuttingAlternativeMethods()
         "main-ehp|redwood-trees-crystal-axe|ironwood-trees-crystal-axe",
         string.Join('|', definition.AvailableMethods.Select(method => method.Id)),
         "Woodcutting method IDs");
+    True(
+        definition.AvailableMethods.All(method => method.UseStableDisplayName),
+        "Woodcutting dropdown labels should remain stable across fallback bands");
+
+    var row = new XpPlannerRowViewModel(
+        definition,
+        new TrainingPlanCalculator(),
+        814_445,
+        null,
+        new Dictionary<int, ItemPrice>(),
+        () => { });
+    const string expectedLabels =
+        "1.5t teaks|Redwood trees - crystal felling axe|Ironwood trees - crystal felling axe";
+    Equal(
+        expectedLabels,
+        string.Join('|', row.MethodOptions.Select(option => option.Name)),
+        "Woodcutting labels below alternative unlocks");
+    row.StartExperience = 13_000_000;
+    Equal(
+        expectedLabels,
+        string.Join('|', row.MethodOptions.Select(option => option.Name)),
+        "Woodcutting labels after manual XP change");
 
     var redwoods = definition.ResolveMethod("redwood-trees-crystal-axe");
     var redwood90 = redwoods.Bands.Single(band => band.StartExperience == 5_346_332);

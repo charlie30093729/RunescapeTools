@@ -29,7 +29,8 @@ internal static class MainEhp
                 Band(13_034_431, 235_000m, "1.5t teaks - crystal felling axe", TeakEconomics(includeCrystalCharges: true))
             ],
             $"Reviewed 0-200m resources: {ReviewedRationTotal:N0} Forester's rations, " +
-            $"{ReviewedShardTotal:N0} crystal shards ({ReviewedSeedTotal:N0} whole enhanced seeds). Teak logs are dropped.");
+            $"{ReviewedShardTotal:N0} crystal shards ({ReviewedSeedTotal:N0} whole enhanced seeds). Teak logs are dropped.",
+            UseStableDisplayName: true);
 
     private static TrainingEconomics TeakEconomics(bool includeCrystalCharges = false)
     {
