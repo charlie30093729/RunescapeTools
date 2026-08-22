@@ -59,6 +59,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("training definitions support stable default and alternative methods", () => RunSync(TrainingMethodSelection)),
     ("Hunter exposes live-priced level-banded Herbiboar training", () => RunSync(HerbiboarMethodCatalogue)),
     ("Red chinchompas and one-tick karambwans expose reviewed rates and economics", () => RunSync(RedChinsAndKarambwans)),
+    ("Woodcutting alternatives expose crystal-felling-axe rates and economics", () => RunSync(WoodcuttingAlternativeMethods)),
     ("XP Planner rows select and persist training methods", () => RunSync(XpPlannerRowMethodSelection)),
     ("skill configuration defaults and calculation effects are applied centrally", () => RunSync(TrainingSkillConfiguration)),
     ("XP Planner rows persist and reset skill configuration", () => RunSync(XpPlannerRowConfiguration)),
@@ -1131,7 +1132,7 @@ static void EhpCatalogueCoverage()
             "Herblore" => 3,
             "Smithing" => 3,
             "Runecraft" => 7,
-            "Hunter" => 3,
+            "Woodcutting" or "Hunter" => 3,
             "Farming" or "Cooking" or "Firemaking" => 2,
             "Prayer" or "Fletching" or "Crafting" or "Construction" => 2,
             _ => 1
@@ -1347,6 +1348,82 @@ static void RedChinsAndKarambwans()
         "raw karambwan per max-rate hour",
         0.0000001m);
     True(karambwanResult.IsFullyPriced, "karambwan route should be fully priced");
+}
+
+static void WoodcuttingAlternativeMethods()
+{
+    var definition = new MainEhpCatalogue().Skills.Single(skill => skill.Skill == "Woodcutting");
+    Equal(
+        "main-ehp|redwood-trees-crystal-axe|ironwood-trees-crystal-axe",
+        string.Join('|', definition.AvailableMethods.Select(method => method.Id)),
+        "Woodcutting method IDs");
+    True(
+        definition.AvailableMethods.All(method => method.UseStableDisplayName),
+        "Woodcutting dropdown labels should remain stable across fallback bands");
+
+    var row = new XpPlannerRowViewModel(
+        definition,
+        new TrainingPlanCalculator(),
+        814_445,
+        null,
+        new Dictionary<int, ItemPrice>(),
+        () => { });
+    const string expectedLabels =
+        "1.5t teaks|Redwood trees - crystal felling axe|Ironwood trees - crystal felling axe";
+    Equal(
+        expectedLabels,
+        string.Join('|', row.MethodOptions.Select(option => option.Name)),
+        "Woodcutting labels below alternative unlocks");
+    row.StartExperience = 13_000_000;
+    Equal(
+        expectedLabels,
+        string.Join('|', row.MethodOptions.Select(option => option.Name)),
+        "Woodcutting labels after manual XP change");
+
+    var redwoods = definition.ResolveMethod("redwood-trees-crystal-axe");
+    var redwood90 = redwoods.Bands.Single(band => band.StartExperience == 5_346_332);
+    var redwood99 = redwoods.Bands.Single(band => band.StartExperience == 13_034_431);
+    EqualDecimal(77_000m, redwood90.ExperiencePerHour, "level 90 redwood rate");
+    EqualDecimal(82_500m, redwood99.ExperiencePerHour, "level 99 redwood rate");
+    EqualDecimal(0.8m / 418m, Resource(redwood99, 19669).QuantityPerExperience, "redwood logs per XP");
+    Equal(TrainingFlowDirection.Output, Resource(redwood99, 19669).Direction, "redwood log direction");
+    EqualDecimal(
+        0.8m / (418m * 15_000m),
+        Resource(redwood99, 23959).QuantityPerExperience,
+        "redwood crystal charges per XP");
+    Equal(TrainingFlowDirection.Input, Resource(redwood99, 23959).Direction, "redwood charge direction");
+    EqualDecimal(1m / 418m, Resource(redwood99, 28157).QuantityPerExperience, "redwood rations per XP");
+
+    var ironwoods = definition.ResolveMethod("ironwood-trees-crystal-axe");
+    var ironwood80 = ironwoods.Bands.Single(band => band.StartExperience == 1_986_068);
+    var ironwood90 = ironwoods.Bands.Single(band => band.StartExperience == 5_346_332);
+    var ironwood99 = ironwoods.Bands.Single(band => band.StartExperience == 13_034_431);
+    EqualDecimal(82_500m, ironwood80.ExperiencePerHour, "level 80 ironwood rate");
+    EqualDecimal(93_500m, ironwood90.ExperiencePerHour, "level 90 ironwood rate");
+    EqualDecimal(104_500m, ironwood99.ExperiencePerHour, "level 99 ironwood rate");
+    EqualDecimal(0.8m / 192.5m, Resource(ironwood99, 32907).QuantityPerExperience, "ironwood logs per XP");
+    Equal(TrainingFlowDirection.Output, Resource(ironwood99, 32907).Direction, "ironwood log direction");
+    EqualDecimal(
+        0.8m / (192.5m * 15_000m),
+        Resource(ironwood99, 23959).QuantityPerExperience,
+        "ironwood crystal charges per XP");
+    Equal(TrainingFlowDirection.Input, Resource(ironwood99, 23959).Direction, "ironwood charge direction");
+    EqualDecimal(1m / 192.5m, Resource(ironwood99, 28157).QuantityPerExperience, "ironwood rations per XP");
+
+    var result = new TrainingPlanCalculator().Calculate(
+        definition,
+        13_034_431,
+        13_138_931,
+        new Dictionary<int, ItemPrice>
+        {
+            [23959] = Quote(23959, 10_000_000),
+            [28157] = Quote(28157, 1_000),
+            [32907] = Quote(32907, 100)
+        },
+        methodId: ironwoods.Id);
+    EqualDecimal(1m, result.Hours, "104.5k ironwood calculation hours");
+    True(result.IsFullyPriced, "ironwood route should be fully priced");
+    True(result.NetGp < 0m, "crystal charges should exceed equal-priced ironwood log proceeds");
 }
 
 static void XpPlannerRowMethodSelection()

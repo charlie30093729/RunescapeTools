@@ -11,6 +11,7 @@ using RunescapeTools.Infrastructure.Training.Skills.Hunter;
 using RunescapeTools.Infrastructure.Training.Skills.Prayer;
 using RunescapeTools.Infrastructure.Training.Skills.Runecraft;
 using RunescapeTools.Infrastructure.Training.Skills.Smithing;
+using RunescapeTools.Infrastructure.Training.Skills.Woodcutting;
 
 namespace RunescapeTools.Infrastructure.Training;
 
@@ -18,7 +19,7 @@ public sealed class MainEhpCatalogue : IEhpCatalogue
 {
     public string Version => "OSRS training catalogue 2026-08";
 
-    public DateOnly VerifiedOn => new(2026, 8, 9);
+    public DateOnly VerifiedOn => new(2026, 8, 22);
 
     public IReadOnlyList<TrainingSkillDefinition> Skills { get; } =
     [
