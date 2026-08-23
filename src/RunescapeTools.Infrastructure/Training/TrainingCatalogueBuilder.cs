@@ -23,8 +23,14 @@ internal static class TrainingCatalogueBuilder
         long startExperience,
         decimal experiencePerHour,
         string method,
-        TrainingEconomics? economics = null) =>
-        new(startExperience, experiencePerHour, method, economics);
+        TrainingEconomics? economics = null,
+        IReadOnlyList<TrainingExperienceFlow>? experienceOutputs = null) =>
+        new(
+            startExperience,
+            experiencePerHour,
+            method,
+            economics,
+            ExperienceOutputs: experienceOutputs);
 
     public static TrainingRateBand Standalone(string method, decimal rate) =>
         Band(0, rate, method);

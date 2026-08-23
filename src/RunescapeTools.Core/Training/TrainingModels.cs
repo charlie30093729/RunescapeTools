@@ -35,7 +35,8 @@ public sealed record TrainingRateBand(
     decimal ExperiencePerHour,
     string Method,
     TrainingEconomics? Economics = null,
-    decimal ConfigurationRateMultiplier = 1m);
+    decimal ConfigurationRateMultiplier = 1m,
+    IReadOnlyList<TrainingExperienceFlow>? ExperienceOutputs = null);
 
 public sealed record TrainingMethodDefinition(
     string Id,
@@ -185,6 +186,7 @@ public sealed class TrainingPlanCalculator
         var resourceRequirements = new Dictionary<
             (int ItemId, TrainingFlowDirection Direction),
             (TrainingResourceFlow Resource, decimal Quantity)>();
+        var generatedExperience = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
         decimal calculationHours = 0m;
         decimal totalGp = 0m;
         long pricedExperience = 0;
@@ -207,6 +209,14 @@ public sealed class TrainingPlanCalculator
             var effectiveBandRate = band.ExperiencePerHour * personalRateMultiplier;
             var hours = effectiveBandRate > 0m ? experience / effectiveBandRate : 0m;
             calculationHours += hours;
+
+            foreach (var flow in band.ExperienceOutputs ?? [])
+            {
+                var quantity = flow.QuantityPerPrimaryExperience * experience
+                               + flow.QuantityPerHour * hours;
+                generatedExperience[flow.Skill] =
+                    generatedExperience.GetValueOrDefault(flow.Skill) + quantity;
+            }
 
             foreach (var resource in band.Economics?.Resources ?? [])
             {
@@ -296,14 +306,13 @@ public sealed class TrainingPlanCalculator
                 segmentMissing));
         }
 
-        var generatedExperience = (method.ExperienceOutputs ?? [])
-            .GroupBy(flow => flow.Skill, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(
-                group => group.Key,
-                group => group.Sum(
-                    flow => flow.QuantityPerPrimaryExperience * (target - effectiveStart)
-                            + flow.QuantityPerHour * calculationHours),
-                StringComparer.OrdinalIgnoreCase);
+        foreach (var flow in method.ExperienceOutputs ?? [])
+        {
+            var quantity = flow.QuantityPerPrimaryExperience * (target - effectiveStart)
+                           + flow.QuantityPerHour * calculationHours;
+            generatedExperience[flow.Skill] =
+                generatedExperience.GetValueOrDefault(flow.Skill) + quantity;
+        }
 
         return new TrainingSkillPlanResult(
             definition,

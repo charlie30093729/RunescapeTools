@@ -372,7 +372,7 @@ public partial class XpPlannerRowViewModel : ObservableObject
                     : "Not priced";
             HasExperienceCredit = Result.AppliedExperienceCredit > 0;
             CreditSummary = HasExperienceCredit
-                ? $"+{Result.AppliedExperienceCredit:N0} XP pending from Slayer"
+                ? $"+{Result.AppliedExperienceCredit:N0} XP credited from planned methods"
                 : string.Empty;
             IsProfit = Result.NetGp >= 0m;
             PricingStatus = Result.IsFullyPriced
@@ -695,14 +695,19 @@ public partial class XpPlannerViewModel : ObservableObject, IPageViewModel
 
     private void ApplyExperienceDependencies()
     {
-        var slayer = Rows.FirstOrDefault(row => row.Skill == "Slayer");
-        var magic = Rows.FirstOrDefault(row => row.Skill == "Magic");
-        if (magic is null)
-            return;
+        var generatedBySkill = Rows
+            .SelectMany(row => row.Result.GeneratedExperience)
+            .GroupBy(flow => flow.Key, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => group.Sum(flow => flow.Value),
+                StringComparer.OrdinalIgnoreCase);
 
-        var generatedMagic = slayer?.Result.GeneratedExperience
-            .GetValueOrDefault("Magic") ?? 0m;
-        magic.SetPendingExperienceCredit((long)Math.Floor(generatedMagic));
+        foreach (var row in Rows)
+        {
+            row.SetPendingExperienceCredit((long)Math.Floor(
+                generatedBySkill.GetValueOrDefault(row.Skill)));
+        }
     }
 
     private void OnMoneyMakerSelectionChanged(object? sender, EventArgs eventArgs)

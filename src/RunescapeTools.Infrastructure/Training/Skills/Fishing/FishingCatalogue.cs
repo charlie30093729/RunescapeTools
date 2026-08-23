@@ -1,43 +1,23 @@
 using RunescapeTools.Core.Training;
-using RunescapeTools.Infrastructure.Training;
-using static RunescapeTools.Infrastructure.Training.TrainingCatalogueBuilder;
+using RunescapeTools.Infrastructure.Training.Skills.Fishing.Methods;
 
-namespace RunescapeTools.Infrastructure.Training.Skills;
+namespace RunescapeTools.Infrastructure.Training.Skills.Fishing;
 
 internal static class FishingCatalogue
 {
-    private const decimal ReviewedShardTotal = 4_894m;
-    private const decimal ReviewedSeedTotal = 33m;
-    private const long CrystalToolStartExperience = 814_445;
-
-    public static TrainingSkillDefinition Create() =>
-        Skill(
-            "Fishing",
-            $"Crystal charges use the reviewed all-skills 0-200m allocation of {ReviewedShardTotal:N0} shards " +
-            $"({ReviewedSeedTotal:N0} whole enhanced seeds); fish are dropped.",
-            Band(0, 29_200m, "Quests"),
-            Band(14_612, 46_592m, "3t fly fishing"),
-            Band(75_127, 84_686m, "Drift net fishing"),
-            Band(106_046, 97_867m, "Drift net fishing"),
-            Band(229_685, 112_877m, "Drift net fishing"),
-            Band(302_288, 128_082m, "Drift net fishing"),
-            Band(593_234, 139_313m, "Drift net fishing"),
-            Band(737_627, 132_800m, "Drift net fishing"),
-            Band(
-                CrystalToolStartExperience,
-                132_800m,
-                "2t swordfish and tuna - crystal harpoon",
-                new TrainingEconomics(
-                    [
-                        Input(
-                            Items.EnhancedCrystalTeleportSeed,
-                            ReviewedSeedTotal
-                            / (TrainingPlanCalculator.MaximumExperience - CrystalToolStartExperience))
-                    ])));
-
-    private static class Items
+    public static TrainingSkillDefinition Create()
     {
-        public static readonly CatalogueItem EnhancedCrystalTeleportSeed =
-            new(23959, "Enhanced crystal teleport seed (crystal harpoon charges)");
+        var defaultMethod = MainEhp.Create();
+        return new TrainingSkillDefinition(
+            "Fishing",
+            defaultMethod.Bands,
+            Note: defaultMethod.Note,
+            Methods:
+            [
+                defaultMethod,
+                ThreeTickBarbarianFishing.Create(),
+                FiveTickBarbarianFishing.Create()
+            ],
+            DefaultMethodId: defaultMethod.Id);
     }
 }
