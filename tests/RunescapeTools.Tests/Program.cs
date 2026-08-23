@@ -60,6 +60,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Hunter exposes live-priced level-banded Herbiboar training", () => RunSync(HerbiboarMethodCatalogue)),
     ("Red chinchompas and one-tick karambwans expose reviewed rates and economics", () => RunSync(RedChinsAndKarambwans)),
     ("Woodcutting alternatives expose crystal-felling-axe rates and economics", () => RunSync(WoodcuttingAlternativeMethods)),
+    ("Barbarian Fishing methods expose calibrated bands and unlock-gated Agility credit", () => RunSync(FishingBarbarianMethods)),
     ("XP Planner rows select and persist training methods", () => RunSync(XpPlannerRowMethodSelection)),
     ("skill configuration defaults and calculation effects are applied centrally", () => RunSync(TrainingSkillConfiguration)),
     ("XP Planner rows persist and reset skill configuration", () => RunSync(XpPlannerRowConfiguration)),
@@ -1132,7 +1133,7 @@ static void EhpCatalogueCoverage()
             "Herblore" => 3,
             "Smithing" => 3,
             "Runecraft" => 7,
-            "Woodcutting" or "Hunter" => 3,
+            "Woodcutting" or "Hunter" or "Fishing" => 3,
             "Farming" or "Cooking" or "Firemaking" => 2,
             "Prayer" or "Fletching" or "Crafting" or "Construction" => 2,
             _ => 1
@@ -1424,6 +1425,63 @@ static void WoodcuttingAlternativeMethods()
     EqualDecimal(1m, result.Hours, "104.5k ironwood calculation hours");
     True(result.IsFullyPriced, "ironwood route should be fully priced");
     True(result.NetGp < 0m, "crystal charges should exceed equal-priced ironwood log proceeds");
+}
+
+static void FishingBarbarianMethods()
+{
+    var definition = new MainEhpCatalogue().Skills.Single(skill => skill.Skill == "Fishing");
+    Equal(
+        "main-ehp|three-tick-barbarian-fishing|five-tick-barbarian-fishing",
+        string.Join('|', definition.AvailableMethods.Select(method => method.Id)),
+        "Fishing method IDs");
+    True(
+        definition.AvailableMethods.All(method => method.UseStableDisplayName),
+        "Fishing dropdown labels should remain stable across fallback bands");
+
+    var threeTick = definition.ResolveMethod("three-tick-barbarian-fishing");
+    var fiveTick = definition.ResolveMethod("five-tick-barbarian-fishing");
+    var starts = new long[] { 83_014, 224_466, 737_627, 1_986_068, 5_346_332, 13_034_431 };
+    var threeTickRates = new decimal[] { 45_000m, 72_000m, 95_000m, 103_000m, 110_000m, 115_000m };
+    var fiveTickRates = new decimal[] { 25_000m, 40_000m, 52_000m, 56_000m, 58_000m, 60_000m };
+    var fishingPerAgility = new decimal[] { 10m, 10.8m, 10.9m, 11.1m, 11.3m, 11.4m };
+
+    for (var index = 0; index < starts.Length; index++)
+    {
+        var threeTickBand = threeTick.Bands.Single(band => band.StartExperience == starts[index]);
+        var fiveTickBand = fiveTick.Bands.Single(band => band.StartExperience == starts[index]);
+        EqualDecimal(threeTickRates[index], threeTickBand.ExperiencePerHour, $"3-tick rate at {starts[index]}");
+        EqualDecimal(fiveTickRates[index], fiveTickBand.ExperiencePerHour, $"5-tick rate at {starts[index]}");
+        EqualDecimal(
+            1m / fishingPerAgility[index],
+            threeTickBand.ExperienceOutputs!.Single(flow => flow.Skill == "Agility").QuantityPerPrimaryExperience,
+            $"3-tick Agility ratio at {starts[index]}");
+        EqualDecimal(
+            1m / fishingPerAgility[index],
+            fiveTickBand.ExperienceOutputs!.Single(flow => flow.Skill == "Agility").QuantityPerPrimaryExperience,
+            $"5-tick Agility ratio at {starts[index]}");
+    }
+
+    var calculator = new TrainingPlanCalculator();
+    var unlockedResult = calculator.Calculate(
+        definition,
+        83_014,
+        183_014,
+        new Dictionary<int, ItemPrice>(),
+        methodId: threeTick.Id);
+    EqualDecimal(100_000m / 45_000m, unlockedResult.Hours, "3-tick Fishing hours");
+    EqualDecimal(10_000m, unlockedResult.GeneratedExperience["Agility"], "3-tick Agility credit");
+    True(!unlockedResult.NetGp.HasValue, "unpriced Barbarian supplies remain visibly unpriced");
+
+    var crossingUnlock = calculator.Calculate(
+        definition,
+        0,
+        100_000,
+        new Dictionary<int, ItemPrice>(),
+        methodId: threeTick.Id);
+    EqualDecimal(
+        (100_000m - 83_014m) / 10m,
+        crossingUnlock.GeneratedExperience["Agility"],
+        "pre-unlock fallback XP does not award Barbarian Agility XP");
 }
 
 static void XpPlannerRowMethodSelection()
@@ -3446,6 +3504,18 @@ static async Task XpPlannerViewModelFlow()
     Equal("0", magic.Hours, "view-model zero-time Magic hours");
     True(magic.HasExperienceCredit, "view-model exposes pending Magic credit");
     True(magic.CreditSummary.Contains("163,136,972"), "view-model formats pending Magic credit");
+
+    var fishing = viewModel.Rows.Single(row => row.Skill == "Fishing");
+    var agility = viewModel.Rows.Single(row => row.Skill == "Agility");
+    agility.StartExperience = 0;
+    agility.TargetExperience = TrainingPlanCalculator.MaximumExperience;
+    fishing.SelectedMethodOption = fishing.MethodOptions.Single(
+        option => option.Id == "three-tick-barbarian-fishing");
+    fishing.StartExperience = 83_014;
+    fishing.TargetExperience = 183_014;
+    Equal(10_000L, agility.Result.AppliedExperienceCredit, "view-model Fishing Agility credit");
+    True(agility.HasExperienceCredit, "view-model exposes pending Agility credit");
+    True(agility.CreditSummary.Contains("10,000"), "view-model formats pending Agility credit");
 }
 
 static async Task ShellNavigation()
