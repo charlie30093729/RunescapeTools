@@ -10,32 +10,92 @@ using RunescapeTools.Wpf.Services;
 
 namespace RunescapeTools.Wpf.ViewModels;
 
-public partial class TrainingMethodOptionViewModel(
-    TrainingMethodDefinition definition) : ObservableObject
+public partial class TrainingMethodOptionViewModel : ObservableObject
 {
-    public TrainingMethodDefinition Definition { get; } = definition;
+    public TrainingMethodOptionViewModel(
+        TrainingMethodDefinition definition,
+        long? unlockExperience = null)
+    {
+        Definition = definition;
+        UnlockExperience = unlockExperience is > 0 ? unlockExperience : null;
+        RouteName = string.Equals(
+            definition.Name,
+            "Main EHP route",
+            StringComparison.OrdinalIgnoreCase)
+            ? definition.Bands.LastOrDefault()?.Method ?? definition.Name
+            : definition.Name;
+        name = RouteName;
+    }
+
+    public TrainingMethodDefinition Definition { get; }
     public string Id => Definition.Id;
+    public string RouteName { get; }
+    public long? UnlockExperience { get; }
+    public int? UnlockLevel => UnlockExperience.HasValue
+        ? LevelForExperience(UnlockExperience.Value)
+        : null;
 
     [ObservableProperty]
-    private string name = definition.Name;
+    private string name;
 
-    public void UpdateName(
-        long experience,
-        TrainingMethodDefinition? configuredDefinition = null)
+    public void UpdateAvailability(long experience)
     {
-        var source = configuredDefinition ?? Definition;
-        if (source.UseStableDisplayName)
+        Name = UnlockExperience is { } unlock && experience < unlock
+            ? $"{RouteName} — unlocks at {UnlockLevel}"
+            : RouteName;
+    }
+
+    private static int LevelForExperience(long experience)
+    {
+        decimal points = 0m;
+        for (var level = 1; level < 99; level++)
         {
-            Name = source.Name;
-            return;
+            points += Math.Floor(level + 300m * (decimal)Math.Pow(2d, level / 7d));
+            if (experience < Math.Floor(points / 4m))
+                return level;
         }
 
-        var activeBand = source.Bands
+        return 99;
+    }
+}
+
+internal static class TrainingMethodAvailability
+{
+    public static long? FindUnlockExperience(
+        TrainingMethodDefinition defaultMethod,
+        TrainingMethodDefinition candidate)
+    {
+        if (string.Equals(defaultMethod.Id, candidate.Id, StringComparison.OrdinalIgnoreCase))
+            return null;
+
+        foreach (var experience in defaultMethod.Bands
+                     .Select(band => band.StartExperience)
+                     .Concat(candidate.Bands.Select(band => band.StartExperience))
+                     .Distinct()
+                     .Order())
+        {
+            var defaultBand = ActiveBand(defaultMethod, experience);
+            var candidateBand = ActiveBand(candidate, experience);
+            if (defaultBand is null || candidateBand is null)
+                continue;
+
+            if (!string.Equals(defaultBand.Method, candidateBand.Method, StringComparison.Ordinal)
+                || defaultBand.ExperiencePerHour != candidateBand.ExperiencePerHour)
+            {
+                return experience > 0 ? experience : null;
+            }
+        }
+
+        return null;
+    }
+
+    private static TrainingRateBand? ActiveBand(
+        TrainingMethodDefinition method,
+        long experience) =>
+        method.Bands
             .OrderBy(band => band.StartExperience)
             .LastOrDefault(band => band.StartExperience <= experience)
-            ?? source.Bands.FirstOrDefault();
-        Name = activeBand?.Method ?? source.Name;
-    }
+        ?? method.Bands.FirstOrDefault();
 }
 
 public partial class XpPlannerRowViewModel : ObservableObject
@@ -75,6 +135,12 @@ public partial class XpPlannerRowViewModel : ObservableObject
     private string creditSummary = string.Empty;
 
     [ObservableProperty]
+    private string availabilitySummary = string.Empty;
+
+    [ObservableProperty]
+    private bool hasAvailabilitySummary;
+
+    [ObservableProperty]
     private bool hasExperienceCredit;
 
     [ObservableProperty]
@@ -110,8 +176,11 @@ public partial class XpPlannerRowViewModel : ObservableObject
         targetExperience = preference?.TargetExperience ?? TrainingPlanCalculator.MaximumExperience;
         isMoneyMakingSelected = preference?.IsMoneyMakingSelected ?? false;
 
+        var defaultMethod = definition.ResolveMethod();
         MethodOptions = definition.AvailableMethods
-            .Select(method => new TrainingMethodOptionViewModel(method))
+            .Select(method => new TrainingMethodOptionViewModel(
+                method,
+                TrainingMethodAvailability.FindUnlockExperience(defaultMethod, method)))
             .ToArray();
         selectedMethodOption = MethodOptions.FirstOrDefault(option =>
                                    string.Equals(
@@ -347,20 +416,22 @@ public partial class XpPlannerRowViewModel : ObservableObject
             }
 
             foreach (var option in MethodOptions)
-                option.UpdateName(
-                    Result.EffectiveStartExperience,
-                    string.Equals(
-                        option.Id,
-                        Result.Method.Id,
-                        StringComparison.OrdinalIgnoreCase)
-                        ? Result.Method
-                        : null);
+                option.UpdateAvailability(Result.EffectiveStartExperience);
 
             var activeBand = Result.Method.Bands
                 .OrderBy(band => band.StartExperience)
                 .LastOrDefault(band => band.StartExperience <= Result.EffectiveStartExperience)
                 ?? Result.Method.Bands.FirstOrDefault();
             Method = activeBand?.Method ?? "Passive / zero-time";
+            var selectedUnlock = SelectedMethodOption?.UnlockExperience;
+            HasAvailabilitySummary = selectedUnlock is { } unlock
+                                     && Result.EffectiveStartExperience < unlock;
+            AvailabilitySummary = HasAvailabilitySummary
+                ? Result.TargetExperience <= selectedUnlock
+                    ? $"{SelectedMethodOption!.RouteName} unlocks at level {SelectedMethodOption.UnlockLevel}; " +
+                      $"this goal uses {Method}."
+                    : $"Using {Method} until level {SelectedMethodOption!.UnlockLevel}."
+                : string.Empty;
             Hours = Result.Hours == 0m ? "0" : Result.Hours.ToString("N1");
             TotalGp = Result.NetGp.HasValue ? DisplayFormat.Gp(Result.NetGp) : "Not priced";
             EconomicRate = !Result.IncludesActiveHours
