@@ -271,6 +271,19 @@
                                         </Grid>
                                         <TextBlock Text="{Binding EconomicRate}" Foreground="{StaticResource MutedBrush}" FontSize="9" Margin="0,3,0,0"
                                                    AutomationProperties.Name="Estimated economic rate" />
+                                        <TextBlock Text="{Binding AvailabilitySummary}" Foreground="{StaticResource GoldBrush}" FontSize="10" Margin="0,2,0,0"
+                                                   TextWrapping="Wrap" AutomationProperties.Name="Training method availability">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding HasAvailabilitySummary}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
                                         <TextBlock Text="{Binding CreditSummary}" Foreground="{StaticResource GoldBrush}" FontSize="9" Margin="0,2,0,0">
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock">

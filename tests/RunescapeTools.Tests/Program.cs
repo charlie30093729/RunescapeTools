@@ -61,6 +61,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Red chinchompas and one-tick karambwans expose reviewed rates and economics", () => RunSync(RedChinsAndKarambwans)),
     ("Woodcutting alternatives expose crystal-felling-axe rates and economics", () => RunSync(WoodcuttingAlternativeMethods)),
     ("Barbarian Fishing methods expose calibrated bands and unlock-gated Agility credit", () => RunSync(FishingBarbarianMethods)),
+    ("XP Planner method labels stay distinct while future routes use fallback bands", () => RunSync(TrainingMethodAvailabilityLabels)),
     ("XP Planner rows select and persist training methods", () => RunSync(XpPlannerRowMethodSelection)),
     ("skill configuration defaults and calculation effects are applied centrally", () => RunSync(TrainingSkillConfiguration)),
     ("XP Planner rows persist and reset skill configuration", () => RunSync(XpPlannerRowConfiguration)),
@@ -1369,15 +1370,18 @@ static void WoodcuttingAlternativeMethods()
         null,
         new Dictionary<int, ItemPrice>(),
         () => { });
-    const string expectedLabels =
+    const string expectedLockedLabels =
+        "1.5t teaks|Redwood trees - crystal felling axe — unlocks at 90|" +
+        "Ironwood trees - crystal felling axe — unlocks at 80";
+    const string expectedUnlockedLabels =
         "1.5t teaks|Redwood trees - crystal felling axe|Ironwood trees - crystal felling axe";
     Equal(
-        expectedLabels,
+        expectedLockedLabels,
         string.Join('|', row.MethodOptions.Select(option => option.Name)),
         "Woodcutting labels below alternative unlocks");
     row.StartExperience = 13_000_000;
     Equal(
-        expectedLabels,
+        expectedUnlockedLabels,
         string.Join('|', row.MethodOptions.Select(option => option.Name)),
         "Woodcutting labels after manual XP change");
 
@@ -1484,6 +1488,84 @@ static void FishingBarbarianMethods()
         "pre-unlock fallback XP does not award Barbarian Agility XP");
 }
 
+static void TrainingMethodAvailabilityLabels()
+{
+    var catalogue = new MainEhpCatalogue();
+    var calculator = new TrainingPlanCalculator();
+    var runecraft = catalogue.Skills.Single(skill => skill.Skill == "Runecraft");
+    var row = new XpPlannerRowViewModel(
+        runecraft,
+        calculator,
+        1_331_175,
+        new TrainingSkillPreference("Runecraft", 32_000_000),
+        new Dictionary<int, ItemPrice>(),
+        () => { });
+
+    const string expectedRunecraftLabels =
+        "Solo mud runes|Solo lava runes|Solo aether runes — unlocks at 90|" +
+        "Double nature runes - Achievement Diary cape — unlocks at 91|Ourania Altar (ZMI)|" +
+        "Arceuus blood runes — unlocks at 77|Arceuus soul runes — unlocks at 90";
+    Equal(
+        expectedRunecraftLabels,
+        string.Join('|', row.MethodOptions.Select(option => option.Name)),
+        "level-76 Runecraft labels");
+
+    row.SelectedMethodOption = row.MethodOptions.Single(option => option.Id == "solo-aether-runes");
+    Equal("Solo mud runes", row.Method, "Aether pre-unlock fallback calculation");
+    EqualDecimal(74_500m, row.Result.BaseRate, "Aether pre-unlock fallback rate");
+    Equal("Using Solo mud runes until level 90.", row.AvailabilitySummary, "Aether fallback disclosure");
+    True(row.HasAvailabilitySummary, "Aether fallback disclosure visibility");
+
+    row.TargetExperience = 5_000_000;
+    Equal(
+        "Solo aether runes unlocks at level 90; this goal uses Solo mud runes.",
+        row.AvailabilitySummary,
+        "route beyond the selected goal disclosure");
+    row.TargetExperience = 32_000_000;
+
+    row.StartExperience = 5_346_332;
+    Equal("Solo aether runes", row.SelectedMethodOption.Name, "Aether label after unlock");
+    Equal("Solo aether runes", row.Method, "Aether active calculation after unlock");
+    True(!row.HasAvailabilitySummary, "Aether fallback disclosure clears after unlock");
+
+    foreach (var skill in catalogue.Skills)
+    {
+        var skillRow = new XpPlannerRowViewModel(
+            skill,
+            calculator,
+            0,
+            null,
+            new Dictionary<int, ItemPrice>(),
+            () => { });
+        var routeNames = skillRow.MethodOptions.Select(option => option.RouteName).ToArray();
+        Equal(
+            routeNames.Length,
+            routeNames.Distinct(StringComparer.OrdinalIgnoreCase).Count(),
+            $"{skill.Skill} route names remain distinct");
+
+        foreach (var experience in skill.AvailableMethods
+                     .SelectMany(method => method.Bands)
+                     .Select(band => band.StartExperience)
+                     .Append(TrainingPlanCalculator.MaximumExperience)
+                     .Distinct())
+        {
+            skillRow.StartExperience = experience;
+            Equal(
+                skillRow.MethodOptions.Count,
+                skillRow.MethodOptions.Select(option => option.Name)
+                    .Distinct(StringComparer.OrdinalIgnoreCase).Count(),
+                $"{skill.Skill} method labels stay distinct at {experience:N0} XP");
+            for (var index = 0; index < skillRow.MethodOptions.Count; index++)
+            {
+                var option = skillRow.MethodOptions[index];
+                True(
+                    option.Name.StartsWith(routeNames[index], StringComparison.Ordinal),
+                    $"{skill.Skill} {option.Id} keeps its permanent route name at {experience:N0} XP");
+            }
+        }
+    }
+}
+
 static void XpPlannerRowMethodSelection()
 {
     var main = new TrainingMethodDefinition(
@@ -1509,7 +1591,7 @@ static void XpPlannerRowMethodSelection()
         () => changes++);
 
     Equal("main", row.SelectedMethodOption?.Id ?? string.Empty, "row default method");
-    Equal("Main training method", row.SelectedMethodOption?.Name ?? string.Empty, "active method label");
+    Equal("Main route", row.SelectedMethodOption?.Name ?? string.Empty, "stable route label");
     EqualDecimal(100m, row.PersonalRate, "default method rate");
 
     row.SelectedMethodOption = row.MethodOptions.Single(option => option.Id == "alternative");
