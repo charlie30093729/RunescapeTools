@@ -58,6 +58,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("catalogue market resources keep valid local item identities", () => RunSync(CatalogueMarketItemIntegrity)),
     ("training definitions support stable default and alternative methods", () => RunSync(TrainingMethodSelection)),
     ("Hunter exposes live-priced level-banded Herbiboar training", () => RunSync(HerbiboarMethodCatalogue)),
+    ("Aerial Fishing prices potions once and credits proportional Fishing XP", () => RunSync(AerialFishingMethodCatalogue)),
     ("Red chinchompas and one-tick karambwans expose reviewed rates and economics", () => RunSync(RedChinsAndKarambwans)),
     ("Woodcutting alternatives expose crystal-felling-axe rates and economics", () => RunSync(WoodcuttingAlternativeMethods)),
     ("Barbarian Fishing methods expose calibrated bands and unlock-gated Agility credit", () => RunSync(FishingBarbarianMethods)),
@@ -1134,7 +1135,8 @@ static void EhpCatalogueCoverage()
             "Herblore" => 3,
             "Smithing" => 3,
             "Runecraft" => 7,
-            "Woodcutting" or "Hunter" or "Fishing" => 3,
+            "Hunter" => 4,
+            "Woodcutting" or "Fishing" => 3,
             "Farming" or "Cooking" or "Firemaking" => 2,
             "Prayer" or "Fletching" or "Crafting" or "Construction" => 2,
             _ => 1
@@ -1237,7 +1239,7 @@ static void HerbiboarMethodCatalogue()
     var level80 = herbiboar.Bands.Single(band => band.StartExperience == 1_986_068);
     var level99 = herbiboar.Bands.Single(band => band.StartExperience == 13_034_431);
 
-    Equal(3, hunter.AvailableMethods.Count, "Hunter method count");
+    Equal(4, hunter.AvailableMethods.Count, "Hunter method count");
     Equal("main-ehp", main.Id, "Hunter default method remains Main EHP");
     Equal(
         "Black chinchompas - shooting alt",
@@ -1287,6 +1289,81 @@ static void HerbiboarMethodCatalogue()
     True(result.NetGp > 0m, "reviewed Herbiboar outputs exceed stamina cost at equal prices");
 }
 
+static void AerialFishingMethodCatalogue()
+{
+    const long reviewedRateStartExperience = 13_034_431;
+    const decimal hunterRate = 129_000m;
+    const decimal fishingRate = 99_500m;
+    var hunter = new MainEhpCatalogue().Skills.Single(skill => skill.Skill == "Hunter");
+    var aerial = hunter.ResolveMethod("aerial-fishing");
+    var band = aerial.Bands.Single(rateBand => rateBand.StartExperience == reviewedRateStartExperience);
+
+    Equal(4, hunter.AvailableMethods.Count, "Hunter method count with Aerial Fishing");
+    Equal("Aerial Fishing", aerial.Name, "Aerial Fishing route name");
+    EqualDecimal(hunterRate, band.ExperiencePerHour, "Aerial Hunter XP/hour");
+    EqualDecimal(
+        fishingRate / hunterRate,
+        band.ExperienceOutputs!.Single(flow => flow.Skill == "Fishing").QuantityPerPrimaryExperience,
+        "Aerial Fishing XP per Hunter XP");
+    EqualDecimal(2.5m, Resource(band, 31626).QuantityPerHour, "super hunter potions per hour");
+    EqualDecimal(2.5m, Resource(band, 31602).QuantityPerHour, "super fishing potions per hour");
+    EqualDecimal(2m, Resource(band, 2434).QuantityPerHour, "prayer potions per hour");
+    True(
+        aerial.Bands.Where(rateBand => rateBand.StartExperience < reviewedRateStartExperience)
+            .All(rateBand => rateBand.ExperienceOutputs is null),
+        "Hunter fallback bands do not award Fishing XP");
+
+    var prices = new Dictionary<int, ItemPrice>
+    {
+        [31626] = Quote(31626, 1_000),
+        [31602] = Quote(31602, 1_000),
+        [2434] = Quote(2434, 1_000)
+    };
+    var calculator = new TrainingPlanCalculator();
+    var result = calculator.Calculate(
+        hunter,
+        reviewedRateStartExperience,
+        reviewedRateStartExperience + 129_000,
+        prices,
+        methodId: aerial.Id);
+
+    EqualDecimal(1m, result.Hours, "one hour of Aerial Fishing");
+    EqualDecimal(99_500m, result.GeneratedExperience["Fishing"], "one-hour Fishing credit");
+    EqualDecimal(-7_000m, result.NetGp!.Value, "one-hour potion cost at equal prices", 0.000001m);
+    EqualDecimal(
+        2.5m,
+        result.ResourceRequirements.Single(resource => resource.ItemId == 31626).Quantity,
+        "one-hour super hunter potion quantity");
+    EqualDecimal(
+        2.5m,
+        result.ResourceRequirements.Single(resource => resource.ItemId == 31602).Quantity,
+        "one-hour super fishing potion quantity");
+    EqualDecimal(
+        2m,
+        result.ResourceRequirements.Single(resource => resource.ItemId == 2434).Quantity,
+        "one-hour prayer potion quantity");
+    True(result.IsFullyPriced, "eligible Aerial Fishing route is fully priced");
+
+    var slowerResult = calculator.Calculate(
+        hunter,
+        reviewedRateStartExperience,
+        reviewedRateStartExperience + 129_000,
+        prices,
+        personalRate: 64_500m,
+        methodId: aerial.Id);
+    EqualDecimal(2m, slowerResult.Hours, "personal Hunter rate scales Aerial hours");
+    EqualDecimal(99_500m, slowerResult.GeneratedExperience["Fishing"], "Fishing credit follows Hunter XP ratio");
+    EqualDecimal(-14_000m, slowerResult.NetGp!.Value, "hourly potion cost follows elapsed time", 0.000001m);
+
+    var lockedResult = calculator.Calculate(
+        hunter,
+        0,
+        reviewedRateStartExperience,
+        prices,
+        methodId: aerial.Id);
+    True(!lockedResult.GeneratedExperience.ContainsKey("Fishing"), "pre-unlock route has no Fishing credit");
+}
+
 static void RedChinsAndKarambwans()
 {
     var catalogue = new MainEhpCatalogue();
@@ -1294,7 +1371,7 @@ static void RedChinsAndKarambwans()
 
     var hunter = catalogue.Skills.Single(skill => skill.Skill == "Hunter");
     Equal(
-        "main-ehp|herbiboar|red-chinchompas",
+        "main-ehp|herbiboar|red-chinchompas|aerial-fishing",
         string.Join('|', hunter.AvailableMethods.Select(method => method.Id)),
         "Hunter method IDs");
     var redChins = hunter.ResolveMethod("red-chinchompas");
@@ -3598,6 +3675,19 @@ static async Task XpPlannerViewModelFlow()
     Equal(10_000L, agility.Result.AppliedExperienceCredit, "view-model Fishing Agility credit");
     True(agility.HasExperienceCredit, "view-model exposes pending Agility credit");
     True(agility.CreditSummary.Contains("10,000"), "view-model formats pending Agility credit");
+
+    var hunter = viewModel.Rows.Single(row => row.Skill == "Hunter");
+    hunter.SelectedMethodOption = hunter.MethodOptions.Single(option => option.Id == "aerial-fishing");
+    fishing.StartExperience = 13_034_431;
+    fishing.TargetExperience = 13_134_431;
+    hunter.StartExperience = 13_034_431;
+    hunter.TargetExperience = 13_163_431;
+    EqualDecimal(1m, hunter.Result.Hours, "view-model Aerial Fishing hours counted once");
+    Equal(99_500L, fishing.Result.AppliedExperienceCredit, "view-model Aerial Fishing credit");
+    Equal(43L, agility.Result.AppliedExperienceCredit, "linked Fishing-to-Agility credit converges");
+    True(
+        fishing.CreditSummary.Contains("Hunter: Aerial Fishing"),
+        "Fishing credit identifies the Aerial Fishing source");
 }
 
 static async Task ShellNavigation()

@@ -106,6 +106,7 @@ public partial class XpPlannerRowViewModel : ObservableObject
     private readonly Action<XpPlannerRowViewModel>? showPricing;
     private IReadOnlyDictionary<int, ItemPrice> prices;
     private long pendingExperienceCredit;
+    private string pendingExperienceCreditSource = string.Empty;
     private bool hasPersonalRateOverride;
     private decimal personalBaseRate;
     private bool suppressChanges;
@@ -252,14 +253,23 @@ public partial class XpPlannerRowViewModel : ObservableObject
 
     public void SetTarget(long value) => TargetExperience = value;
 
-    public void SetPendingExperienceCredit(long value)
+    public bool SetPendingExperienceCredit(long value, string? source = null)
     {
         var normalized = Math.Max(0, value);
-        if (pendingExperienceCredit == normalized)
-            return;
+        var normalizedSource = normalized > 0 ? source?.Trim() ?? string.Empty : string.Empty;
+        if (pendingExperienceCredit == normalized
+            && string.Equals(
+                pendingExperienceCreditSource,
+                normalizedSource,
+                StringComparison.Ordinal))
+        {
+            return false;
+        }
 
         pendingExperienceCredit = normalized;
+        pendingExperienceCreditSource = normalizedSource;
         Recalculate();
+        return true;
     }
 
     public void ApplyConfiguration(IReadOnlyDictionary<string, string> values)
@@ -443,7 +453,10 @@ public partial class XpPlannerRowViewModel : ObservableObject
                     : "Not priced";
             HasExperienceCredit = Result.AppliedExperienceCredit > 0;
             CreditSummary = HasExperienceCredit
-                ? $"+{Result.AppliedExperienceCredit:N0} XP credited from planned methods"
+                ? $"+{Result.AppliedExperienceCredit:N0} XP from " +
+                  (string.IsNullOrWhiteSpace(pendingExperienceCreditSource)
+                      ? "planned methods"
+                      : pendingExperienceCreditSource)
                 : string.Empty;
             IsProfit = Result.NetGp >= 0m;
             PricingStatus = Result.IsFullyPriced
@@ -766,18 +779,42 @@ public partial class XpPlannerViewModel : ObservableObject, IPageViewModel
 
     private void ApplyExperienceDependencies()
     {
-        var generatedBySkill = Rows
-            .SelectMany(row => row.Result.GeneratedExperience)
-            .GroupBy(flow => flow.Key, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(
-                group => group.Key,
-                group => group.Sum(flow => flow.Value),
-                StringComparer.OrdinalIgnoreCase);
-
-        foreach (var row in Rows)
+        for (var iteration = 0; iteration <= Rows.Count; iteration++)
         {
-            row.SetPendingExperienceCredit((long)Math.Floor(
-                generatedBySkill.GetValueOrDefault(row.Skill)));
+            var generatedBySkill = Rows
+                .SelectMany(source => source.Result.GeneratedExperience
+                    .Where(flow => flow.Value > 0m)
+                    .Select(flow => new
+                    {
+                        Skill = flow.Key,
+                        Experience = flow.Value,
+                        Source = $"{source.Skill}: " +
+                                 (source.SelectedMethodOption?.RouteName ?? source.Method)
+                    }))
+                .GroupBy(flow => flow.Skill, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    group => group.Key,
+                    group => new
+                    {
+                        Experience = group.Sum(flow => flow.Experience),
+                        Sources = string.Join(
+                            ", ",
+                            group.Select(flow => flow.Source)
+                                .Distinct(StringComparer.OrdinalIgnoreCase))
+                    },
+                    StringComparer.OrdinalIgnoreCase);
+
+            var changed = false;
+            foreach (var row in Rows)
+            {
+                generatedBySkill.TryGetValue(row.Skill, out var generated);
+                changed |= row.SetPendingExperienceCredit(
+                    (long)Math.Floor(generated?.Experience ?? 0m),
+                    generated?.Sources);
+            }
+
+            if (!changed)
+                break;
         }
     }
 
