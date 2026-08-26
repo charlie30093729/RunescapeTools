@@ -34,9 +34,11 @@ internal static class AerialFishing
             "but this reviewed boosted rate begins at level 99 in both skills. It earns 129,000 " +
             "Hunter and 99,500 Fishing XP/hour, uses Preserve, boosts to 105, and repots at 101: " +
             "one dose of super hunter and super fishing potion every six minutes, plus one prayer " +
-            "potion(4) every 30 minutes. Ten of each boosting potion and eight prayer potions " +
-            "provide a four-hour 28-slot inventory. Caught fish are processed into sustainable " +
-            "bait; Cooking XP, Molch pearls, golden tench, and untradeable rewards are excluded. " +
+            "potion(4) every 30 minutes. Enable Alry the Angler's whole-fish toggle and bring " +
+            "initial bait or an eligible fish; when no appropriate bait remains, the cormorant " +
+            "can eat caught fish directly, so no knife, fish-offcut processing, or recurring bait " +
+            "cost is modelled. Cooking XP, Molch pearls, golden tench, and untradeable rewards are " +
+            "excluded. " +
             "The default Hunter route is retained below level 99 because lower-level boosted rates " +
             "have not been reviewed.");
 
