@@ -16,7 +16,8 @@ internal static class HunterCatalogue
             [
                 defaultMethod,
                 Herbiboar.Create(),
-                RedChinchompas.Create()
+                RedChinchompas.Create(),
+                AerialFishing.Create()
             ],
             DefaultMethodId: defaultMethod.Id);
     }
