@@ -3,6 +3,7 @@ using RunescapeTools.Core.Training;
 using RunescapeTools.Infrastructure.Training.Skills;
 using RunescapeTools.Infrastructure.Training.Skills.Construction;
 using RunescapeTools.Infrastructure.Training.Skills.Crafting;
+using RunescapeTools.Infrastructure.Training.Skills.Defence;
 using RunescapeTools.Infrastructure.Training.Skills.Farming;
 using RunescapeTools.Infrastructure.Training.Skills.Firemaking;
 using RunescapeTools.Infrastructure.Training.Skills.Fishing;
@@ -10,6 +11,7 @@ using RunescapeTools.Infrastructure.Training.Skills.Fletching;
 using RunescapeTools.Infrastructure.Training.Skills.Herblore;
 using RunescapeTools.Infrastructure.Training.Skills.Hunter;
 using RunescapeTools.Infrastructure.Training.Skills.Prayer;
+using RunescapeTools.Infrastructure.Training.Skills.Ranged;
 using RunescapeTools.Infrastructure.Training.Skills.Runecraft;
 using RunescapeTools.Infrastructure.Training.Skills.Smithing;
 using RunescapeTools.Infrastructure.Training.Skills.Woodcutting;
@@ -20,7 +22,7 @@ public sealed class MainEhpCatalogue : IEhpCatalogue
 {
     public string Version => "OSRS training catalogue 2026-08";
 
-    public DateOnly VerifiedOn => new(2026, 8, 26);
+    public DateOnly VerifiedOn => new(2026, 8, 27);
 
     public IReadOnlyList<TrainingSkillDefinition> Skills { get; } =
     [

@@ -1137,7 +1137,7 @@ static void EhpCatalogueCoverage()
             "Runecraft" => 7,
             "Hunter" => 4,
             "Woodcutting" or "Fishing" => 3,
-            "Farming" or "Cooking" or "Firemaking" => 2,
+            "Defence" or "Ranged" or "Farming" or "Cooking" or "Firemaking" => 2,
             "Prayer" or "Fletching" or "Crafting" or "Construction" => 2,
             _ => 1
         };
@@ -3147,19 +3147,44 @@ static void CombatMethodCatalogue()
         catalogue.Skills.All(skill => skill.Skill is not "Attack" and not "Strength" and not "Hitpoints"),
         "zero-time melee and Hitpoints skills should be omitted from the XP Planner catalogue");
 
+    var defenceDefinition = catalogue.Skills.Single(skill => skill.Skill == "Defence");
     var defence = TrainingBand(catalogue, "Defence", 0);
+    Equal(2, defenceDefinition.AvailableMethods.Count, "Defence chinchompa method count");
+    Equal("main-ehp|red-chinchompas-cannon-defensive",
+        string.Join('|', defenceDefinition.AvailableMethods.Select(method => method.Id)),
+        "Defence chinchompa method IDs");
     EqualDecimal(405_000m, defence.ExperiencePerHour, "Defence rate");
     Equal("Black Chinchompas & Cannon - Defensive", defence.Method, "Defence method");
     EqualDecimal(1_500m / 405_000m, Resource(defence, 11959).QuantityPerExperience, "Defence chins per XP");
     EqualDecimal(6_000m / 405_000m, Resource(defence, 2).QuantityPerExperience, "Defence cannonballs per XP");
 
+    var redDefence = defenceDefinition.ResolveMethod("red-chinchompas-cannon-defensive").Bands.Single();
+    EqualDecimal(330_000m, redDefence.ExperiencePerHour, "red-chinchompa Defence rate");
+    Equal("Red Chinchompas & Cannon - Defensive", redDefence.Method, "red-chinchompa Defence method");
+    EqualDecimal(1_500m / 330_000m, Resource(redDefence, 10034).QuantityPerExperience,
+        "red-chinchompa Defence chins per XP");
+    EqualDecimal(6_000m / 330_000m, Resource(redDefence, 2).QuantityPerExperience,
+        "red-chinchompa Defence cannonballs per XP");
+
     var rangedDefinition = catalogue.Skills.Single(skill => skill.Skill == "Ranged");
     var ranged = TrainingBand(catalogue, "Ranged", 0);
     True(rangedDefinition.IsZeroTime, "Ranged should contribute zero active hours");
+    Equal(2, rangedDefinition.AvailableMethods.Count, "Ranged chinchompa method count");
+    Equal("main-ehp|red-chinchompas-cannon",
+        string.Join('|', rangedDefinition.AvailableMethods.Select(method => method.Id)),
+        "Ranged chinchompa method IDs");
     EqualDecimal(1_150_000m, ranged.ExperiencePerHour, "Ranged rate");
     Equal("Black Chinchompas & Cannon", ranged.Method, "Ranged method");
     EqualDecimal(1_866m / 1_150_000m, Resource(ranged, 11959).QuantityPerExperience, "Ranged chins per XP");
     EqualDecimal(6_000m / 1_150_000m, Resource(ranged, 2).QuantityPerExperience, "Ranged cannonballs per XP");
+
+    var redRanged = rangedDefinition.ResolveMethod("red-chinchompas-cannon").Bands.Single();
+    EqualDecimal(940_000m, redRanged.ExperiencePerHour, "red-chinchompa Ranged rate");
+    Equal("Red Chinchompas & Cannon", redRanged.Method, "red-chinchompa Ranged method");
+    EqualDecimal(1_866m / 940_000m, Resource(redRanged, 10034).QuantityPerExperience,
+        "red-chinchompa Ranged chins per XP");
+    EqualDecimal(6_000m / 940_000m, Resource(redRanged, 2).QuantityPerExperience,
+        "red-chinchompa Ranged cannonballs per XP");
 
     var magicDefinition = catalogue.Skills.Single(skill => skill.Skill == "Magic");
     var magic = TrainingBand(catalogue, "Magic", 0);
@@ -3188,6 +3213,7 @@ static void CombatDependencyCalculations()
     var prices = new Dictionary<int, ItemPrice>
     {
         [2] = Quote(2, 200),
+        [10034] = Quote(10034, 1_000),
         [11959] = Quote(11959, 3_000),
         [560] = Quote(560, 150),
         [565] = Quote(565, 300)
@@ -3206,6 +3232,20 @@ static void CombatDependencyCalculations()
         "Defence supply cost",
         0.01m);
 
+    var redDefence = calculator.Calculate(
+        catalogue.Skills.Single(skill => skill.Skill == "Defence"),
+        0,
+        TrainingPlanCalculator.MaximumExperience,
+        prices,
+        methodId: "red-chinchompas-cannon-defensive");
+    EqualDecimal(606.0606m, redDefence.Hours, "red-chinchompa Defence 0-200m hours", 0.0001m);
+    EqualDecimal(
+        -TrainingPlanCalculator.MaximumExperience
+        * (1_500m / 330_000m * 1_000m + 6_000m / 330_000m * 200m),
+        redDefence.NetGp ?? 0m,
+        "red-chinchompa Defence supply cost",
+        0.01m);
+
     var ranged = calculator.Calculate(
         catalogue.Skills.Single(skill => skill.Skill == "Ranged"),
         0,
@@ -3219,6 +3259,21 @@ static void CombatDependencyCalculations()
         "Ranged supply cost",
         0.01m);
     True(ranged.GpPerExperience < 0m, "Ranged should expose GP per XP");
+
+    var redRanged = calculator.Calculate(
+        catalogue.Skills.Single(skill => skill.Skill == "Ranged"),
+        0,
+        TrainingPlanCalculator.MaximumExperience,
+        prices,
+        methodId: "red-chinchompas-cannon");
+    EqualDecimal(0m, redRanged.Hours, "zero-time red-chinchompa Ranged hours");
+    EqualDecimal(
+        -TrainingPlanCalculator.MaximumExperience
+        * (1_866m / 940_000m * 1_000m + 6_000m / 940_000m * 200m),
+        redRanged.NetGp ?? 0m,
+        "red-chinchompa Ranged supply cost",
+        0.01m);
+    True(redRanged.GpPerExperience < 0m, "red-chinchompa Ranged should expose GP per XP");
 
     const long reviewedSlayerExperience = 6_578L * 28_397L;
     var slayer = calculator.Calculate(
