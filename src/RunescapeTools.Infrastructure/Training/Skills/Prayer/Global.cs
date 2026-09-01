@@ -63,6 +63,7 @@ internal static class PrayerGlobal
         {
             "superior-dragon-bones" => Methods.SuperiorDragonBones.Create(settings),
             "dragon-bones" => Methods.DragonBones.Create(settings),
+            "frost-dragon-bones" => Methods.FrostDragonBones.Create(settings),
             _ => method
         };
     }

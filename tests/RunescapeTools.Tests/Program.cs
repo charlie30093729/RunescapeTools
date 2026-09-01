@@ -1138,7 +1138,8 @@ static void EhpCatalogueCoverage()
             "Hunter" => 4,
             "Woodcutting" or "Fishing" => 3,
             "Defence" or "Ranged" or "Farming" or "Cooking" or "Firemaking" => 2,
-            "Prayer" or "Fletching" or "Crafting" or "Construction" => 2,
+            "Prayer" => 3,
+            "Fletching" or "Crafting" or "Construction" => 2,
             _ => 1
         };
         Equal(expectedMethodCount, skill.AvailableMethods.Count, $"{skill.Skill} method count");
@@ -2193,6 +2194,10 @@ static void PracticalBuyableMethods()
     EqualDecimal(1_250m / 25m / 60m, doors.Economics!.FixedGpPerExperience, "Oak dungeon door servant fee");
 
     var prayer = catalogue.Skills.Single(skill => skill.Skill == "Prayer");
+    Equal(
+        "superior-dragon-bones|dragon-bones|frost-dragon-bones",
+        string.Join('|', prayer.AvailableMethods.Select(method => method.Id)),
+        "Prayer method IDs");
     var dragonBones = prayer.ResolveMethod("dragon-bones").Bands.Single();
     EqualDecimal(642_600m, dragonBones.ExperiencePerHour, "Gilded Altar dragon bone rate");
     EqualDecimal(1m / 252m, Resource(dragonBones, 536).QuantityPerExperience, "Gilded dragon bones per XP");
@@ -2211,6 +2216,68 @@ static void PracticalBuyableMethods()
         1m / 504m,
         Resource(chaosDragonBones.Method.Bands.Single(), 536).QuantityPerExperience,
         "Chaos Altar effective dragon bones per XP");
+
+    var frostDragonBones = prayer.ResolveMethod("frost-dragon-bones").Bands.Single();
+    EqualDecimal(892_500m, frostDragonBones.ExperiencePerHour, "Gilded Altar Frost dragon bone rate");
+    Equal(
+        "Frost dragon bones at the Gilded Altar",
+        frostDragonBones.Method,
+        "Gilded Altar Frost dragon bone method");
+    EqualDecimal(
+        1m / 350m,
+        Resource(frostDragonBones, 31729).QuantityPerExperience,
+        "Gilded Frost dragon bones per XP");
+    var frostPrices = new Dictionary<int, ItemPrice>
+    {
+        [31729] = Quote(31729, 6_000)
+    };
+    var gildedFrostDragonBones = calculator.Calculate(
+        prayer,
+        0,
+        892_500,
+        frostPrices,
+        methodId: "frost-dragon-bones");
+    EqualDecimal(1m, gildedFrostDragonBones.Hours, "one Gilded Altar Frost dragon bone hour");
+    EqualDecimal(
+        2_550m,
+        gildedFrostDragonBones.ResourceRequirements.Single(resource => resource.ItemId == 31729).Quantity,
+        "Gilded Altar hourly Frost dragon bones",
+        0.0001m);
+    EqualDecimal(
+        -15_300_000m,
+        gildedFrostDragonBones.NetGp ?? 0m,
+        "Gilded Altar hourly Frost dragon bone cost",
+        0.01m);
+
+    var chaosFrostDragonBones = calculator.Calculate(
+        prayer,
+        0,
+        700_000,
+        frostPrices,
+        methodId: "frost-dragon-bones",
+        configuration: new Dictionary<string, string>
+        {
+            ["offering-location"] = "chaos-altar"
+        });
+    EqualDecimal(700_000m, chaosFrostDragonBones.BaseRate, "Chaos Altar Frost dragon bone rate");
+    Equal(
+        "Frost dragon bones at the Chaos Altar",
+        chaosFrostDragonBones.Method.Bands.Single().Method,
+        "Chaos Altar Frost dragon bone method");
+    EqualDecimal(
+        1m / 700m,
+        Resource(chaosFrostDragonBones.Method.Bands.Single(), 31729).QuantityPerExperience,
+        "Chaos Altar effective Frost dragon bones per XP");
+    EqualDecimal(
+        1_000m,
+        chaosFrostDragonBones.ResourceRequirements.Single(resource => resource.ItemId == 31729).Quantity,
+        "Chaos Altar hourly consumed Frost dragon bones",
+        0.0001m);
+    EqualDecimal(
+        -6_000_000m,
+        chaosFrostDragonBones.NetGp ?? 0m,
+        "Chaos Altar hourly Frost dragon bone cost",
+        0.01m);
 
     var crafting = catalogue.Skills.Single(skill => skill.Skill == "Crafting");
     var airStaves = crafting.ResolveMethod("air-battlestaves").Bands.Last();
