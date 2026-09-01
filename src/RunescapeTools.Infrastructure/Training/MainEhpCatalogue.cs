@@ -22,7 +22,7 @@ public sealed class MainEhpCatalogue : IEhpCatalogue
 {
     public string Version => "OSRS training catalogue 2026-08";
 
-    public DateOnly VerifiedOn => new(2026, 8, 27);
+    public DateOnly VerifiedOn => new(2026, 9, 1);
 
     public IReadOnlyList<TrainingSkillDefinition> Skills { get; } =
     [
