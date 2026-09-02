@@ -3976,6 +3976,26 @@ static Task WpfViewsConstruct()
             };
             window.Show();
             plannerView.UpdateLayout();
+            var skillRowsScrollViewer = (System.Windows.Controls.ScrollViewer)plannerView.FindName(
+                "SkillRowsScrollViewer");
+            EqualDecimal(0m, (decimal)skillRowsScrollViewer.VerticalOffset,
+                "XP Planner skill rows start at the top");
+            var skillRows = (System.Windows.Controls.ItemsControl)plannerView.FindName("SkillRows");
+            var skillIconBar = (System.Windows.Controls.ItemsControl)plannerView.FindName("SkillIconBar");
+            True(
+                ReferenceEquals(
+                    RunescapeTools.Wpf.Controls.RightClickItemNavigation.GetTargetItemsControl(skillIconBar),
+                    skillRows),
+                "XP Planner icon bar attaches right-click navigation to the skill rows");
+            True(
+                RunescapeTools.Wpf.Controls.RightClickItemNavigation.ScrollToItem(
+                    skillRows,
+                    viewModel.Rows.Single(row => row.Skill == "Construction")),
+                "XP Planner can resolve a skill row from its icon data context");
+            plannerView.UpdateLayout();
+            True(
+                skillRowsScrollViewer.VerticalOffset > 0,
+                "right-click skill navigation moves the planner scroll position");
             var runecraftConfiguration = new MainEhpCatalogue().Skills
                 .Single(skill => skill.Skill == "Runecraft")
                 .Configurator!;
