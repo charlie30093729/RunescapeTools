@@ -5,7 +5,7 @@ internal static class DoloAetherRunes
 {
     private const long UnlockExperience = 5_346_332;
     private const decimal ExperiencePerHour = 138_000m;
-    private const string Name = "Dolo aether runes (1+1)";
+    private const string Name = "Dolo aether runes";
 
     public static TrainingMethodDefinition Create(RunecraftGlobal.RunecraftSettings settings)
     {
