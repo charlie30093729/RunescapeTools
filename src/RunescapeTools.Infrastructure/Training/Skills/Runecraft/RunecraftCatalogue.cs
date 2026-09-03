@@ -19,6 +19,7 @@ internal static class RunecraftCatalogue
                 defaultMethod,
                 SoloLavaRunes.Create(settings),
                 SoloAetherRunes.Create(settings),
+                DoloAetherRunes.Create(settings),
                 AchievementCapeNatureRunes.Create(settings),
                 OuraniaAltarZmi.Create(settings),
                 ArceuusBloodRunes.Create(settings),
