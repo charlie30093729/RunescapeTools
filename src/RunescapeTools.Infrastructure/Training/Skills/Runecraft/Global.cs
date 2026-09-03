@@ -13,6 +13,9 @@ internal static class RunecraftGlobal
     public const string DaeyaltEssenceQuantityKey = "daeyalt-essence-quantity";
     public const long RunecraftCapeExperience = 13_034_431;
     private const decimal DaeyaltExperienceMultiplier = 1.5m;
+    private const decimal DoloAetherMainExperienceShare = 63m / 109m;
+    private const decimal DoloAetherDaeyaltRateMultiplier =
+        1m + (DoloAetherMainExperienceShare * (DaeyaltExperienceMultiplier - 1m));
     private const decimal FullRaimentsBonusPerTenRunes = 6m;
     private const decimal MagicLogLanternRuneBonus = 0.1m;
     private const decimal DarkAltarBindingExperiencePerFragment = 0.625m;
@@ -183,9 +186,7 @@ internal static class RunecraftGlobal
         RunecraftSettings settings,
         TrainingCalculationContext context)
     {
-        if (method.Id == "dolo-aether-runes"
-            || !settings.UseDaeyaltEssence
-            || settings.DaeyaltEssenceQuantity is 0)
+        if (!settings.UseDaeyaltEssence || settings.DaeyaltEssenceQuantity is 0)
             return method;
 
         decimal? remainingEssence = settings.DaeyaltEssenceQuantity;
@@ -225,7 +226,10 @@ internal static class RunecraftGlobal
             if (daeyaltExperience <= 0)
                 continue;
 
-            bands.Add(CreateDaeyaltBand(band, segmentStart));
+            var rateMultiplier = method.Id == "dolo-aether-runes"
+                ? DoloAetherDaeyaltRateMultiplier
+                : DaeyaltExperienceMultiplier;
+            bands.Add(CreateDaeyaltBand(band, segmentStart, rateMultiplier));
             if (daeyaltExperience < segmentExperience)
             {
                 bands.Add(band with
@@ -250,15 +254,16 @@ internal static class RunecraftGlobal
 
     private static TrainingRateBand CreateDaeyaltBand(
         TrainingRateBand band,
-        long startExperience)
+        long startExperience,
+        decimal rateMultiplier)
     {
         var economics = band.Economics;
         return band with
         {
             StartExperience = startExperience,
-            ExperiencePerHour = band.ExperiencePerHour * DaeyaltExperienceMultiplier,
+            ExperiencePerHour = band.ExperiencePerHour * rateMultiplier,
             ConfigurationRateMultiplier =
-                band.ConfigurationRateMultiplier * DaeyaltExperienceMultiplier,
+                band.ConfigurationRateMultiplier * rateMultiplier,
             Method = $"{band.Method} - Daeyalt essence",
             Economics = economics is null
                 ? null

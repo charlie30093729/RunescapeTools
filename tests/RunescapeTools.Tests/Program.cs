@@ -2378,21 +2378,22 @@ static void RunecraftAlternativeMethods()
     var doloAetherMethod = definition.ResolveMethod("dolo-aether-runes");
     var doloAether90 = doloAetherMethod.Bands.Single(band => band.StartExperience == 5_346_332);
     EqualDecimal(138_000m, doloAether90.ExperiencePerHour, "dolo aether reviewed rate");
-    EqualDecimal(1m / 20m, Resource(doloAether90, 7936).QuantityPerExperience, "dolo aether essence per XP");
-    EqualDecimal(1m / 20m, Resource(doloAether90, 566).QuantityPerExperience, "dolo aether soul runes per XP");
-    EqualDecimal(173.9m / 2_180m, Resource(doloAether90, 30771).QuantityPerExperience, "dolo aether catalyst cost");
-    EqualDecimal(173.9m / 2_180m, Resource(doloAether90, 30843).QuantityPerExperience, "dolo aether output");
-    EqualDecimal((1m / 3m) / 2_180m, Resource(doloAether90, 5521).QuantityPerExperience, "dolo aether binding necklaces");
-    EqualDecimal(0.25m / 2_180m, Resource(doloAether90, 2552).QuantityPerExperience, "both dolo ring charges");
-    EqualDecimal(4.125m / 2_180m, Resource(doloAether90, 9075).QuantityPerExperience, "dolo Magic Imbue and repair astrals");
-    EqualDecimal(0.25m / 2_180m, Resource(doloAether90, 556).QuantityPerExperience, "dolo pre-99 repair air runes");
-    EqualDecimal(0.125m / 2_180m, Resource(doloAether90, 564).QuantityPerExperience, "dolo pre-99 repair cosmic runes");
+    foreach (var soloResource in aether90.Economics!.Resources)
+    {
+        var doloResource = doloAether90.Economics!.Resources.Single(resource =>
+            resource.ItemId == soloResource.ItemId
+            && resource.Direction == soloResource.Direction);
+        EqualDecimal(
+            soloResource.QuantityPerExperience,
+            doloResource.QuantityPerExperience,
+            $"dolo aether preserves solo {soloResource.Name} per XP");
+    }
     var doloAether99 = doloAetherMethod.Bands.Last();
     EqualDecimal(138_000m, doloAether99.ExperiencePerHour, "dolo aether cape rate");
-    EqualDecimal(4m / 2_180m, Resource(doloAether99, 9075).QuantityPerExperience, "dolo Magic Imbue astrals after 99");
-    True(
-        doloAether99.Economics!.Resources.All(resource => resource.ItemId is not 556 and not 564),
-        "Runecraft cape removes dolo main-account pouch-repair runes");
+    Equal(
+        aether99.Economics!.Resources.Count,
+        doloAether99.Economics!.Resources.Count,
+        "dolo aether preserves solo post-99 resource set");
 
     var daeyaltDoloAether = calculator.Calculate(
         definition,
@@ -2405,13 +2406,16 @@ static void RunecraftAlternativeMethods()
             ["use-daeyalt-essence"] = bool.TrueString,
             ["daeyalt-essence-quantity"] = string.Empty
         });
-    EqualDecimal(138_000m, daeyaltDoloAether.BaseRate, "untradeable Daeyalt does not alter dolo rate");
+    EqualDecimal(
+        138_000m * (1m + (63m / 109m * 0.5m)),
+        daeyaltDoloAether.BaseRate,
+        "Daeyalt boosts only the dolo main-account XP share");
     True(
-        daeyaltDoloAether.ResourceRequirements.Any(resource => resource.ItemId == 7936),
-        "dolo route retains tradeable pure essence");
+        daeyaltDoloAether.ResourceRequirements.Any(resource => resource.ItemId == 24704),
+        "dolo route applies Daeyalt to the main account's tracked essence");
     True(
-        daeyaltDoloAether.ResourceRequirements.All(resource => resource.ItemId != 24704),
-        "dolo route excludes untradeable Daeyalt essence");
+        daeyaltDoloAether.ResourceRequirements.All(resource => resource.ItemId != 7936),
+        "unlimited Daeyalt replaces the main account's pure essence");
 
     var noRaimentsAether = calculator.Calculate(
         definition,
@@ -2814,6 +2818,35 @@ static void RunecraftDaeyaltConfiguration()
         75_000m,
         natureRow.ToPreference().ExperiencePerHourOverride ?? 0m,
         "double-nature plan persists the pre-Daeyalt personal base rate");
+
+    var doloAetherRow = new XpPlannerRowViewModel(
+        definition,
+        calculator,
+        5_346_332,
+        null,
+        prices,
+        () => { });
+    doloAetherRow.SelectedMethodOption = doloAetherRow.MethodOptions.Single(option =>
+        option.Id == "dolo-aether-runes");
+    doloAetherRow.PersonalRate = 75_000m;
+    doloAetherRow.ApplyConfiguration(new Dictionary<string, string>
+    {
+        ["use-daeyalt-essence"] = bool.TrueString,
+        ["daeyalt-essence-quantity"] = string.Empty
+    });
+    var expectedDoloDaeyaltRate = 75_000m * (1m + (63m / 109m * 0.5m));
+    EqualDecimal(
+        expectedDoloDaeyaltRate,
+        doloAetherRow.PersonalRate,
+        "dolo Aether custom rate boosts only the main-account share");
+    EqualDecimal(
+        expectedDoloDaeyaltRate,
+        doloAetherRow.Result.EffectiveRate,
+        "dolo Aether calculation applies its partial Daeyalt multiplier");
+    EqualDecimal(
+        75_000m,
+        doloAetherRow.ToPreference().ExperiencePerHourOverride ?? 0m,
+        "dolo Aether plan persists the pre-Daeyalt personal base rate");
 }
 
 static void PhaseTwoMethodCatalogue()
