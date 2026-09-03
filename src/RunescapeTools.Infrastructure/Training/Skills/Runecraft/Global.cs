@@ -167,6 +167,7 @@ internal static class RunecraftGlobal
             "main-ehp" => Methods.SoloMudRunes.Create(settings),
             "solo-lava-runes" => Methods.SoloLavaRunes.Create(settings),
             "solo-aether-runes" => Methods.SoloAetherRunes.Create(settings),
+            "dolo-aether-runes" => Methods.DoloAetherRunes.Create(settings),
             "achievement-cape-double-nature-runes" => Methods.AchievementCapeNatureRunes.Create(settings),
             "arceuus-blood-runes" => Methods.ArceuusBloodRunes.Create(settings),
             "arceuus-soul-runes" => Methods.ArceuusSoulRunes.Create(settings),
@@ -182,7 +183,9 @@ internal static class RunecraftGlobal
         RunecraftSettings settings,
         TrainingCalculationContext context)
     {
-        if (!settings.UseDaeyaltEssence || settings.DaeyaltEssenceQuantity is 0)
+        if (method.Id == "dolo-aether-runes"
+            || !settings.UseDaeyaltEssence
+            || settings.DaeyaltEssenceQuantity is 0)
             return method;
 
         decimal? remainingEssence = settings.DaeyaltEssenceQuantity;

@@ -1134,7 +1134,7 @@ static void EhpCatalogueCoverage()
         {
             "Herblore" => 3,
             "Smithing" => 3,
-            "Runecraft" => 7,
+            "Runecraft" => 8,
             "Hunter" => 4,
             "Woodcutting" or "Fishing" => 3,
             "Defence" or "Ranged" or "Farming" or "Cooking" or "Firemaking" => 2,
@@ -1581,6 +1581,7 @@ static void TrainingMethodAvailabilityLabels()
 
     const string expectedRunecraftLabels =
         "Solo mud runes|Solo lava runes|Solo aether runes — unlocks at 90|" +
+        "Dolo aether runes (1+1) — unlocks at 90|" +
         "Double nature runes - Achievement Diary cape — unlocks at 91|Ourania Altar (ZMI)|" +
         "Arceuus blood runes — unlocks at 77|Arceuus soul runes — unlocks at 90";
     Equal(
@@ -2303,7 +2304,7 @@ static void RunecraftAlternativeMethods()
     var emptyPrices = new Dictionary<int, ItemPrice>();
 
     Equal(
-        "main-ehp|solo-lava-runes|solo-aether-runes|achievement-cape-double-nature-runes|ourania-altar-zmi|arceuus-blood-runes|arceuus-soul-runes",
+        "main-ehp|solo-lava-runes|solo-aether-runes|dolo-aether-runes|achievement-cape-double-nature-runes|ourania-altar-zmi|arceuus-blood-runes|arceuus-soul-runes",
         string.Join('|', definition.AvailableMethods.Select(method => method.Id)),
         "Runecraft method IDs");
 
@@ -2373,6 +2374,44 @@ static void RunecraftAlternativeMethods()
     True(
         aether99.Economics!.Resources.All(resource => resource.ItemId is not 556 and not 564),
         "Runecraft cape removes aether pouch-repair runes");
+
+    var doloAetherMethod = definition.ResolveMethod("dolo-aether-runes");
+    var doloAether90 = doloAetherMethod.Bands.Single(band => band.StartExperience == 5_346_332);
+    EqualDecimal(138_000m, doloAether90.ExperiencePerHour, "dolo aether reviewed rate");
+    EqualDecimal(1m / 20m, Resource(doloAether90, 7936).QuantityPerExperience, "dolo aether essence per XP");
+    EqualDecimal(1m / 20m, Resource(doloAether90, 566).QuantityPerExperience, "dolo aether soul runes per XP");
+    EqualDecimal(173.9m / 2_180m, Resource(doloAether90, 30771).QuantityPerExperience, "dolo aether catalyst cost");
+    EqualDecimal(173.9m / 2_180m, Resource(doloAether90, 30843).QuantityPerExperience, "dolo aether output");
+    EqualDecimal((1m / 3m) / 2_180m, Resource(doloAether90, 5521).QuantityPerExperience, "dolo aether binding necklaces");
+    EqualDecimal(0.25m / 2_180m, Resource(doloAether90, 2552).QuantityPerExperience, "both dolo ring charges");
+    EqualDecimal(4.125m / 2_180m, Resource(doloAether90, 9075).QuantityPerExperience, "dolo Magic Imbue and repair astrals");
+    EqualDecimal(0.25m / 2_180m, Resource(doloAether90, 556).QuantityPerExperience, "dolo pre-99 repair air runes");
+    EqualDecimal(0.125m / 2_180m, Resource(doloAether90, 564).QuantityPerExperience, "dolo pre-99 repair cosmic runes");
+    var doloAether99 = doloAetherMethod.Bands.Last();
+    EqualDecimal(138_000m, doloAether99.ExperiencePerHour, "dolo aether cape rate");
+    EqualDecimal(4m / 2_180m, Resource(doloAether99, 9075).QuantityPerExperience, "dolo Magic Imbue astrals after 99");
+    True(
+        doloAether99.Economics!.Resources.All(resource => resource.ItemId is not 556 and not 564),
+        "Runecraft cape removes dolo main-account pouch-repair runes");
+
+    var daeyaltDoloAether = calculator.Calculate(
+        definition,
+        5_346_332,
+        5_484_332,
+        emptyPrices,
+        methodId: "dolo-aether-runes",
+        configuration: new Dictionary<string, string>
+        {
+            ["use-daeyalt-essence"] = bool.TrueString,
+            ["daeyalt-essence-quantity"] = string.Empty
+        });
+    EqualDecimal(138_000m, daeyaltDoloAether.BaseRate, "untradeable Daeyalt does not alter dolo rate");
+    True(
+        daeyaltDoloAether.ResourceRequirements.Any(resource => resource.ItemId == 7936),
+        "dolo route retains tradeable pure essence");
+    True(
+        daeyaltDoloAether.ResourceRequirements.All(resource => resource.ItemId != 24704),
+        "dolo route excludes untradeable Daeyalt essence");
 
     var noRaimentsAether = calculator.Calculate(
         definition,
