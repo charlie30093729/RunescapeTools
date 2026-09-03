@@ -1581,7 +1581,7 @@ static void TrainingMethodAvailabilityLabels()
 
     const string expectedRunecraftLabels =
         "Solo mud runes|Solo lava runes|Solo aether runes — unlocks at 90|" +
-        "Dolo aether runes (1+1) — unlocks at 90|" +
+        "Dolo aether runes — unlocks at 90|" +
         "Double nature runes - Achievement Diary cape — unlocks at 91|Ourania Altar (ZMI)|" +
         "Arceuus blood runes — unlocks at 77|Arceuus soul runes — unlocks at 90";
     Equal(
