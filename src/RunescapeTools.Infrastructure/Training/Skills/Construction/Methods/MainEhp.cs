@@ -9,7 +9,7 @@ internal static class MainEhp
     public static TrainingMethodDefinition Create() =>
         new(
             "main-ehp",
-            "Mahogany furniture",
+            "2t mahogany flatpacks",
             ConstructionGlobal.CreateRoute(
                 Band(
                     13_034_431,
