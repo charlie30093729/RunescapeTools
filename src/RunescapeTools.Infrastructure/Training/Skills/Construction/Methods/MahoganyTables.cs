@@ -10,7 +10,7 @@ internal static class MahoganyTables
     public static TrainingMethodDefinition Create()
     {
         var band = Band(
-            123_000,
+            123_660,
             940_000m,
             "Mahogany Tables",
             ConstructionGlobal.PlankEconomics(Items.MahoganyPlank, ExperiencePerPlank, 24m));
