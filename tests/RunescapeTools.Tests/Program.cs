@@ -1132,14 +1132,13 @@ static void EhpCatalogueCoverage()
         Equal(string.Join('|', ordered.Select(band => band.StartExperience)), string.Join('|', skill.Bands.Select(band => band.StartExperience)), $"{skill.Skill} band ordering");
         var expectedMethodCount = skill.Skill switch
         {
-            "Herblore" => 3,
-            "Smithing" => 3,
+            "Herblore" or "Smithing" or "Construction" => 3,
             "Runecraft" => 8,
             "Hunter" => 4,
             "Woodcutting" or "Fishing" => 3,
             "Defence" or "Ranged" or "Farming" or "Cooking" or "Firemaking" => 2,
             "Prayer" => 3,
-            "Fletching" or "Crafting" or "Construction" => 2,
+            "Fletching" or "Crafting" => 2,
             _ => 1
         };
         Equal(expectedMethodCount, skill.AvailableMethods.Count, $"{skill.Skill} method count");
@@ -1723,6 +1722,42 @@ static void ConstructionTrainingCalculation()
     Equal(199_981_753L, result.PricedExperience, "priced Construction XP");
     True(!result.IsFullyPriced, "low-level furniture should remain visibly unpriced");
     True(result.NetGp is < -2_800_000_000m and > -2_805_000_000m, "Construction cost should match the reviewed 2.8b estimate");
+
+    Equal(
+        "main-ehp|oak-dungeon-doors|mahogany-tables",
+        string.Join('|', definition.AvailableMethods.Select(method => method.Id)),
+        "Construction method IDs");
+    var mahoganyTables = definition.ResolveMethod("mahogany-tables");
+    var mahoganyTableBand = mahoganyTables.Bands.Last();
+    Equal(123_660L, mahoganyTableBand.StartExperience, "Mahogany table level-52 unlock XP");
+    EqualDecimal(940_000m, mahoganyTableBand.ExperiencePerHour, "Mahogany table XP/hour");
+    EqualDecimal(
+        1m / 140m,
+        Resource(mahoganyTableBand, 8782).QuantityPerExperience,
+        "Mahogany table plank consumption");
+    EqualDecimal(
+        1_250m / 24m / 140m,
+        mahoganyTableBand.Economics!.FixedGpPerExperience,
+        "Mahogany table servant fee");
+
+    var mahoganyTableResult = new TrainingPlanCalculator().Calculate(
+        definition,
+        123_660,
+        1_063_660,
+        prices,
+        methodId: mahoganyTables.Id);
+    EqualDecimal(1m, mahoganyTableResult.Hours, "one hour of Mahogany tables");
+    EqualDecimal(
+        940_000m / 140m,
+        mahoganyTableResult.ResourceRequirements.Single(item => item.ItemId == 8782).Quantity,
+        "one hour of Mahogany table planks",
+        0.000001m);
+    EqualDecimal(
+        -(940_000m / 140m * 1_910m + 940_000m * 1_250m / 24m / 140m),
+        mahoganyTableResult.NetGp ?? 0m,
+        "one hour of Mahogany table costs",
+        0.01m);
+    True(mahoganyTableResult.IsFullyPriced, "Mahogany tables should be fully priced");
 }
 
 static void TrainingSkillConfiguration()
@@ -3803,7 +3838,7 @@ static async Task XpPlannerViewModelFlow()
     Equal("142.8", construction.Hours, "Construction displayed hours");
     True(construction.Result.NetGp is < -2_800_000_000m, "Construction live cost");
     True(construction.EconomicRate.EndsWith(" gp/hr"), "method subtitle identifies GP per hour");
-    Equal(2, construction.AvailableMethods.Count, "Construction exposes default and oak-door routes");
+    Equal(3, construction.AvailableMethods.Count, "Construction exposes all selectable routes");
     Equal("main-ehp", construction.SelectedMethodOption?.Id ?? string.Empty, "Construction defaults to Main EHP");
     construction.PersonalRate = 100_000m;
     True(construction.Hours != "142.8", "personal rate changes displayed hours");
