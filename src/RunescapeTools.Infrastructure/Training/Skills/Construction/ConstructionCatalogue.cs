@@ -15,7 +15,8 @@ internal static class ConstructionCatalogue
             Methods:
             [
                 defaultMethod,
-                OakDungeonDoors.Create()
+                OakDungeonDoors.Create(),
+                MahoganyTables.Create(),
             ],
             DefaultMethodId: defaultMethod.Id,
             Configurator: ConstructionGlobal.Configurator);
