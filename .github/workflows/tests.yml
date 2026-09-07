@@ -1,0 +1,41 @@
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-tests:
+    name: Windows build and NUnit
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Restore
+        run: dotnet restore RunescapeTools.sln
+      - name: Build complete solution
+        run: dotnet build RunescapeTools.sln -c Release --no-restore
+      - name: Unit and persistence tests
+        run: dotnet test tests/RunescapeTools.Tests/RunescapeTools.Tests.csproj -c Release --no-build --filter "TestCategory!=Wpf" --logger "trx;LogFileName=unit-and-persistence.trx" --results-directory TestResults --blame-hang-timeout 2m
+      - name: WPF smoke test in a fresh test process
+        run: dotnet test tests/RunescapeTools.Tests/RunescapeTools.Tests.csproj -c Release --no-build --filter "TestCategory=Wpf" --logger "trx;LogFileName=wpf.trx" --results-directory TestResults --blame-hang-timeout 2m
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-test-results
+          path: TestResults/**/*.trx
+          if-no-files-found: warn
+          retention-days: 14

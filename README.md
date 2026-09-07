@@ -101,8 +101,21 @@ On first launch after the rename, the app first copies an existing legacy favour
 
 ```powershell
 dotnet build RunescapeTools.sln
-dotnet run --project tests\RunescapeTools.Tests\RunescapeTools.Tests.csproj
+dotnet test RunescapeTools.sln --no-build --blame-hang-timeout 2m
 ```
+
+Tests use NUnit and appear individually in Visual Studio Test Explorer. The Windows-targeted
+test project is organized by application layer and feature, with skill-specific fixtures under
+`Infrastructure/Training/Skills`. Prices and HTTP responses are supplied by test doubles; persistence
+tests use disposable temporary directories, not your saved application data.
+
+The [testing guide](tests/RunescapeTools.Tests/README.md) explains how to run one skill or category
+and add a new test. The [migration map](tests/RunescapeTools.Tests/MIGRATION.md) accounts for all
+69 original console scenarios and their 871 assertion call sites, now organized into 101 NUnit tests.
+
+GitHub Actions builds the complete solution and runs the NUnit suite on Windows for every PR
+and push to `main`. WPF smoke checks run in a separate test process; downloadable TRX results are
+retained for 14 days. The workflow does not publish or replace anyone's local executable.
 
 ## Publish the Windows executable
 

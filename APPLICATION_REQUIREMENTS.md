@@ -486,7 +486,7 @@ The maintainer shall replace placeholder contact information before public distr
 The MVP is accepted when all of the following are true:
 
 1. The solution builds successfully with no compiler errors.
-2. The calculation regression harness passes all included checks.
+2. The NUnit regression suite passes all discovered tests through `dotnet test RunescapeTools.sln`.
 3. The dashboard loads persisted favourites and live midpoint prices when the Wiki service is available.
 4. The user can search for an item, add it, select it, inspect one-day through one-month history, and remove it.
 5. Favourite changes persist across application restarts.
@@ -505,6 +505,16 @@ The MVP is accepted when all of the following are true:
 18. A money-maker actions/hour override reprices the method and XP Planner contribution, survives restart, remains independent per method, and returns to the active configured default when reset.
 19. XP Planner skill configuration survives restart per RSN, recalculates immediately, and returns to documented defaults on per-skill reset.
 20. Prayer defaults to Superior dragon bones at the Gilded Altar, Firemaking defaults to Pyromancer, and disabling Fletching hours leaves its economics intact.
+
+### 13.1 Automated verification
+
+- The Windows-targeted NUnit project shall organize tests by layer and feature, with individual skill folders for training methods and shared test-only fakes/builders.
+- NUnit shall discover tests automatically; new tests shall not require a console-runner registration entry.
+- Migration shall preserve every existing regression assertion and record old-to-new scenario mapping without treating test counts as coverage percentages.
+- Prices and HTTP responses shall use controlled test data. Persistence tests shall own unique temporary directories and never alter the user's application data.
+- WPF smoke checks shall execute serially on an STA thread with explicit application cleanup. CI shall run them in a separate test process with a two-minute hang limit.
+- GitHub Actions shall build the full solution, including the parked Web project, and run tests on Windows for pull requests and pushes to `main`, retaining TRX results for 14 days.
+- The test command, fixture organization, and instructions for adding tests shall be maintained in the repository testing guide.
 
 ## 14. Risks and dependencies
 
@@ -528,7 +538,7 @@ The MVP is accepted when all of the following are true:
 - Import/export of favourites and method definitions.
 - Database-backed local storage.
 - Authentication and deployment hardening for hosted use.
-- Automated unit, integration, accessibility, and browser test projects in CI.
+- Broader integration-failure, accessibility, and browser test coverage beyond the NUnit regression and WPF smoke suite.
 
 ## 16. Requirements governance
 
