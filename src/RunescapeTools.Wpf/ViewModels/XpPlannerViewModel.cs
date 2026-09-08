@@ -591,11 +591,7 @@ public partial class XpPlannerViewModel : ObservableObject, IPageViewModel
                           ?? throw new InvalidOperationException("Load a profile before opening the XP Planner.");
             var preferences = await store.GetAsync(profile.Rsn, cancellationToken);
             var itemIds = catalogue.Skills
-                .SelectMany(skill => skill.AvailableMethods)
-                .SelectMany(method => method.Bands)
-                .Where(band => band.Economics is not null)
-                .SelectMany(band => band.Economics!.Resources)
-                .Select(resource => resource.ItemId)
+                .SelectMany(skill => skill.MarketItemIds)
                 .Distinct();
             var priceLoadFailed = false;
             try
@@ -659,11 +655,7 @@ public partial class XpPlannerViewModel : ObservableObject, IPageViewModel
         try
         {
             var itemIds = catalogue.Skills
-                .SelectMany(skill => skill.AvailableMethods)
-                .SelectMany(method => method.Bands)
-                .Where(band => band.Economics is not null)
-                .SelectMany(band => band.Economics!.Resources)
-                .Select(resource => resource.ItemId)
+                .SelectMany(skill => skill.MarketItemIds)
                 .Distinct();
             prices = await marketData.GetLatestForAsync(itemIds, cancellationToken);
             foreach (var row in Rows)

@@ -13,6 +13,9 @@ internal static class FrostDragonBones
 
     public static TrainingMethodDefinition Create(PrayerGlobal.PrayerSettings settings)
     {
+        if (PrayerGlobal.UsesOfferingSpell(settings))
+            return PrayerGlobal.CreateOfferingMethod("frost-dragon-bones", "Frost dragon bones", Items.FrostDragonBones, 100m, settings);
+
         var chaos = PrayerGlobal.UsesChaosAltar(settings);
         return new TrainingMethodDefinition(
             "frost-dragon-bones",

@@ -70,6 +70,14 @@ public sealed record TrainingSkillDefinition(
                    $"Training method '{resolvedId}' is not registered for {Skill}.",
                    nameof(methodId));
     }
+
+    public IEnumerable<int> MarketItemIds => AvailableMethods
+        .SelectMany(method => method.Bands)
+        .SelectMany(band => band.Economics?.Resources ?? [])
+        .Where(resource => resource.RequiresMarketPrice)
+        .Select(resource => resource.ItemId)
+        .Concat(Configurator?.AdditionalMarketItemIds ?? [])
+        .Distinct();
 }
 
 public sealed record TrainingBandResult(
@@ -312,6 +320,17 @@ public sealed class TrainingPlanCalculator
                            + flow.QuantityPerHour * calculationHours;
             generatedExperience[flow.Skill] =
                 generatedExperience.GetValueOrDefault(flow.Skill) + quantity;
+        }
+
+        // Repeating per-XP ratios can leave an exact whole-XP result infinitesimally below
+        // its integer (e.g. 134059.99999999999999999999997). Do not lose one whole XP when
+        // consumers floor projected credit; retain all meaningful fractional XP otherwise.
+        foreach (var skill in generatedExperience.Keys.ToArray())
+        {
+            var quantity = generatedExperience[skill];
+            var nearestInteger = decimal.Round(quantity);
+            if (Math.Abs(quantity - nearestInteger) < 0.000000001m)
+                generatedExperience[skill] = nearestInteger;
         }
 
         return new TrainingSkillPlanResult(

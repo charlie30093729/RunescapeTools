@@ -14,9 +14,11 @@ internal sealed class TrainingSkillConfigurator : ITrainingSkillConfigurator
     public TrainingSkillConfigurator(
         TrainingConfigurationDefinition definition,
         Func<TrainingMethodDefinition, TrainingConfigurationValues, TrainingMethodDefinition>? configure = null,
-        Func<TrainingMethodDefinition, TrainingConfigurationValues, bool>? includeHours = null)
+        Func<TrainingMethodDefinition, TrainingConfigurationValues, bool>? includeHours = null,
+        IReadOnlyList<int>? additionalMarketItemIds = null)
     {
         Definition = definition;
+        AdditionalMarketItemIds = additionalMarketItemIds ?? [];
         this.configure = configure is null
             ? null
             : (method, values, _) => configure(method, values);
@@ -30,14 +32,17 @@ internal sealed class TrainingSkillConfigurator : ITrainingSkillConfigurator
             TrainingConfigurationValues,
             TrainingCalculationContext,
             TrainingMethodDefinition> configure,
-        Func<TrainingMethodDefinition, TrainingConfigurationValues, bool>? includeHours = null)
+        Func<TrainingMethodDefinition, TrainingConfigurationValues, bool>? includeHours = null,
+        IReadOnlyList<int>? additionalMarketItemIds = null)
     {
         Definition = definition;
+        AdditionalMarketItemIds = additionalMarketItemIds ?? [];
         this.configure = configure;
         this.includeHours = includeHours;
     }
 
     public TrainingConfigurationDefinition Definition { get; }
+    public IReadOnlyList<int> AdditionalMarketItemIds { get; } = [];
 
     public TrainingMethodDefinition ConfigureMethod(
         TrainingMethodDefinition method,
