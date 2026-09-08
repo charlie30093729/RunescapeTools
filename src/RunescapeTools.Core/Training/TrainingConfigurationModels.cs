@@ -171,6 +171,9 @@ public interface ITrainingSkillConfigurator
 {
     TrainingConfigurationDefinition Definition { get; }
 
+    // Resources introduced only by non-default options must be available before a user switches.
+    IReadOnlyList<int> AdditionalMarketItemIds => [];
+
     TrainingMethodDefinition ConfigureMethod(
         TrainingMethodDefinition method,
         TrainingConfigurationValues configuration,

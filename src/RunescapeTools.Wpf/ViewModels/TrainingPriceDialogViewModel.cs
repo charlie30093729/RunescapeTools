@@ -100,14 +100,14 @@ public sealed class TrainingPriceDialogViewModel
         {
             return new TrainingPriceItemRowViewModel(
                 requirement.ItemId,
-                "USE",
+                isOutput ? "GAIN" : "USE",
                 requirement.Name,
                 $"Item {requirement.ItemId}",
                 Math.Ceiling(requirement.Quantity).ToString("N0"),
-                "required from your stock",
+                isOutput ? "expected untradeable output" : "required from your stock",
                 "Untradeable",
                 "No Grand Exchange price is applied",
-                isOutput: false,
+                isOutput: isOutput,
                 hasPrice: true,
                 isSupplied: true);
         }

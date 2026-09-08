@@ -10,6 +10,9 @@ internal static class SuperiorDragonBones
 
     public static TrainingMethodDefinition Create(PrayerGlobal.PrayerSettings settings)
     {
+        if (PrayerGlobal.UsesOfferingSpell(settings))
+            return PrayerGlobal.CreateOfferingMethod("superior-dragon-bones", "Superior dragon bones", Items.SuperiorDragonBones, 150m, settings, 737_627);
+
         var experiencePerBone = PrayerGlobal.UsesChaosAltar(settings) ? 1_050m : 525m;
         return new TrainingMethodDefinition(
             "superior-dragon-bones",
