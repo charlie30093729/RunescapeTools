@@ -7,7 +7,8 @@ public sealed class MoneyMakingCalculator
     public MoneyMakingResult Calculate(
         MoneyMakingMethodDefinition method,
         IReadOnlyDictionary<int, ItemPrice> prices,
-        int? accountCount = null)
+        int? accountCount = null,
+        bool useTradeSides = false)
     {
         ArgumentNullException.ThrowIfNull(method);
         ArgumentNullException.ThrowIfNull(prices);
@@ -18,7 +19,7 @@ public sealed class MoneyMakingCalculator
 
         var effectiveMethod = method with { Accounts = effectiveAccounts };
         var lines = effectiveMethod.Items
-            .Select(item => CalculateLine(effectiveMethod, item, prices))
+            .Select(item => CalculateLine(effectiveMethod, item, prices, useTradeSides))
             .ToArray();
 
         var grossRevenue = lines
@@ -50,14 +51,17 @@ public sealed class MoneyMakingCalculator
     private static MoneyMakingLineResult CalculateLine(
         MoneyMakingMethodDefinition method,
         ItemFlow item,
-        IReadOnlyDictionary<int, ItemPrice> prices)
+        IReadOnlyDictionary<int, ItemPrice> prices,
+        bool useTradeSides)
     {
         var quantityPerHour = item.Basis == QuantityBasis.PerAction
             ? item.Quantity * method.ActionsPerHour
             : item.Quantity;
 
         var price = prices.TryGetValue(item.ItemId, out var quote)
-            ? quote.MidPrice
+            ? useTradeSides
+                ? item.Direction == ItemFlowDirection.Input ? quote.High : quote.Low
+                : quote.MidPrice
             : null;
         var value = quantityPerHour * (price ?? 0m);
         var tax = item.Direction == ItemFlowDirection.Output && item.ApplyGrandExchangeTax

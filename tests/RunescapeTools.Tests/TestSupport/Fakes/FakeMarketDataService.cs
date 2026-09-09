@@ -41,9 +41,12 @@ sealed class FakeMarketDataService : IMarketDataService
         TimeSpan window,
         CancellationToken cancellationToken = default)
     {
-        HistoryRequests.Add(itemId);
-        HistoryTimeSteps.Add(timeStep);
-        HistoryWindows.Add(window);
+        lock (HistoryRequests)
+        {
+            HistoryRequests.Add(itemId);
+            HistoryTimeSteps.Add(timeStep);
+            HistoryWindows.Add(window);
+        }
         return Task.FromResult(
             HistoryByTimeStep.TryGetValue(timeStep, out var history)
                 ? history

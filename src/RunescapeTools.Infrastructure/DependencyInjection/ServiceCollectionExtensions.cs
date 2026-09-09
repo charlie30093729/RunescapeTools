@@ -27,7 +27,8 @@ public static class ServiceCollectionExtensions
         OsrsHiscoreOptions? hiscoreOptions = null,
         TrainingPlanOptions? trainingPlanOptions = null,
         MoneyMakingPreferenceOptions? moneyMakingPreferenceOptions = null,
-        ItemIconCacheOptions? itemIconCacheOptions = null)
+        ItemIconCacheOptions? itemIconCacheOptions = null,
+        PriceHistoryStoreOptions? priceHistoryStoreOptions = null)
     {
         hiscoreOptions ??= new OsrsHiscoreOptions { UserAgent = wikiOptions.UserAgent };
         services.AddSingleton(wikiOptions);
@@ -66,6 +67,12 @@ public static class ServiceCollectionExtensions
 
         services.AddSingleton<IFavouriteStore, JsonFavouriteStore>();
         services.AddSingleton<IMarketDataService, MarketDataService>();
+        if (priceHistoryStoreOptions is not null)
+        {
+            services.AddSingleton(priceHistoryStoreOptions);
+            services.AddSingleton<IPriceHistoryStore, JsonPriceHistoryStore>();
+            services.AddSingleton<IPlannerPricingService, PlannerPricingService>();
+        }
         services.AddSingleton<IFavouriteHistoryWarmupService, FavouriteHistoryWarmupService>();
         services.AddSingleton<HiscoreParser>();
         services.AddSingleton<MoneyMakingCalculator>();

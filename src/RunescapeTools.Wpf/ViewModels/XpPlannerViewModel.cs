@@ -497,6 +497,20 @@ public partial class XpPlannerViewModel : ObservableObject, IPageViewModel
     private readonly MoneyMakerSelectionContext moneyMakerSelection;
     private readonly ITrainingConfigurationDialogService? configurationDialogs;
     private readonly ITrainingPriceDialogService? priceDialogs;
+    private readonly IPlannerPricingService? plannerPricing;
+    private CancellationTokenSource? pricingCancellation;
+    private PlannerPriceSnapshot? pricingSnapshot;
+    private SelectedMoneyMaker? pricedMoneyMaker;
+    private bool suppressPricingChanges;
+
+    [ObservableProperty]
+    private bool useThirtyDayPrices;
+
+    [ObservableProperty]
+    private bool isPricingLoading;
+
+    [ObservableProperty]
+    private string pricingStatus = "Live prices";
     private CancellationTokenSource? saveCancellation;
     private IReadOnlyDictionary<int, ItemPrice> prices = new Dictionary<int, ItemPrice>();
     private bool initialized;
@@ -556,7 +570,8 @@ public partial class XpPlannerViewModel : ObservableObject, IPageViewModel
         ICurrentProfileContext profileContext,
         MoneyMakerSelectionContext moneyMakerSelection,
         ITrainingConfigurationDialogService? configurationDialogs = null,
-        ITrainingPriceDialogService? priceDialogs = null)
+        ITrainingPriceDialogService? priceDialogs = null,
+        IPlannerPricingService? plannerPricing = null)
     {
         this.catalogue = catalogue;
         this.calculator = calculator;
@@ -567,7 +582,12 @@ public partial class XpPlannerViewModel : ObservableObject, IPageViewModel
         this.moneyMakerSelection = moneyMakerSelection;
         this.configurationDialogs = configurationDialogs;
         this.priceDialogs = priceDialogs;
-        profileContext.ProfileChanged += (_, _) => initialized = false;
+        this.plannerPricing = plannerPricing;
+        profileContext.ProfileChanged += (_, _) =>
+        {
+            pricingCancellation?.Cancel();
+            initialized = false;
+        };
         moneyMakerSelection.SelectionChanged += OnMoneyMakerSelectionChanged;
         UpdateMoneyMakerDisplay();
     }
@@ -596,7 +616,17 @@ public partial class XpPlannerViewModel : ObservableObject, IPageViewModel
             var priceLoadFailed = false;
             try
             {
-                prices = await marketData.GetLatestForAsync(itemIds, cancellationToken);
+                if (plannerPricing is not null)
+                {
+                    var mode = await plannerPricing.ReadModeAsync(cancellationToken);
+                    suppressPricingChanges = true;
+                    UseThirtyDayPrices = mode == PricingMode.ThirtyDayAverage;
+                    suppressPricingChanges = false;
+                    var selection = moneyMakerSelection.Current;
+                    ApplySnapshot(await plannerPricing.GetAsync(itemIds, mode, selection?.Definition,
+                        cancellationToken), selection);
+                }
+                else prices = await marketData.GetLatestForAsync(itemIds, cancellationToken);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -605,6 +635,9 @@ public partial class XpPlannerViewModel : ObservableObject, IPageViewModel
             catch (Exception)
             {
                 prices = new Dictionary<int, ItemPrice>();
+                pricingSnapshot = null;
+                pricedMoneyMaker = null;
+                PricingStatus = UseThirtyDayPrices ? "30-day averages unavailable" : "Live prices unavailable";
                 priceLoadFailed = true;
             }
 
@@ -630,7 +663,7 @@ public partial class XpPlannerViewModel : ObservableObject, IPageViewModel
             initialized = true;
             RecalculateSummary();
             if (priceLoadFailed)
-                ErrorMessage = "Live GE prices are temporarily unavailable; the planner remains usable and affected methods are shown as unpriced.";
+                ErrorMessage = "Selected GE prices are unavailable; the planner remains usable and affected methods are shown as unpriced.";
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -650,6 +683,11 @@ public partial class XpPlannerViewModel : ObservableObject, IPageViewModel
     [RelayCommand]
     private async Task RefreshPricesAsync(CancellationToken cancellationToken)
     {
+        if (plannerPricing is not null)
+        {
+            await RefreshPlannerPricingAsync(cancellationToken);
+            return;
+        }
         IsLoading = true;
         ErrorMessage = null;
         try
@@ -675,6 +713,74 @@ public partial class XpPlannerViewModel : ObservableObject, IPageViewModel
             IsLoading = false;
         }
     }
+
+    partial void OnUseThirtyDayPricesChanged(bool value)
+    {
+        if (!suppressPricingChanges && initialized && plannerPricing is not null)
+            _ = RefreshPlannerPricingAsync(CancellationToken.None);
+    }
+
+    private void ApplySnapshot(PlannerPriceSnapshot snapshot, SelectedMoneyMaker? selection)
+    {
+        pricingSnapshot = snapshot;
+        pricedMoneyMaker = selection;
+        prices = snapshot.Prices;
+        PricingStatus = snapshot.Mode == PricingMode.Live ? "Live prices"
+            : $"30-day volume-weighted averages · through {snapshot.AsOf:dd MMM HH:mm} UTC · not current offers";
+        if (snapshot.IncompleteItems > 0)
+            PricingStatus += $" · {snapshot.IncompleteItems} items have incomplete prices";
+        UpdateMoneyMakerDisplay();
+    }
+
+    private async Task RefreshPlannerPricingAsync(CancellationToken cancellationToken)
+    {
+        pricingCancellation?.Cancel();
+        var request = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        pricingCancellation = request;
+        IsPricingLoading = true;
+        ErrorMessage = null;
+        var mode = UseThirtyDayPrices ? PricingMode.ThirtyDayAverage : PricingMode.Live;
+        var selection = moneyMakerSelection.Current;
+        try
+        {
+            var snapshot = await plannerPricing!.GetAsync(
+                catalogue.Skills.SelectMany(skill => skill.MarketItemIds), mode,
+                selection?.Definition, request.Token);
+            request.Token.ThrowIfCancellationRequested();
+            if (pricingCancellation != request) return;
+            suppressRowChanges = true;
+            ApplySnapshot(snapshot, selection);
+            foreach (var row in Rows) row.UpdatePrices(prices);
+            suppressRowChanges = false;
+            RecalculateSummary();
+            try { await plannerPricing.SaveModeAsync(mode, request.Token); }
+            catch (OperationCanceledException) when (request.IsCancellationRequested) { }
+            catch (Exception) { ErrorMessage = "Prices updated, but the pricing preference could not be saved."; }
+        }
+        catch (OperationCanceledException) when (request.IsCancellationRequested) { }
+        catch (Exception)
+        {
+            if (pricingCancellation != request) return;
+            ErrorMessage = "Pricing could not refresh. The previous snapshot is still displayed; no live/average substitution was made.";
+            suppressPricingChanges = true;
+            UseThirtyDayPrices = pricingSnapshot?.Mode == PricingMode.ThirtyDayAverage;
+            suppressPricingChanges = false;
+        }
+        finally
+        {
+            if (pricingCancellation == request)
+            {
+                suppressRowChanges = false;
+                IsPricingLoading = false;
+                pricingCancellation = null;
+            }
+            request.Dispose();
+        }
+    }
+
+    private decimal? PlannerMoneyMakerRate => plannerPricing is null
+        ? moneyMakerSelection.Current?.TotalProfitPerHour
+        : pricedMoneyMaker == moneyMakerSelection.Current ? pricingSnapshot?.MoneyMakerProfitPerHour : null;
 
     [RelayCommand]
     private void SetAllTo99() => SetAllTargets(Level99Experience);
@@ -750,7 +856,7 @@ public partial class XpPlannerViewModel : ObservableObject, IPageViewModel
         var pricedExperience = Rows.Sum(row => row.Result.PricedExperience);
         var gp = Rows.Where(row => row.Result.NetGp.HasValue).Sum(row => row.Result.NetGp ?? 0m);
         var moneyMaking = moneyMakingCalculator.Calculate(
-            moneyMakerSelection.Current?.TotalProfitPerHour,
+            PlannerMoneyMakerRate,
             Rows.Where(row => row.IsMoneyMakingSelected)
                 .Select(row => row.Result.Hours));
         SelectedMoneyMakingHours = moneyMaking.SelectedHours;
@@ -764,6 +870,7 @@ public partial class XpPlannerViewModel : ObservableObject, IPageViewModel
         PricedCoverage = experience > 0 ? $"{(decimal)pricedExperience / experience:P0}" : "100%";
         MoneyMakerContributionSummary = moneyMakerSelection.Current is null
             ? "No money maker selected"
+            : PlannerMoneyMakerRate is null ? "Not priced on the selected pricing basis; excluded from total"
             : SelectedMoneyMakingHours <= 0m
                 ? "Select skills below to apply this rate"
                 : $"{DisplayFormat.Gp(MoneyMakerGpContribution)} over {SelectedMoneyMakingHours:N1} selected h";
@@ -814,6 +921,8 @@ public partial class XpPlannerViewModel : ObservableObject, IPageViewModel
     {
         UpdateMoneyMakerDisplay();
         RecalculateSummary();
+        if (initialized && plannerPricing is not null)
+            _ = RefreshPlannerPricingAsync(CancellationToken.None);
     }
 
     private void UpdateMoneyMakerDisplay()
@@ -823,14 +932,14 @@ public partial class XpPlannerViewModel : ObservableObject, IPageViewModel
         SelectedMoneyMakerName = selection?.Name ?? "Choose a method";
         SelectedMoneyMakerRate = selection is null
             ? "Open Money Makers"
-            : DisplayFormat.GpPerHour(selection.TotalProfitPerHour)
+            : (PlannerMoneyMakerRate.HasValue ? DisplayFormat.GpPerHour(PlannerMoneyMakerRate.Value) : "Not priced")
               + (selection.HasMissingPrices
                   ? $" | {selection.AccountCount} accounts | partial prices"
                   : selection.AccountCount == 1
                       ? " | 1 account"
                       : $" | {selection.AccountCount} accounts");
         IsMoneyMakerProfitPositive =
-            selection is null || selection.TotalProfitPerHour >= 0m;
+            selection is null || PlannerMoneyMakerRate >= 0m;
         if (selection is null)
         {
             SelectedMoneyMakingHours = 0m;

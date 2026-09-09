@@ -46,6 +46,7 @@ public sealed class TrainingPriceDialogViewModel
         IItemIconService? itemIcons = null)
     {
         this.itemIcons = itemIcons;
+        IsHistorical = prices.Values.Any(price => price.Basis == PricingMode.ThirtyDayAverage);
         Skill = skill;
         Method = result.Method.Name;
         GoalSummary =
@@ -67,7 +68,12 @@ public sealed class TrainingPriceDialogViewModel
     }
 
     public string Skill { get; }
-    public string Title => $"{Skill} item recommendations";
+    public bool IsHistorical { get; }
+    public string Title => IsHistorical ? $"{Skill} historical cost estimates" : $"{Skill} item recommendations";
+    public string PriceColumnTitle => IsHistorical ? "30-DAY AVERAGE UNIT PRICE" : "SUGGESTED UNIT PRICE";
+    public string PricingNote => IsHistorical
+        ? "30-day volume-weighted high prices for inputs and low prices for outputs. Historical estimates are not current offers or forecasts. Missing sides remain unpriced. Quantities cover the complete route; untradeable stock has no GE value."
+        : "Inputs use the latest high price; outputs use the latest low price. Untradeable configured stock is shown without a GP value. Quantities cover the complete calculated route to your current goal. Recent completed trades do not guarantee offer execution.";
     public string Method { get; }
     public string GoalSummary { get; }
     public string RouteSummary { get; }
@@ -117,7 +123,7 @@ public sealed class TrainingPriceDialogViewModel
         var preferredSide = isOutput ? "low" : "high";
         var fallbackSide = isOutput ? "high" : "low";
         var unitPrice = selected.UnitPrice.HasValue
-            ? $"{selected.UnitPrice.Value:N0} gp"
+            ? quote?.Basis == PricingMode.ThirtyDayAverage ? $"{selected.UnitPrice.Value:N2} gp" : $"{selected.UnitPrice.Value:N0} gp"
             : "Unavailable";
         var quoteDetail = !selected.UnitPrice.HasValue
             ? "No high or low quote available"
@@ -125,6 +131,10 @@ public sealed class TrainingPriceDialogViewModel
               + (selected.Timestamp.HasValue
                   ? $" - {selected.Timestamp.Value.ToUniversalTime():yyyy-MM-dd HH:mm} UTC"
                   : " - timestamp unavailable");
+        if (quote?.Basis == PricingMode.ThirtyDayAverage)
+            quoteDetail = selected.UnitPrice.HasValue
+                ? $"30-day {preferredSide} average · through {selected.Timestamp:yyyy-MM-dd HH:mm} UTC"
+                : "Insufficient 30-day history or no traded volume on this side";
 
         return new TrainingPriceItemRowViewModel(
             requirement.ItemId,
