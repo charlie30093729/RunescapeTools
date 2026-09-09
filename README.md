@@ -99,6 +99,39 @@ The first Profile visit creates this preference with `bottleo` when no saved RSN
 
 On first launch after the rename, the app first copies an existing legacy favourites file when available. Otherwise, it seeds this file from the embedded MVP snapshot. Existing desktop data is never replaced. The current seed includes Blood shard, Tanzanite fang, and Scythe of vitur (uncharged).
 
+## Planner pricing modes
+
+The XP Planner's **30-day average pricing** checkbox applies one pricing basis to
+all skill methods and the allocated money maker. Unchecked uses live prices; the
+choice is saved across restarts and profiles. Other dashboards remain live.
+
+Monthly estimates use separate volume-weighted high (input) and low (output)
+averages from the last 120 completed six-hour buckets. Fractions of a GP are retained
+in calculations. These are historical planning estimates, not current offers or a
+forecast. At least 116 distinct buckets are required; missing sides and zero-volume
+sides remain unpriced, never silently replaced with live prices or the other side.
+
+The first monthly request downloads missing histories with at most four requests
+in flight. Six-hour histories and the preference are cached under
+`%LocalAppData%\RunescapeTools\data\price-history`. Fresh cache entries survive
+restarts; they are refreshed on the next pricing request after the UTC six-hour
+boundary. Toggling with a fresh cache makes no additional historical API requests.
+Refresh respects these cache lifetimes; it is not a forced full redownload.
+
+The old snapshot remains visible while a new one loads. Completed snapshots update
+all rows together; cancelled or failed requests cannot overwrite a newer selection.
+An incomplete money-maker quote excludes its contribution rather than adding a
+misleading partial profit. The planner preserves its chosen accounts, actions/hour,
+and configuration and reprices its flows using buy-high/sell-low in either mode.
+The standalone Money Makers tab retains its existing live midpoint estimate, so
+its displayed rate can differ from the planner's more conservative rate.
+
+Implementation is shared: `HistoricalPriceCalculator` in Core computes averages,
+`PlannerPricingService` in Application coordinates price snapshots and caching,
+and `JsonPriceHistoryStore` in Infrastructure persists disposable cache entries
+atomically. Skill methods still only declare their resource flows; no method owns
+networking. See [pricing design and limitations](docs/PLANNER_PRICING.md).
+
 ## Verify
 
 ```powershell

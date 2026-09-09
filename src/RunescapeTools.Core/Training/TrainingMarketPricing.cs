@@ -3,7 +3,7 @@ using RunescapeTools.Core.Market;
 namespace RunescapeTools.Core.Training;
 
 public sealed record TrainingMarketPrice(
-    long? UnitPrice,
+    decimal? UnitPrice,
     DateTimeOffset? Timestamp,
     bool UsedFallbackPrice);
 
@@ -15,6 +15,13 @@ public static class TrainingMarketPricing
     {
         if (quote is null)
             return new TrainingMarketPrice(null, null, false);
+
+        // Historical buy and sell averages are separate populations; never substitute
+        // the opposite side when the requested side has insufficient observations.
+        if (quote.Basis == PricingMode.ThirtyDayAverage)
+            return direction == TrainingFlowDirection.Input
+                ? new(quote.High, quote.HighTime, false)
+                : new(quote.Low, quote.LowTime, false);
 
         if (direction == TrainingFlowDirection.Input)
         {

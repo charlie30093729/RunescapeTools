@@ -114,7 +114,9 @@ public partial class App : System.Windows.Application
             itemIconCacheOptions: new ItemIconCacheOptions
             {
                 DirectoryPath = Path.Combine(localData, "data", "item-icons")
-            });
+            },
+            priceHistoryStoreOptions: new PriceHistoryStoreOptions(
+                Path.Combine(localData, "data", "price-history")));
 
         builder.Services.AddSingleton(new ProfilePreferenceOptions
         {

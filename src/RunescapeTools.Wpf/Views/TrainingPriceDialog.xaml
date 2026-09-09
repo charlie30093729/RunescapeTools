@@ -90,7 +90,7 @@
                        Style="{StaticResource Kicker}" FontSize="10" />
             <TextBlock Grid.Column="2" Text="GOAL QUANTITY" VerticalAlignment="Center"
                        Style="{StaticResource Kicker}" FontSize="10" />
-            <TextBlock Grid.Column="3" Text="SUGGESTED UNIT PRICE" VerticalAlignment="Center"
+            <TextBlock Grid.Column="3" Text="{Binding PriceColumnTitle}" VerticalAlignment="Center"
                        Style="{StaticResource Kicker}" FontSize="10" />
         </Grid>
 
@@ -203,7 +203,7 @@
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <TextBlock Text="Inputs use the latest high price; outputs use the latest low price. Untradeable configured stock is shown without a GP value. Quantities cover the complete calculated route to your current goal. Recent completed trades do not guarantee offer execution."
+            <TextBlock Text="{Binding PricingNote}"
                        Foreground="{StaticResource MutedBrush}"
                        FontSize="12"
                        TextWrapping="Wrap"

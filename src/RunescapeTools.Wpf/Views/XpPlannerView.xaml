@@ -12,14 +12,45 @@
         </Grid.RowDefinitions>
 
         <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
             <StackPanel>
                 <TextBlock Text="EFFICIENT TRAINING" Style="{StaticResource Kicker}" />
                 <TextBlock Text="XP Planner" Style="{StaticResource PageTitle}" Margin="0,3,0,0" />
-                <TextBlock Text="Level-aware hours from your current profile to 99 or 200m, with live GP coverage as methods are verified."
-                           Foreground="{StaticResource MutedBrush}" FontSize="13" Margin="0,5,0,0" />
+                <TextBlock Text="Level-aware hours from your profile to 99 or 200m, with GP estimates on your selected pricing basis."
+                           Foreground="{StaticResource MutedBrush}" FontSize="13" TextWrapping="Wrap" Margin="0,5,10,0" />
                 <TextBlock Text="{Binding CatalogueLabel}" Foreground="{StaticResource MutedBrush}" FontSize="10" Margin="0,4,0,0" />
+                <CheckBox Content="30-day average pricing"
+                          ToolTip="Applies to all skill methods and the allocated money maker; unchecked uses live prices."
+                          IsChecked="{Binding UseThirtyDayPrices}" Margin="0,10,0,0" FontSize="12">
+                    <CheckBox.Style>
+                        <Style TargetType="CheckBox">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsLoading}" Value="True">
+                                    <Setter Property="IsEnabled" Value="False" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </CheckBox.Style>
+                </CheckBox>
+                <TextBlock Text="{Binding PricingStatus}" Foreground="{StaticResource MutedBrush}"
+                           FontSize="11" TextWrapping="Wrap" MaxWidth="540" HorizontalAlignment="Left" Margin="0,4,0,0" />
+                <TextBlock Text="Loading prices — current calculation remains visible…" FontSize="11" TextWrapping="Wrap">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsPricingLoading}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
             </StackPanel>
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="10,30,0,0">
                 <Button Content="All to 99" Style="{StaticResource SecondaryButton}" Command="{Binding SetAllTo99Command}" Margin="0,0,8,0" />
                 <Button Content="All to 200m" Style="{StaticResource SecondaryButton}" Command="{Binding SetAllTo200MCommand}" Margin="0,0,8,0" />
                 <Button Content="Refresh prices" Style="{StaticResource PrimaryButton}" Command="{Binding RefreshPricesCommand}" />
@@ -102,14 +133,14 @@
             <Border Grid.Column="0">
                 <Border.Style>
                     <Style TargetType="Border" BasedOn="{StaticResource Notice}">
-                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Setter Property="Visibility" Value="Visible" />
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding ErrorMessage}" Value=""><Setter Property="Visibility" Value="Collapsed" /></DataTrigger>
                             <DataTrigger Binding="{Binding ErrorMessage}" Value="{x:Null}"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger>
                         </Style.Triggers>
                     </Style>
                 </Border.Style>
-                <TextBlock Text="{Binding ErrorMessage}" Foreground="#805415" />
+                <TextBlock Text="{Binding ErrorMessage}" Foreground="#805415" TextWrapping="Wrap" />
             </Border>
             <TextBlock Grid.Column="1" Text="Select skills to money make during" FontFamily="Georgia" FontSize="12"
                        FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />

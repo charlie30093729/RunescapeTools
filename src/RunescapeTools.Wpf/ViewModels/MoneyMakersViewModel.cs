@@ -413,7 +413,8 @@ public partial class MoneyMakersViewModel : ObservableObject, IPageViewModel
             result.Method.Name,
             result.ProfitPerAccount,
             result.Method.Accounts,
-            result.HasMissingPrices);
+            result.HasMissingPrices,
+            result.Method);
 
         FlowRows.Clear();
         foreach (var line in result.Lines.OrderBy(line => line.Item.Direction))

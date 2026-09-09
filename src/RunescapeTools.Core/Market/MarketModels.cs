@@ -1,5 +1,7 @@
 namespace RunescapeTools.Core.Market;
 
+public enum PricingMode { Live, ThirtyDayAverage }
+
 public enum PriceTimeStep
 {
     FiveMinutes,
@@ -18,10 +20,11 @@ public sealed record ItemMapping(
 
 public sealed record ItemPrice(
     int ItemId,
-    long? High,
-    long? Low,
+    decimal? High,
+    decimal? Low,
     DateTimeOffset? HighTime,
-    DateTimeOffset? LowTime)
+    DateTimeOffset? LowTime,
+    PricingMode Basis = PricingMode.Live)
 {
     public decimal? MidPrice => (High, Low) switch
     {
