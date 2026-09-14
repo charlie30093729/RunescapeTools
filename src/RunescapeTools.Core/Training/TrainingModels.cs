@@ -36,7 +36,8 @@ public sealed record TrainingRateBand(
     string Method,
     TrainingEconomics? Economics = null,
     decimal ConfigurationRateMultiplier = 1m,
-    IReadOnlyList<TrainingExperienceFlow>? ExperienceOutputs = null);
+    IReadOnlyList<TrainingExperienceFlow>? ExperienceOutputs = null,
+    decimal ConfigurationRateAddition = 0m);
 
 public sealed record TrainingMethodDefinition(
     string Id,
@@ -120,6 +121,18 @@ public sealed record TrainingSkillPlanResult(
 {
     public long EffectiveStartExperience =>
         Math.Min(TargetExperience, StartExperience + AppliedExperienceCredit);
+    public decimal UnconfiguredBaseRate
+    {
+        get
+        {
+            var activeBand = Method.Bands.OrderBy(band => band.StartExperience)
+                .LastOrDefault(band => band.StartExperience <= EffectiveStartExperience)
+                ?? Method.Bands.FirstOrDefault();
+            var multiplier = activeBand?.ConfigurationRateMultiplier is > 0m
+                ? activeBand.ConfigurationRateMultiplier : 1m;
+            return (BaseRate - (activeBand?.ConfigurationRateAddition ?? 0m)) / multiplier;
+        }
+    }
     public long RawExperienceRemaining => Math.Max(0, TargetExperience - StartExperience);
     public long ExperienceRemaining => Math.Max(0, TargetExperience - EffectiveStartExperience);
     public bool IsFullyPriced => ExperienceRemaining == 0 || PricedExperience >= ExperienceRemaining;
@@ -173,12 +186,13 @@ public sealed class TrainingPlanCalculator
         var activeConfigurationMultiplier = activeBand?.ConfigurationRateMultiplier is > 0m
             ? activeBand.ConfigurationRateMultiplier
             : 1m;
-        var unconfiguredBaseRate = baseRate / activeConfigurationMultiplier;
+        var activeConfigurationAddition = activeBand?.ConfigurationRateAddition ?? 0m;
+        var unconfiguredBaseRate = (baseRate - activeConfigurationAddition) / activeConfigurationMultiplier;
         var personalRateMultiplier = personalRate is > 0m && unconfiguredBaseRate > 0m
             ? personalRate.Value / unconfiguredBaseRate
             : 1m;
         var effectiveRate = personalRate is > 0m
-            ? personalRate.Value * activeConfigurationMultiplier
+            ? personalRate.Value * activeConfigurationMultiplier + activeConfigurationAddition
             : baseRate;
 
         if (target == effectiveStart || ordered.Length == 0)
@@ -214,7 +228,8 @@ public sealed class TrainingPlanCalculator
                 continue;
 
             var experience = segmentEnd - segmentStart;
-            var effectiveBandRate = band.ExperiencePerHour * personalRateMultiplier;
+            var effectiveBandRate = (band.ExperiencePerHour - band.ConfigurationRateAddition)
+                                   * personalRateMultiplier + band.ConfigurationRateAddition;
             var hours = effectiveBandRate > 0m ? experience / effectiveBandRate : 0m;
             calculationHours += hours;
 

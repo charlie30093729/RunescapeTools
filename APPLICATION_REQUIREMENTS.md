@@ -268,6 +268,8 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | FR-XP-077 | Historical data and the pricing preference shall persist under `%LocalAppData%\RunescapeTools\data\price-history`, with deduplicated item discovery, at most four simultaneous history requests, atomic cache replacement and refresh-on-request at the next six-hour boundary. Fresh cached history shall survive restart. In-flight requests shall support cancellation; a failed or superseded refresh shall not replace the last valid snapshot. Historical item details shall be clearly labeled as estimates rather than current offers. |
 | FR-XP-078 | Allocated money-maker income shall be recalculated from its effective item flows, actions/hour, account count, configuration and tax using the same pricing snapshot as the skill methods. The planner shall buy inputs high and sell outputs low in either mode, without changing the standalone Money Makers tab's existing live midpoint calculation. Incompletely priced money makers shall be excluded from planner income with a visible explanation. |
 
+| FR-XP-079 | Sailing shall provide a stable-labelled Salvaging route with ordered wreck/equipment rate bands and a level-15 unlock disclosure. Its persisted, default-on crystal-extractor toggle shall add 250 XP per 63 seconds from level 73, also on personal base rates, without changing Gwenith Glide. The method shall disclose equipment assumptions, uncertain rate estimates, the retained pre-15 legacy fallback, and unpriced loot. Rate calculations and configuration transformations shall remain shared, with no new calculation logic in XAML or view models. |
+
 ### 6.8 Method modularity
 
 | ID | Requirement |
