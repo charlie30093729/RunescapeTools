@@ -472,16 +472,7 @@ public partial class XpPlannerRowViewModel : ObservableObject
     }
 
     private static decimal UnconfiguredBaseRate(TrainingSkillPlanResult result)
-    {
-        var activeBand = result.Method.Bands
-            .OrderBy(band => band.StartExperience)
-            .LastOrDefault(band => band.StartExperience <= result.EffectiveStartExperience)
-            ?? result.Method.Bands.FirstOrDefault();
-        var multiplier = activeBand?.ConfigurationRateMultiplier is > 0m
-            ? activeBand.ConfigurationRateMultiplier
-            : 1m;
-        return result.BaseRate / multiplier;
-    }
+        => result.UnconfiguredBaseRate;
 
 }
 

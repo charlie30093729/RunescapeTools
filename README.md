@@ -22,6 +22,8 @@ The WPF executable is the active front end. The original Razor/Blazor applicatio
 - Local JSON persistence, API-friendly caches, bounded history warmup, retry handling, and user-readable failure states.
 - Single-instance desktop lifetime to prevent competing favourite-file writes.
 
+Sailing also offers level-banded **Salvaging**, with the player operating one hook and a crewmate the other once a sloop is available. Its saved crystal-extractor toggle adds a fixed XP/hour bonus from level 73, including to custom base rates. Rates are planning estimates; salvaging loot remains explicitly unpriced. See [Sailing assumptions and rate bands](docs/SAILING_SALVAGING.md). Existing Gwenith Glide settings and economics are unchanged.
+
 ## Project structure
 
 | Project | Responsibility |
