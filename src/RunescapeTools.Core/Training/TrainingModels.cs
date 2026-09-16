@@ -169,7 +169,7 @@ public sealed class TrainingPlanCalculator
         var effectiveStart = start + appliedCredit;
         var baseMethod = definition.ResolveMethod(methodId);
         var configurationValues =
-            definition.Configurator?.Definition.Normalize(configuration)
+            definition.Configurator?.GetDefinition(baseMethod.Id).Normalize(configuration)
             ?? TrainingConfigurationValues.Empty;
         var method = definition.Configurator?.ConfigureMethod(
                          baseMethod,

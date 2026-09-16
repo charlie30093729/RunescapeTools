@@ -10,14 +10,17 @@ internal sealed class TrainingSkillConfigurator : ITrainingSkillConfigurator
         TrainingCalculationContext,
         TrainingMethodDefinition>? configure;
     private readonly Func<TrainingMethodDefinition, TrainingConfigurationValues, bool>? includeHours;
+    private readonly Func<string?, TrainingConfigurationDefinition>? definitionForMethod;
 
     public TrainingSkillConfigurator(
         TrainingConfigurationDefinition definition,
         Func<TrainingMethodDefinition, TrainingConfigurationValues, TrainingMethodDefinition>? configure = null,
         Func<TrainingMethodDefinition, TrainingConfigurationValues, bool>? includeHours = null,
-        IReadOnlyList<int>? additionalMarketItemIds = null)
+        IReadOnlyList<int>? additionalMarketItemIds = null,
+        Func<string?, TrainingConfigurationDefinition>? definitionForMethod = null)
     {
         Definition = definition;
+        this.definitionForMethod = definitionForMethod;
         AdditionalMarketItemIds = additionalMarketItemIds ?? [];
         this.configure = configure is null
             ? null
@@ -42,6 +45,8 @@ internal sealed class TrainingSkillConfigurator : ITrainingSkillConfigurator
     }
 
     public TrainingConfigurationDefinition Definition { get; }
+    public TrainingConfigurationDefinition GetDefinition(string? methodId) =>
+        definitionForMethod?.Invoke(methodId) ?? Definition;
     public IReadOnlyList<int> AdditionalMarketItemIds { get; } = [];
 
     public TrainingMethodDefinition ConfigureMethod(

@@ -30,7 +30,7 @@ public sealed class CatalogueTests
                 "Hunter" => 4,
                 "Woodcutting" or "Fishing" => 3,
                 "Defence" or "Ranged" or "Farming" or "Cooking" or "Firemaking" => 2,
-                "Prayer" => 3,
+                "Prayer" => 5,
                 "Fletching" or "Crafting" or "Sailing" or "Mining" => 2,
                 _ => 1
             };
