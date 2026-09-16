@@ -17,6 +17,7 @@ internal static class PrayerGlobal
     private const decimal BonesPerCast = 3m;
     private const decimal OfferingExperienceMultiplier = 3m;
     private const decimal MagicExperiencePerCast = 180m;
+    private const decimal DemonicMagicExperiencePerCast = 175m;
     private const decimal BankCastsPerHour = 600m;
 
     // Calibrated to the supplied ~633-hour frost-bone 0-200m benchmark, not a measured lap.
@@ -26,8 +27,18 @@ internal static class PrayerGlobal
     private const decimal PrifExpectedShardsPerLap = 0.94m;
     private const decimal DivinePotionsPerShard = 2.5m;
 
-    public static ITrainingSkillConfigurator Configurator { get; } =
-        new TrainingSkillConfigurator(
+    public static TrainingConfigurationDefinition AshConfiguration { get; } = new(
+    [
+        new TrainingConfigurationOption(OfferingLocationKey, "Offering location",
+            TrainingConfigurationOptionKind.Choice, OfferingAtPrif,
+            "Ashes use Demonic Offering only. Rune costs intentionally use the existing Sinister Offering approximation.",
+            [new(OfferingAtBank, "Offering at a bank"), new(OfferingAtPrif, "Offering at Prif agility")])
+    ], resetOnMethodSelection: true);
+
+    private static bool IsAshMethod(string? methodId) =>
+        methodId is "infernal-ashes" or "abyssal-ashes";
+
+    private static TrainingConfigurationDefinition BoneConfiguration { get; } =
             new TrainingConfigurationDefinition(
             [
                 new TrainingConfigurationOption(
@@ -50,13 +61,19 @@ internal static class PrayerGlobal
                             OfferingAtPrif,
                             "Offering at Prif agility")
                     ])
-            ]),
+            ]);
+
+    public static ITrainingSkillConfigurator Configurator { get; } =
+        new TrainingSkillConfigurator(
+            BoneConfiguration,
             ConfigureMethod,
             additionalMarketItemIds:
             [
                 Items.BloodRune.Id, Items.WrathRune.Id,
                 Items.SuperCombatPotion4.Id, Items.DivineSuperCombatPotion4.Id
-            ]);
+            ],
+            definitionForMethod: methodId => IsAshMethod(methodId)
+                ? AshConfiguration : BoneConfiguration);
 
     public static PrayerSettings ResolveSettings(
         TrainingConfigurationValues? configuration = null)
@@ -81,9 +98,15 @@ internal static class PrayerGlobal
         CatalogueItem bones,
         decimal burialExperience,
         PrayerSettings settings,
-        long unlockExperience = 0)
+        long unlockExperience = 0,
+        bool ashes = false)
     {
+        if (ashes && !UsesOfferingSpell(settings))
+            settings = new PrayerSettings(OfferingAtPrif);
         var prif = settings.OfferingLocation == OfferingAtPrif;
+        var spellName = ashes ? "Demonic Offering" : "Sinister Offering";
+        var magicExperiencePerCast = ashes ? DemonicMagicExperiencePerCast : MagicExperiencePerCast;
+        var material = ashes ? "ashes" : "bones";
         var experiencePerBone = burialExperience * OfferingExperienceMultiplier;
         var experiencePerCast = experiencePerBone * BonesPerCast;
         var experiencePerLap = experiencePerBone * PrifBonesPerLap;
@@ -98,7 +121,7 @@ internal static class PrayerGlobal
         ];
         List<TrainingExperienceFlow> secondaryExperience =
         [
-            new("Magic", MagicExperiencePerCast / experiencePerCast)
+            new("Magic", magicExperiencePerCast / experiencePerCast)
         ];
         if (prif)
         {
@@ -112,7 +135,7 @@ internal static class PrayerGlobal
         }
 
         var band = Band(unlockExperience, rate,
-            $"{name} - Sinister Offering {(prif ? "at Prif agility" : "at a bank")}",
+            $"{name} - {spellName} {(prif ? "at Prif agility" : "at a bank")}",
             new TrainingEconomics(resources), experienceOutputs: secondaryExperience);
         // Superior bones require 70 Prayer even with Sinister Offering. Preserve a valid
         // lower-level route using dragon bones at the same selected offering location.
@@ -120,18 +143,22 @@ internal static class PrayerGlobal
             ? Methods.DragonBones.Create(settings).Bands.Append(band).ToArray()
             : new[] { band };
         return new TrainingMethodDefinition(id, name, bands,
-            "Sinister Offering requires 92 Magic, A Kingdom Divided, and the Arceuus spellbook. " +
-            "Each full cast consumes three bones, one blood rune, and one wrath rune; grants 3x " +
-            "burial Prayer XP and 180 Magic XP. No Zealot's robes or rune-saving equipment is assumed. " +
+            $"{spellName} requires {(ashes ? 84 : 92)} Magic, A Kingdom Divided, and the Arceuus spellbook. " +
+            $"Each full cast consumes three {material}, grants 3x base Prayer XP and {magicExperiencePerCast} Magic XP. " +
+            (ashes
+                ? "Requested cost approximation: price one blood rune and one wrath rune per cast, reusing " +
+                  "Sinister Offering inputs instead of Demonic Offering's actual rune recipe. Altars cannot offer ashes. "
+                : "Each cast consumes one blood rune and one wrath rune. ") +
+            "No Zealot's robes or rune-saving equipment is assumed. " +
             (prif
                 ? "Prif assumes Song of the Elves, at least 75 Agility, and an efficient high-level " +
-                  "route: 24 bones (eight casts) per lap, 82 seconds including banking, 1,340.6 Agility " +
+                  $"route: 24 {material} (eight casts) per lap, 82 seconds including banking, 1,340.6 Agility " +
                   "XP and 0.94 expected crystal shards per lap. The lap-time estimate reproduces the " +
                   "reviewed ~633-hour frost-bone benchmark; lower-level failure rates are not modelled. " +
                   "All shards are valued through divine super combat potion(4) conversion at 2.5 " +
                   "potions per shard (97 Herblore); potion inputs buy high, outputs sell low after GE tax. " +
                   "Conversion time, Herblore XP, and run-energy supplies are excluded. "
-                : "The bank default is 600 full casts/hour including banking (1,800 bones/hour). ") +
+                : $"The bank default is 600 full casts/hour including banking (1,800 {material}/hour). ") +
             "Personal XP/hour overrides change throughput and hours, not the materials or secondary " +
             "XP per Prayer XP. Secondary XP is a projection, not a change to the loaded profile. " +
             (unlockExperience > 0 ? "Dragon bones are used until level 70 Prayer. " : string.Empty),
@@ -148,6 +175,8 @@ internal static class PrayerGlobal
             "superior-dragon-bones" => Methods.SuperiorDragonBones.Create(settings),
             "dragon-bones" => Methods.DragonBones.Create(settings),
             "frost-dragon-bones" => Methods.FrostDragonBones.Create(settings),
+            "infernal-ashes" => Methods.InfernalAshes.Create(settings),
+            "abyssal-ashes" => Methods.AbyssalAshes.Create(settings),
             _ => method
         };
     }

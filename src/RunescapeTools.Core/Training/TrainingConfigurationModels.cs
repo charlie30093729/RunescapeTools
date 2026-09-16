@@ -35,9 +35,14 @@ public sealed record TrainingConfigurationOption(
 }
 
 public sealed class TrainingConfigurationDefinition(
-    IReadOnlyList<TrainingConfigurationOption> options)
+    IReadOnlyList<TrainingConfigurationOption> options,
+    bool resetOnMethodSelection = false)
 {
     public IReadOnlyList<TrainingConfigurationOption> Options { get; } = options;
+
+    public TrainingConfigurationValues NormalizeForMethodSelection(
+        IReadOnlyDictionary<string, string>? values) =>
+        Normalize(resetOnMethodSelection ? null : values);
 
     public TrainingConfigurationValues Normalize(
         IReadOnlyDictionary<string, string>? values = null)
@@ -170,6 +175,8 @@ public sealed record TrainingCalculationContext(
 public interface ITrainingSkillConfigurator
 {
     TrainingConfigurationDefinition Definition { get; }
+
+    TrainingConfigurationDefinition GetDefinition(string? methodId) => Definition;
 
     // Resources introduced only by non-default options must be available before a user switches.
     IReadOnlyList<int> AdditionalMarketItemIds => [];

@@ -195,7 +195,7 @@ public partial class XpPlannerRowViewModel : ObservableObject
                                        StringComparison.OrdinalIgnoreCase))
                                ?? MethodOptions.First();
         ConfigurationValues =
-            definition.Configurator?.Definition.Normalize(preference?.Configuration).ToDictionary()
+            definition.Configurator?.GetDefinition(selectedMethodOption.Id).Normalize(preference?.Configuration).ToDictionary()
             ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         var baseline = calculator.Calculate(
@@ -274,7 +274,7 @@ public partial class XpPlannerRowViewModel : ObservableObject
 
     public void ApplyConfiguration(IReadOnlyDictionary<string, string> values)
     {
-        var definition = Definition.Configurator?.Definition;
+        var definition = Definition.Configurator?.GetDefinition(SelectedMethodOption?.Id);
         if (definition is null)
             return;
 
@@ -314,7 +314,7 @@ public partial class XpPlannerRowViewModel : ObservableObject
             TargetExperience = TrainingPlanCalculator.MaximumExperience;
             IsMoneyMakingSelected = false;
             ConfigurationValues =
-                Definition.Configurator?.Definition.Normalize().ToDictionary()
+                Definition.Configurator?.GetDefinition(SelectedMethodOption?.Id).Normalize().ToDictionary()
                 ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             hasPersonalRateOverride = false;
             var baseline = calculator.Calculate(
@@ -376,6 +376,9 @@ public partial class XpPlannerRowViewModel : ObservableObject
         if (suppressChanges || value is null)
             return;
 
+        ConfigurationValues = Definition.Configurator?.GetDefinition(value.Id)
+            .NormalizeForMethodSelection(ConfigurationValues).ToDictionary()
+            ?? ConfigurationValues;
         var baseline = calculator.Calculate(
             Definition,
             StartExperience,
@@ -822,7 +825,7 @@ public partial class XpPlannerViewModel : ObservableObject, IPageViewModel
 
     private void ConfigureRow(XpPlannerRowViewModel row)
     {
-        var definition = row.Definition.Configurator?.Definition;
+        var definition = row.Definition.Configurator?.GetDefinition(row.SelectedMethodOption?.Id);
         if (definition is null || configurationDialogs is null)
             return;
 

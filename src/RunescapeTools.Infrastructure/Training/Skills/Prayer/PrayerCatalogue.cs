@@ -17,7 +17,9 @@ internal static class PrayerCatalogue
             [
                 method,
                 DragonBones.Create(settings),
-                FrostDragonBones.Create(settings)
+                FrostDragonBones.Create(settings),
+                InfernalAshes.Create(settings),
+                AbyssalAshes.Create(settings)
             ],
             DefaultMethodId: method.Id,
             Configurator: PrayerGlobal.Configurator);

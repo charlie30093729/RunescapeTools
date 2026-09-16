@@ -83,9 +83,44 @@ existing configuration schema without special Prayer code in XAML or code-behind
 Secondary XP is projected onto the other skills' remaining goals and capped there;
 it never edits the loaded Hiscores profile. Switching away removes the projection.
 The selected offering location uses the existing per-RSN JSON configuration storage
-and restores Gilded Altar on reset.
+and restores Gilded Altar on reset for bones, or Prif agility for ashes.
 
 Tests cover each bone and location, the full Prif benchmark, high/low price flows,
 missing rune prices, option-only quote discovery on initial load and refresh,
 superior-bone unlocking, personal rate overrides, secondary-XP rounding, WPF
 credit removal, item-dialog shard presentation, and JSON persistence.
+
+## Infernal and Abyssal ashes
+
+Ashes use **Demonic Offering**, requiring 84 Magic, A Kingdom Divided, and the
+Arceuus spellbook. A full cast consumes three ashes, awards three times their
+scatter Prayer XP, and grants **175 Magic XP**. Ashes cannot use either altar.
+
+| Ashes | Item ID | Prayer XP/ash with spell | Bank XP/hour | Prif XP/hour |
+|---|---:|---:|---:|---:|
+| Infernal ashes | 25778 | 330 | 594,000 | 347,707 |
+| Abyssal ashes | 25775 | 255 | 459,000 | 268,683 |
+
+These routes reuse the 600-cast bank default and estimated 24-item/82-second Prif
+lap above. They are planning presets, not measured ash-offering benchmarks.
+Prif retains the existing Agility XP and shard-conversion assumptions.
+
+**Intentional pricing approximation:** at the user's request, each cast costs one
+blood rune and one wrath rune, reusing Sinister Offering's inputs. This is not
+Demonic Offering's actual rune recipe. No additional spell-cost model is used.
+
+Selecting either ash method initializes its location to Prif agility. Its cog only
+offers Bank and Prif. Choosing Bank is saved per RSN and survives refresh/restart;
+an explicit new ash-method selection or reset returns to Prif. Invalid saved altar
+choices normalize to Prif. Method-specific configuration definitions live in the
+shared catalogue, not in WPF, preserving the other skills' existing behavior.
+
+Sources verified for this addition:
+
+- [Infernal ashes](https://oldschool.runescape.wiki/w/Infernal_ashes)
+- [Abyssal ashes](https://oldschool.runescape.wiki/w/Abyssal_ashes)
+- [Demonic Offering](https://oldschool.runescape.wiki/w/Demonic_Offering)
+
+Regression tests cover IDs, rates, rune/material quantities, Magic/Agility credits,
+custom rates, missing prices, valid location choices, defaulting, reset, and JSON
+restoration without resetting a saved Bank selection.
