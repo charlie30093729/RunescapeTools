@@ -1,0 +1,42 @@
+using RunescapeTools.Core.Training;
+using RunescapeTools.Infrastructure.Training;
+using static RunescapeTools.Infrastructure.Training.TrainingCatalogueBuilder;
+
+namespace RunescapeTools.Infrastructure.Training.Skills.Mining.Methods;
+
+internal static class MainEhp
+{
+    private const decimal InfernalPickaxeExperiencePerDragonPickaxe = 960_000m;
+
+    public static TrainingMethodDefinition Create() =>
+        new(
+            "main-ehp", "3t4g granite - infernal pickaxe",
+            [
+            Band(0, 20_000m, "Quests"),
+            Band(35_025, 50_000m, "Prospector and celestial ring"),
+            GraniteBand(393_485, 106_540m),
+            GraniteBand(1_210_421, 112_166m),
+            GraniteBand(3_258_594, 116_760m),
+            GraniteBand(8_771_558, 119_438m),
+            GraniteBand(13_034_431, 126_000m)
+            ],
+            "Granite is dropped. Infernal pickaxe recharges use one dragon pickaxe per 960,000 Mining XP.");
+
+    private static TrainingRateBand GraniteBand(long startExperience, decimal experiencePerHour) =>
+        Band(
+            startExperience,
+            experiencePerHour,
+            "3t4g granite - infernal pickaxe",
+            new TrainingEconomics(
+                [
+                    Input(
+                        Items.DragonPickaxe,
+                        1m / InfernalPickaxeExperiencePerDragonPickaxe)
+                ]));
+
+    private static class Items
+    {
+        public static readonly CatalogueItem DragonPickaxe =
+            new(11920, "Dragon pickaxe (infernal pickaxe recharge)");
+    }
+}
