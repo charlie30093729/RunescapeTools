@@ -272,6 +272,8 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 
 ### 6.8 Method modularity
 
+XP Planner addition FR-XP-080: Mining shall offer a saved Calcified rocks/crystal-pickaxe route from level 71, preserving the default granite and pre-unlock routes. Non-tick-manipulation base rate bands shall use 34k/39k/44k/49k XP/hour at levels 71/80/90/99. A persisted default-on full Prospector option shall apply a 2.5% XP bonus to this route and personal base rates, with corresponding reductions in per-XP resources; it shall not modify the existing granite route. The route shall estimate crystal recharge consumption from main-resource successes, price enhanced teleport seeds using the current pricing mode, and show bone shards/deposits as untradeable outputs. It shall not award Prayer XP or assume deposit processing. Custom rates shall change hours without changing per-goal resource quantities. Setup and excluded costs/rewards shall be documented.
+
 | ID | Requirement |
 | --- | --- |
 | FR-MOD-001 | A money-making method shall implement the `IMoneyMakingMethod` contract in the Core project. |

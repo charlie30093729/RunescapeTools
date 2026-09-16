@@ -24,6 +24,8 @@ The WPF executable is the active front end. The original Razor/Blazor applicatio
 
 Sailing also offers level-banded **Salvaging**, with the player operating one hook and a crewmate the other once a sloop is available. Its saved crystal-extractor toggle adds a fixed XP/hour bonus from level 73, including to custom base rates. Rates are planning estimates; salvaging loot remains explicitly unpriced. See [Sailing assumptions and rate bands](docs/SAILING_SALVAGING.md). Existing Gwenith Glide settings and economics are unchanged.
 
+Mining now offers **Calcified rocks - crystal pickaxe**, a low-attention alternative from level 71 with full Prospector enabled by default in its skill cog. The planning preset reaches 50,225 XP/hour at 99 with the outfit. Crystal recharges use enhanced teleport seed prices; the item popup shows expected untradeable bone shards and unopened deposits without granting automatic Prayer XP. Existing granite training is unchanged. [Method assumptions](docs/MINING_CALCIFIED_ROCKS.md).
+
 ## Project structure
 
 | Project | Responsibility |
