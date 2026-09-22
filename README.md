@@ -26,6 +26,8 @@ Sailing also offers level-banded **Salvaging**, with the player operating one ho
 
 Mining now offers **Calcified rocks - crystal pickaxe**, a low-attention alternative from level 71 with full Prospector enabled by default in its skill cog. The planning preset reaches 50,225 XP/hour at 99 with the outfit. Crystal recharges use enhanced teleport seed prices; the item popup shows expected untradeable bone shards and unopened deposits without granting automatic Prayer XP. Existing granite training is unchanged. [Method assumptions](docs/MINING_CALCIFIED_ROCKS.md).
 
+Agility also offers standalone **Prifddinas Agility Course** (54k/58k/62k/66k XP/hour at levels 75/80/85/90) and **Ardougne Rooftop Course** (70k XP/hour from 90). Prif values shards through divine super combat potion conversion; Ardougne values an estimated 18 marks/hour, without the elite diary, as amylase. Prayer-at-Prif remains a separate calculation: its projected Agility XP reduces the standalone course's remaining work without duplicating hours or rewards. Existing Sepulchre defaults are preserved. See [course assumptions](docs/AGILITY_COURSES.md).
+
 ## Project structure
 
 | Project | Responsibility |

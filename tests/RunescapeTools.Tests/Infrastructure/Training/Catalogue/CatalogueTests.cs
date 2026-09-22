@@ -25,7 +25,7 @@ public sealed class CatalogueTests
             Assert.That(string.Join('|', skill.Bands.Select(band => band.StartExperience)), Is.EqualTo(string.Join('|', ordered.Select(band => band.StartExperience))), $"{skill.Skill} band ordering");
             var expectedMethodCount = skill.Skill switch
             {
-                "Herblore" or "Smithing" or "Construction" => 3,
+                "Herblore" or "Smithing" or "Construction" or "Agility" => 3,
                 "Runecraft" => 8,
                 "Hunter" => 4,
                 "Woodcutting" or "Fishing" => 3,
