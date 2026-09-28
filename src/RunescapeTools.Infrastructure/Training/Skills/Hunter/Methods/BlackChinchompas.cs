@@ -4,14 +4,14 @@ using static RunescapeTools.Infrastructure.Training.TrainingCatalogueBuilder;
 
 namespace RunescapeTools.Infrastructure.Training.Skills.Hunter.Methods;
 
-internal static class MainEhp
+internal static class BlackChinchompas
 {
     private const decimal BlackChinchompaExperience = 315m;
 
     public static TrainingMethodDefinition Create() =>
         new(
             "main-ehp",
-            "Main EHP route",
+            "Black chinchompas",
             [
                 Band(0, 30_000m, "Varrock museum and birdhouses"),
                 Band(2_107, 83_000m, "Oak birdhouses"),
@@ -26,11 +26,18 @@ internal static class MainEhp
                 Band(
                     992_895,
                     265_000m,
-                    "Black chinchompas - shooting alt",
+                    "Black chinchompas",
                     new TrainingEconomics(
                         [Output(Items.BlackChinchompa, 1m / BlackChinchompaExperience)]))
             ],
-            "Black chinchompas are sold at the live low price after GE tax. PK/death losses and shooting-alt ammunition are excluded.");
+            "Requires 73 Hunter and partial Eagles' Peak. Default: 3-tick hunting with a shooting alt, " +
+            "265k XP/hour. Without the alt, 3-tick hunting uses 225k; without 3-ticking, the alt is " +
+            "disabled and the preset is 110,250 XP/hour (350 catches/hour). These high-level planning " +
+            "rates retain the legacy constant band from level 73, not measured lower-level rates. " +
+            "Personal rates scale relative to these defaults when changing configuration. Catch XP " +
+            "and chins per goal stay unchanged. Black chinchompas sell low after GE tax. " +
+            "PK/death losses, tick-manipulation consumables and shooting-alt ammunition are excluded.",
+            UseStableDisplayName: true);
 
     private static class Items
     {

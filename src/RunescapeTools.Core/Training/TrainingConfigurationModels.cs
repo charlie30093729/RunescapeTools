@@ -26,7 +26,8 @@ public sealed record TrainingConfigurationOption(
     decimal? MinimumValue = null,
     decimal? MaximumValue = null,
     bool AllowsEmpty = false,
-    bool WholeNumbersOnly = false)
+    bool WholeNumbersOnly = false,
+    string? RequiredToggleKey = null)
 {
     public bool AppliesTo(string? methodId) =>
         ApplicableMethodIds is not { Count: > 0 }
@@ -53,6 +54,19 @@ public sealed class TrainingConfigurationDefinition(
             string? supplied = null;
             values?.TryGetValue(option.Key, out supplied);
             normalized[option.Key] = Normalize(option, supplied);
+        }
+
+        // Enforce prerequisites for saved settings as well as the configuration dialog.
+        for (var pass = 0; pass < Options.Count; pass++)
+        {
+            foreach (var option in Options.Where(option =>
+                         option.Kind == TrainingConfigurationOptionKind.Toggle
+                         && option.RequiredToggleKey is not null))
+            {
+                if (!normalized.TryGetValue(option.RequiredToggleKey!, out var required)
+                    || !bool.TryParse(required, out var enabled) || !enabled)
+                    normalized[option.Key] = bool.FalseString;
+            }
         }
 
         return new TrainingConfigurationValues(normalized);
