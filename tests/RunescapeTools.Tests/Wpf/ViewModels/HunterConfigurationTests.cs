@@ -23,7 +23,7 @@ public sealed class HunterConfigurationTests
         Assert.That(alt.IsApplicable, Is.False);
         Assert.That(alt.ToggleValue, Is.False);
         row.ApplyConfiguration(dialog.ToValues());
-        Assert.That(row.PersonalRate, Is.EqualTo(110250m));
+        Assert.That(row.PersonalRate, Is.EqualTo(200000m));
         threeTick.ToggleValue = true;
         Assert.That(alt.IsApplicable, Is.True);
         Assert.That(alt.ToggleValue, Is.False);
@@ -50,7 +50,7 @@ public sealed class HunterConfigurationTests
         }
     }
 
-    [TestCase("main-ehp", "Black chinchompas", 265000, 110250)]
+    [TestCase("main-ehp", "Black chinchompas", 265000, 200000)]
     [TestCase("red-chinchompas", "Red chinchompas", 210000, 170000)]
     public async Task NamesPersistenceCustomRatesAndReset(string id, string name, int defaultRate, int nonTickRate)
     {

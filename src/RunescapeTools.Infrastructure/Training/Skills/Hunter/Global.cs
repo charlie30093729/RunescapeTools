@@ -10,7 +10,8 @@ internal static class HunterGlobal
     private const long RedUnlock = 368_599;
     private const decimal BlackAltRate = 265_000m;
     private const decimal BlackSoloThreeTickRate = 225_000m;
-    private const decimal BlackNormalRate = 350m * 315m;
+    // User-approved efficient solo planning estimate, not a measured Wiki benchmark.
+    private const decimal BlackNormalRate = 200_000m;
 
     public static ITrainingSkillConfigurator Configurator { get; } = new TrainingSkillConfigurator(
         new TrainingConfigurationDefinition(

@@ -32,7 +32,8 @@ internal static class BlackChinchompas
             ],
             "Requires 73 Hunter and partial Eagles' Peak. Default: 3-tick hunting with a shooting alt, " +
             "265k XP/hour. Without the alt, 3-tick hunting uses 225k; without 3-ticking, the alt is " +
-            "disabled and the preset is 110,250 XP/hour (350 catches/hour). These high-level planning " +
+            "disabled and the user-approved planning preset is 200,000 XP/hour (about 635 catches/hour), " +
+            "not a verified Wiki benchmark. These high-level planning " +
             "rates retain the legacy constant band from level 73, not measured lower-level rates. " +
             "Personal rates scale relative to these defaults when changing configuration. Catch XP " +
             "and chins per goal stay unchanged. Black chinchompas sell low after GE tax. " +

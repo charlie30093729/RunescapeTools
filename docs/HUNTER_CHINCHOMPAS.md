@@ -19,7 +19,7 @@ the enabled defaults. Herbiboar/Aerial Fishing calculations are unchanged.
 | Red chinchompas | Off | Not applicable | 170,000 |
 | Black chinchompas | On | On | 265,000 |
 | Black chinchompas | On | Off | 225,000 |
-| Black chinchompas | Off | Disabled | 110,250 |
+| Black chinchompas | Off | Disabled | 200,000 |
 
 The red 210k preset is retained from the user's reviewed route, now without a
 separate red-alt requirement. The 170k non-tick preset is the user's explicit
@@ -30,7 +30,10 @@ non-tick hunting is not an AFK method. No new horn-of-plenty or outfit bonuses
 are assumed.
 
 Black 3-tick rates use the Wiki's high-level 265k alt/225k solo benchmarks. The
-non-tick estimate is 350 catches/hour times 315 XP, from the money-making guide.
+non-tick preset is the user-approved 200k XP/hour planning estimate, approximately
+635 catches/hour. It is not a confirmed Wiki benchmark or personally measured
+rate. The generic money-making guide's 350-catch baseline was rejected as too
+conservative for this efficient high-level preset.
 These are deliberately coarse presets: the existing constant black-chin band
 from level 73 is retained, not upgraded to a verified lower-level rate table in
 this change. Personal rates can account for level, interruptions and execution.
@@ -59,7 +62,10 @@ calculations or item rules are added to XAML or view models.
 - [Hunter training](https://oldschool.runescape.wiki/w/Hunter_training): black
   solo/alt tick-manipulation rates and red non-tick level bands.
 - [Hunting black chinchompas](https://oldschool.runescape.wiki/w/Money_making_guide/Hunting_black_chinchompas):
-  approximate 350-catches/hour planning baseline.
+  the generic money-making baseline, not the selected efficient non-tick preset.
+- [Black chinchompa guide](https://www.gamingelephant.com/osrs-black-chinchompas-guide/):
+  reports up to 220k without tick manipulation; not treated as a verified sustained
+  solo benchmark. The selected 200k is an explicit user-approved assumption.
 
 NUnit covers toggle combinations, dependent-option UI state, saved invalid-state
 normalization, persistence/reset, custom-rate scaling, output quantities/tax,

@@ -20,8 +20,8 @@ public sealed class ChinchompaConfigurationTests
 
     [TestCase("main-ehp", true, true, 265000)]
     [TestCase("main-ehp", true, false, 225000)]
-    [TestCase("main-ehp", false, true, 110250)]
-    [TestCase("main-ehp", false, false, 110250)]
+    [TestCase("main-ehp", false, true, 200000)]
+    [TestCase("main-ehp", false, false, 200000)]
     [TestCase("red-chinchompas", true, true, 210000)]
     [TestCase("red-chinchompas", true, false, 210000)]
     [TestCase("red-chinchompas", false, true, 170000)]
