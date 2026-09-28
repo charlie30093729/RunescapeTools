@@ -7,7 +7,7 @@ internal static class HunterCatalogue
 {
     public static TrainingSkillDefinition Create()
     {
-        var defaultMethod = MainEhp.Create();
+        var defaultMethod = BlackChinchompas.Create();
         return new TrainingSkillDefinition(
             "Hunter",
             defaultMethod.Bands,
@@ -19,6 +19,7 @@ internal static class HunterCatalogue
                 RedChinchompas.Create(),
                 AerialFishing.Create()
             ],
-            DefaultMethodId: defaultMethod.Id);
+            DefaultMethodId: defaultMethod.Id,
+            Configurator: HunterGlobal.Configurator);
     }
 }

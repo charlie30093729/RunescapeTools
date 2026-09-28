@@ -14,7 +14,7 @@ public sealed class BlackChinchompasTests
 
         Assert.That(hunter.ExperiencePerHour, Is.EqualTo(265_000m).Within(0m), "Hunter rate");
 
-        Assert.That(hunter.Method, Is.EqualTo("Black chinchompas - shooting alt"), "Hunter method");
+        Assert.That(hunter.Method, Is.EqualTo("Black chinchompas"), "Hunter method");
 
         Assert.That(Resource(hunter, 11959).QuantityPerExperience, Is.EqualTo(1m / 315m).Within(0m), "black chins per Hunter XP");
 

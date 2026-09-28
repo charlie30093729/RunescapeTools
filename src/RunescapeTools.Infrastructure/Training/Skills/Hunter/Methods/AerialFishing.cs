@@ -16,7 +16,7 @@ internal static class AerialFishing
         new(
             "aerial-fishing",
             "Aerial Fishing",
-            MainEhp.Create().Bands
+            BlackChinchompas.Create().Bands
                 .Where(band => band.StartExperience < ReviewedRateStartExperience)
                 .Append(Band(
                     ReviewedRateStartExperience,

@@ -38,7 +38,7 @@ internal static class Herbiboar
 
     public static TrainingMethodDefinition Create()
     {
-        var precedingBands = MainEhp.Create().Bands
+        var precedingBands = BlackChinchompas.Create().Bands
             .Where(band => band.StartExperience < UnlockExperience);
         var herbiboarBands = LevelBands.Select(level =>
         {

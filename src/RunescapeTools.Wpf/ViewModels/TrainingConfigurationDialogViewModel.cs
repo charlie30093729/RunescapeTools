@@ -21,6 +21,7 @@ public sealed class TrainingConfigurationChoiceViewModel(
 public partial class TrainingConfigurationOptionViewModel : ObservableObject
 {
     private readonly TrainingConfigurationOption definition;
+    private readonly bool methodApplicable;
 
     public TrainingConfigurationOptionViewModel(
         TrainingConfigurationOption definition,
@@ -31,7 +32,8 @@ public partial class TrainingConfigurationOptionViewModel : ObservableObject
         IsToggle = definition.Kind == TrainingConfigurationOptionKind.Toggle;
         IsChoice = definition.Kind == TrainingConfigurationOptionKind.Choice;
         IsNumber = definition.Kind == TrainingConfigurationOptionKind.Number;
-        IsApplicable = definition.AppliesTo(methodId);
+        methodApplicable = definition.AppliesTo(methodId);
+        isApplicable = methodApplicable;
         Choices = new ObservableCollection<TrainingConfigurationChoiceViewModel>(
             (definition.Choices ?? [])
             .Select(choice => new TrainingConfigurationChoiceViewModel(choice)));
@@ -51,10 +53,26 @@ public partial class TrainingConfigurationOptionViewModel : ObservableObject
     public bool IsToggle { get; }
     public bool IsChoice { get; }
     public bool IsNumber { get; }
-    public bool IsApplicable { get; }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(AvailabilityMessage))]
+    [NotifyPropertyChangedFor(nameof(IsValid))]
+    [NotifyPropertyChangedFor(nameof(ValidationMessage))]
+    private bool isApplicable;
     public string AvailabilityMessage => IsApplicable
         ? string.Empty
-        : "Not available for the selected method.";
+        : methodApplicable && definition.RequiredToggleKey is not null
+            ? "Enable the prerequisite option first."
+            : "Not available for the selected method.";
+
+    public void UpdateAvailability(IReadOnlyDictionary<string, string> values)
+    {
+        var prerequisiteEnabled = definition.RequiredToggleKey is null
+            || (values.TryGetValue(definition.RequiredToggleKey, out var value)
+                && bool.TryParse(value, out var enabled) && enabled);
+        IsApplicable = methodApplicable && prerequisiteEnabled;
+        if (!prerequisiteEnabled && IsToggle)
+            ToggleValue = false;
+    }
     public ObservableCollection<TrainingConfigurationChoiceViewModel> Choices { get; }
 
     [ObservableProperty]
@@ -130,6 +148,7 @@ public partial class TrainingConfigurationOptionViewModel : ObservableObject
 public partial class TrainingConfigurationDialogViewModel : ObservableObject
 {
     private readonly TrainingConfigurationDefinition definition;
+    private bool updatingAvailability;
 
     public TrainingConfigurationDialogViewModel(
         string skill,
@@ -154,8 +173,11 @@ public partial class TrainingConfigurationDialogViewModel : ObservableObject
             {
                 if (args.PropertyName == nameof(TrainingConfigurationOptionViewModel.IsValid))
                     OnPropertyChanged(nameof(IsValid));
+                if (args.PropertyName == nameof(TrainingConfigurationOptionViewModel.ToggleValue))
+                    UpdateAvailability();
             };
         }
+        UpdateAvailability();
     }
 
     public string Skill { get; }
@@ -173,10 +195,36 @@ public partial class TrainingConfigurationDialogViewModel : ObservableObject
                 StringComparer.OrdinalIgnoreCase))
         .ToDictionary();
 
+    private void UpdateAvailability()
+    {
+        if (updatingAvailability)
+            return;
+        updatingAvailability = true;
+        try
+        {
+            var values = ToValues();
+            foreach (var option in Options)
+                option.UpdateAvailability(values);
+        }
+        finally
+        {
+            updatingAvailability = false;
+        }
+    }
+
     [RelayCommand]
     private void ResetDefaults()
     {
-        foreach (var option in Options)
-            option.Reset();
+        updatingAvailability = true;
+        try
+        {
+            foreach (var option in Options)
+                option.Reset();
+        }
+        finally
+        {
+            updatingAvailability = false;
+        }
+        UpdateAvailability();
     }
 }

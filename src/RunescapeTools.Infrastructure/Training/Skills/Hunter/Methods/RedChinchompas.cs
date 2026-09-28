@@ -14,18 +14,23 @@ internal static class RedChinchompas
             "red-chinchompas",
             "Red chinchompas",
             [
-                .. MainEhp.Create().Bands.Where(band => band.StartExperience < UnlockExperience),
+                .. BlackChinchompas.Create().Bands.Where(band => band.StartExperience < UnlockExperience),
                 CreateBand(UnlockExperience, 70_000m),
                 CreateBand(737_627, 93_000m),
                 CreateBand(1_986_068, 143_900m),
                 CreateBand(5_346_332, 171_200m),
                 CreateBand(13_034_431, 210_000m)
             ],
-            "Requires level 63 Hunter and partial completion of Eagles' Peak. Rates assume tick " +
-            "manipulation at a dense red-chinchompa area and scale with Hunter level; the level-99 " +
-            "rate assumes maximum-efficiency play with a shooting alt. Every successful catch is " +
-            "valued at the live low price after GE tax. Consumable tick-manipulation items and " +
-            "shooting-alt supplies are excluded.");
+            "Requires level 63 Hunter and partial completion of Eagles' Peak. 3-ticking is on by " +
+            "default, preserving the reviewed 70k/93k/143.9k/171.2k/210k presets at levels " +
+            "63/70/80/90/99. With 3-ticking off, use 61k/72k/115k/136k/170k respectively. " +
+            "The 170k level-99 non-tick rate is the user's planning assumption; lower non-tick " +
+            "bands use the Wiki's dense Tlati-area estimates, held until the next band. " +
+            "Location access and player execution affect actual rates; this is not an AFK method. " +
+            "No shooting-alt setting applies to red chins. Personal rates scale relative to the " +
+            "configured defaults; XP/catch and quantities per goal stay fixed. Every catch sells " +
+            "low after GE tax. Tick-manipulation consumables and setup/travel are excluded.",
+            UseStableDisplayName: true);
 
     private static TrainingRateBand CreateBand(long startExperience, decimal experiencePerHour) =>
         Band(
