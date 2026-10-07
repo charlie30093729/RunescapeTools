@@ -141,6 +141,9 @@ public sealed class WpfViewSmokeTests
             window.Content = favouritesView;
             favouritesView.UpdateLayout();
             var favouritesList = (System.Windows.Controls.ListBox)favouritesView.FindName("FavouritesList");
+            Assert.That(favouritesList.AllowDrop, Is.True, "watch list accepts drag reordering");
+            Assert.That(RunescapeTools.Wpf.Behaviors.ListReorderCommand.GetCommand(favouritesList),
+                Is.SameAs(favouritesViewModel.ReorderFavouriteCommand), "drag behavior reaches the reorder command");
             var selectedFavouriteName = (System.Windows.Controls.TextBlock)favouritesView.FindName("SelectedFavouriteName");
             var selectedFavouriteItemNumber = (System.Windows.Controls.TextBlock)favouritesView.FindName("SelectedFavouriteItemNumber");
             Assert.That(favouritesViewModel.SelectedFavourite?.ItemId ?? 0, Is.EqualTo(24777), "first favourite starts selected");
@@ -150,6 +153,36 @@ public sealed class WpfViewSmokeTests
             Assert.That(selectedFavouriteName.Text, Is.EqualTo("Harmonised orb"), "selected favourite header name follows the list");
             Assert.That(selectedFavouriteItemNumber.Text, Is.EqualTo("Item 24511"), "selected favourite header ID follows the list");
             Assert.That(favouritesViewModel.CurrentMidpoint, Is.EqualTo("900 gp"), "selected favourite quote follows the list");
+            var selectedRow = favouritesViewModel.SelectedFavourite;
+            var dragData = RunescapeTools.Wpf.Behaviors.ListReorderCommand.CreateDragData(favouritesList, selectedRow!);
+            var targetRow = (System.Windows.Controls.ListBoxItem)favouritesList.ItemContainerGenerator.ContainerFromIndex(0);
+            var dropPoint = targetRow.TranslatePoint(new System.Windows.Point(5, 1), favouritesList);
+            var dragOver = RunescapeTools.Tests.TestSupport.Builders.WpfDragTestData.DragEvent(
+                dragData, favouritesList, dropPoint, System.Windows.DragDrop.PreviewDragOverEvent);
+            favouritesList.RaiseEvent(dragOver);
+            Assert.That(dragOver.Effects, Is.EqualTo(System.Windows.DragDropEffects.Move), "same-list drag is accepted");
+            var drop = RunescapeTools.Tests.TestSupport.Builders.WpfDragTestData.DragEvent(
+                dragData, favouritesList, dropPoint, System.Windows.DragDrop.PreviewDropEvent);
+            favouritesList.RaiseEvent(drop);
+            Assert.That(drop.Effects, Is.EqualTo(System.Windows.DragDropEffects.Move), "drop reaches the move command");
+            favouritesView.UpdateLayout();
+            Assert.That(favouritesList.SelectedItem, Is.SameAs(selectedRow), "moving the selected row retains list selection");
+            Assert.That(favouritesViewModel.SelectedFavourite, Is.SameAs(selectedRow), "moving a row retains the selected profile data");
+            Assert.That(selectedFavouriteName.Text, Is.EqualTo("Harmonised orb"), "reordering keeps the selected header intact");
+            Assert.That(favouritesList.Items[0], Is.SameAs(selectedRow), "saved order reaches the actual watch list");
+            var foreignList = new System.Windows.Controls.ListBox();
+            foreignList.Items.Add(selectedRow);
+            var foreignDrop = RunescapeTools.Tests.TestSupport.Builders.WpfDragTestData.DragEvent(
+                RunescapeTools.Wpf.Behaviors.ListReorderCommand.CreateDragData(foreignList, selectedRow!),
+                favouritesList, new System.Windows.Point(5, favouritesList.ActualHeight - 2), System.Windows.DragDrop.PreviewDropEvent);
+            favouritesList.RaiseEvent(foreignDrop);
+            Assert.That(foreignDrop.Effects, Is.EqualTo(System.Windows.DragDropEffects.None), "foreign-list drops cannot mutate favourites");
+            var appendDrop = RunescapeTools.Tests.TestSupport.Builders.WpfDragTestData.DragEvent(
+                dragData, favouritesList, new System.Windows.Point(5, favouritesList.ActualHeight - 2), System.Windows.DragDrop.PreviewDropEvent);
+            favouritesList.RaiseEvent(appendDrop);
+            favouritesView.UpdateLayout();
+            Assert.That(favouritesList.Items[1], Is.SameAs(selectedRow), "dropping below the last row appends it");
+            Assert.That(favouritesList.SelectedItem, Is.SameAs(selectedRow), "append drop retains selection");
             window.Close();
         }
         finally

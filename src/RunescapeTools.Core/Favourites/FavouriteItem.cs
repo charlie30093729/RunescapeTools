@@ -9,4 +9,7 @@ public interface IFavouriteStore
     Task AddAsync(FavouriteItem favourite, CancellationToken cancellationToken = default);
 
     Task RemoveAsync(int itemId, CancellationToken cancellationToken = default);
+
+    /// <summary>Moves an existing favourite before another item, or to the end when the anchor is null.</summary>
+    Task MoveBeforeAsync(int itemId, int? beforeItemId, CancellationToken cancellationToken = default);
 }

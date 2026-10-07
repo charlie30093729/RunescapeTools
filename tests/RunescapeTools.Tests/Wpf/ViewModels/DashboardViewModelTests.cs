@@ -27,4 +27,17 @@ public sealed class DashboardViewModelTests
         await viewModel.LoadAsync();
         Assert.That(!string.IsNullOrWhiteSpace(viewModel.ErrorMessage), Is.True, "dashboard error state");
     }
+
+    [Test]
+    public async Task QuickGlanceUsesTheSavedWatchListOrder()
+    {
+        var store = new MemoryFavouriteStore(new FavouriteItem(1, "A", DateTimeOffset.UnixEpoch),
+            new FavouriteItem(2, "B", DateTimeOffset.UnixEpoch), new FavouriteItem(3, "C", DateTimeOffset.UnixEpoch));
+        await store.MoveBeforeAsync(3, 1);
+        var viewModel = new DashboardViewModel(store, new FakeMarketDataService(), new FakeItemIconService(), []);
+
+        await viewModel.LoadAsync();
+
+        Assert.That(viewModel.Prices.Select(row => row.ItemId), Is.EqualTo(new[] { 3, 1, 2 }));
+    }
 }
