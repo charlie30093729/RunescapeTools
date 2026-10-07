@@ -8,6 +8,7 @@ using LiveChartsCore.SkiaSharpView.Painting;
 using RunescapeTools.Application.Market;
 using RunescapeTools.Core.Favourites;
 using RunescapeTools.Core.Market;
+using RunescapeTools.Wpf.Behaviors;
 using SkiaSharp;
 
 namespace RunescapeTools.Wpf.ViewModels;
@@ -57,6 +58,8 @@ public partial class FavouritesViewModel(
     TimeProvider timeProvider) : ObservableObject, IPageViewModel
 {
     private const int DefaultHistoryWindowIndex = 2;
+    private const string OrderSaveFailureMessage =
+        "Your watch list order could not be saved. The previous order has been kept; try again.";
     private static readonly HistoryWindowDefinition[] HistoryWindows =
     [
         new("1 DAY", TimeSpan.FromDays(1), PriceTimeStep.OneHour, TimeSpan.FromHours(4), "h tt", 6),
@@ -67,6 +70,7 @@ public partial class FavouritesViewModel(
 
     private readonly TimeProvider clock = timeProvider;
     private readonly IItemIconService itemIcons = itemIconService;
+    private readonly SemaphoreSlim favouriteListGate = new(1, 1);
     private CancellationTokenSource? searchCancellation;
     private CancellationTokenSource? selectionCancellation;
     private bool suppressSelectionLoad;
@@ -88,7 +92,18 @@ public partial class FavouritesViewModel(
     private string searchText = string.Empty;
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(AddFavouriteCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RemoveFavouriteCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ReorderFavouriteCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RefreshCommand))]
     private bool isLoading;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(AddFavouriteCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RemoveFavouriteCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ReorderFavouriteCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RefreshCommand))]
+    private bool isSavingOrder;
 
     [ObservableProperty]
     private bool isLoadingHistory;
@@ -150,6 +165,7 @@ public partial class FavouritesViewModel(
 
     public async Task LoadAsync(CancellationToken cancellationToken = default)
     {
+        await favouriteListGate.WaitAsync(cancellationToken);
         IsLoading = true;
         ErrorMessage = null;
         try
@@ -183,6 +199,7 @@ public partial class FavouritesViewModel(
         finally
         {
             IsLoading = false;
+            favouriteListGate.Release();
         }
     }
 
@@ -214,32 +231,110 @@ public partial class FavouritesViewModel(
         SelectedFavourite = row;
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanChangeFavouriteList))]
     private async Task AddFavouriteAsync(SearchResultRow? row, CancellationToken cancellationToken)
     {
         if (row is null)
             return;
 
-        var favourite = new FavouriteItem(row.ItemId, row.Name, clock.GetUtcNow());
-        await favouriteStore.AddAsync(favourite, cancellationToken);
-        SearchText = string.Empty;
-        SearchResults.Clear();
-        OnPropertyChanged(nameof(HasSearchResults));
-        await ReloadAfterMutationAsync(favourite.ItemId, cancellationToken);
+        await favouriteListGate.WaitAsync(cancellationToken);
+        try
+        {
+            var favourite = new FavouriteItem(row.ItemId, row.Name, clock.GetUtcNow());
+            await favouriteStore.AddAsync(favourite, cancellationToken);
+            SearchText = string.Empty;
+            SearchResults.Clear();
+            OnPropertyChanged(nameof(HasSearchResults));
+            await ReloadAfterMutationAsync(favourite.ItemId, cancellationToken);
+        }
+        finally
+        {
+            favouriteListGate.Release();
+        }
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanChangeFavouriteList))]
     private async Task RemoveFavouriteAsync(FavouriteRow? row, CancellationToken cancellationToken)
     {
         if (row is null)
             return;
 
-        var removedSelected = SelectedFavourite?.ItemId == row.ItemId;
-        await favouriteStore.RemoveAsync(row.ItemId, cancellationToken);
-        await ReloadAfterMutationAsync(removedSelected ? null : SelectedFavourite?.ItemId, cancellationToken);
+        await favouriteListGate.WaitAsync(cancellationToken);
+        try
+        {
+            var removedSelected = SelectedFavourite?.ItemId == row.ItemId;
+            await favouriteStore.RemoveAsync(row.ItemId, cancellationToken);
+            await ReloadAfterMutationAsync(removedSelected ? null : SelectedFavourite?.ItemId, cancellationToken);
+        }
+        finally
+        {
+            favouriteListGate.Release();
+        }
     }
 
-    [RelayCommand]
+    private bool CanChangeFavouriteList() => !IsLoading && !IsSavingOrder;
+
+    private bool CanReorderFavourite(ListReorderRequest? request) =>
+        CanChangeFavouriteList()
+        && !AddFavouriteCommand.IsRunning
+        && !RemoveFavouriteCommand.IsRunning
+        && request?.Item is FavouriteRow row && FavouriteRows.Contains(row)
+        && (request.BeforeItem is null
+            || request.BeforeItem is FavouriteRow anchor && FavouriteRows.Contains(anchor));
+
+    [RelayCommand(CanExecute = nameof(CanReorderFavourite))]
+    private async Task ReorderFavouriteAsync(ListReorderRequest? request, CancellationToken cancellationToken)
+    {
+        await favouriteListGate.WaitAsync(cancellationToken);
+        try
+        {
+            if (!CanReorderFavourite(request))
+                return;
+
+            var row = (FavouriteRow)request!.Item;
+            var anchor = request.BeforeItem as FavouriteRow;
+            var sourceIndex = FavouriteRows.IndexOf(row);
+            var destinationIndex = anchor is null ? FavouriteRows.Count : FavouriteRows.IndexOf(anchor);
+            if (sourceIndex < destinationIndex)
+                destinationIndex--;
+            if (sourceIndex == destinationIndex)
+                return;
+
+            IsSavingOrder = true;
+            await favouriteStore.MoveBeforeAsync(row.ItemId, anchor?.ItemId, cancellationToken);
+            if (ErrorMessage == OrderSaveFailureMessage)
+                ErrorMessage = null;
+
+            // Move the existing row instances so icons, selection and chart state survive the drop.
+            var selection = SelectedFavourite;
+            suppressSelectionLoad = true;
+            try
+            {
+                FavouriteRows.Move(sourceIndex, destinationIndex);
+                favourites = FavouriteRows.Select(item => item.Favourite).ToArray();
+                SelectedFavourite = selection;
+                OnPropertyChanged(nameof(SelectedFavourite));
+            }
+            finally
+            {
+                suppressSelectionLoad = false;
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        catch (Exception)
+        {
+            ErrorMessage = OrderSaveFailureMessage;
+        }
+        finally
+        {
+            IsSavingOrder = false;
+            favouriteListGate.Release();
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanChangeFavouriteList))]
     private Task RefreshAsync(CancellationToken cancellationToken) => LoadAsync(cancellationToken);
 
     [RelayCommand]

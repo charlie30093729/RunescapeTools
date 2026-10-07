@@ -118,11 +118,12 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | FR-FAV-005 | The user shall be able to add a search result to favourites. |
 | FR-FAV-006 | Duplicate favourite item IDs shall not be persisted. |
 | FR-FAV-007 | The user shall be able to remove a favourite independently from selecting it. |
-| FR-FAV-008 | The favourite list shall remain sorted by item name, ignoring case. |
+| FR-FAV-008 | The favourite list shall preserve its saved user-defined order rather than sort by name. New favourites shall append at the bottom; removing a favourite shall preserve the relative order of the remaining items. Existing JSON arrays shall load in their stored order without schema migration or overwriting user data. |
 | FR-FAV-009 | Adding an item shall select it and load its current price and graph history. |
 | FR-FAV-010 | Removing the selected item shall select the first remaining favourite when one exists. |
 | FR-FAV-011 | Favourite selection and removal controls shall have distinct accessible names and keyboard actions. |
 | FR-FAV-012 | Persisted favourites shall display their cached OSRS Wiki inventory icon in the watch list and selected-item header when available; an unresolved or failed icon shall retain the monogram and all textual item data. Search-only candidates shall not trigger persistent icon downloads. |
+| FR-FAV-013 | WPF users shall be able to drag a watch-list row's handle to a new position, with an insertion indicator and edge scrolling, or reorder the selected row with Alt+Up/Down. Moves shall save asynchronously and atomically, preserve item identities, selection, chart zoom and cached icons, and trigger no price/history/icon requests. A failed or cancelled save shall leave the previous order intact. Refresh, add/remove and reorder operations shall serialize to prevent lost updates. The saved order shall survive restarts and be used by Dashboard quick glance. |
 
 ### 6.4 Market prices and history
 

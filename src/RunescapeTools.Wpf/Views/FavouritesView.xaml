@@ -173,6 +173,8 @@
                              ItemsSource="{Binding FavouriteRows}"
                              SelectedItem="{Binding SelectedFavourite, Mode=OneWay}"
                              behaviors:SelectionChangedCommand.Command="{Binding SelectFavouriteCommand}"
+                             behaviors:ListReorderCommand.Command="{Binding ReorderFavouriteCommand}"
+                             AutomationProperties.HelpText="Drag a row's handle to reorder favourites, or select a row and press Alt+Up or Alt+Down."
                              Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                         <ListBox.ItemContainerStyle>
                             <Style TargetType="ListBoxItem">
@@ -187,8 +189,12 @@
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <Border x:Name="Card" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="6" Padding="9" Background="#FCFAF4">
-                                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="42" /><ColumnDefinition /><ColumnDefinition Width="30" /></Grid.ColumnDefinitions>
-                                        <Grid Width="34" Height="34">
+                                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="14" /><ColumnDefinition Width="42" /><ColumnDefinition /><ColumnDefinition Width="30" /></Grid.ColumnDefinitions>
+                                        <TextBlock Text="⋮⋮" FontSize="13" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" Cursor="SizeAll"
+                                                   behaviors:ListReorderCommand.IsDragHandle="True"
+                                                   ToolTip="Drag to reorder. You can also select this row and press Alt+Up or Alt+Down."
+                                                   AutomationProperties.Name="{Binding Name, StringFormat=Drag to reorder {0}}" />
+                                        <Grid Grid.Column="1" Width="34" Height="34">
                                             <Border CornerRadius="17">
                                                 <Border.Style>
                                                     <Style TargetType="Border" BasedOn="{StaticResource Monogram}">
@@ -204,8 +210,8 @@
                                             </Border>
                                             <controls:SafeImage x:Name="FavouriteIcon" Source="{Binding IconPath}" Width="28" Height="28" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center" />
                                         </Grid>
-                                        <StackPanel Grid.Column="1" VerticalAlignment="Center"><TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" /><TextBlock Text="{Binding Price}" Foreground="{StaticResource MutedBrush}" FontSize="10" /></StackPanel>
-                                        <Button Grid.Column="2" Content="×" Style="{StaticResource TextButton}" Foreground="#9A5A51" ToolTip="Remove favourite"
+                                        <StackPanel Grid.Column="2" VerticalAlignment="Center"><TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" /><TextBlock Text="{Binding Price}" Foreground="{StaticResource MutedBrush}" FontSize="10" /></StackPanel>
+                                        <Button Grid.Column="3" Content="×" Style="{StaticResource TextButton}" Foreground="#9A5A51" ToolTip="Remove favourite"
                                                 AutomationProperties.Name="{Binding Name, StringFormat=Remove {0} from favourites}"
                                                 Command="{Binding DataContext.RemoveFavouriteCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
                                     </Grid>
