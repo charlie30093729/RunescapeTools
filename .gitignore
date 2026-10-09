@@ -10,14 +10,13 @@
 *.user
 *.suo
 
-# Local runtime state
-src/RunescapeTools.Web/data/keys/
+# Local logs
 *.log
 
 # Operating-system files
 .DS_Store
 Thumbs.db
 
-#exe
+# Local executable and agent instructions
 /RunescapeTools.exe
 /AGENTS.md

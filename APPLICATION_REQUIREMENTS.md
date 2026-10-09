@@ -2,10 +2,10 @@
 
 | Field | Value |
 | --- | --- |
-| Document version | 1.6 |
+| Document version | 1.7 |
 | Application | RunescapeTools / GE Ledger |
 | Status | WPF MVP baseline |
-| Date | 28 July 2026 |
+| Date | 9 October 2026 |
 | Target platform | Windows 10 2004+ x64; .NET 8 WPF desktop application |
 
 ## 1. Purpose
@@ -22,7 +22,7 @@ The application shall:
 2. Show current prices and selectable one-day, three-day, seven-day, and one-month history without operating a continuous data collector.
 3. Calculate GP per hour from explicit item inputs and outputs using current market prices.
 4. Make money-making methods modular so that adding or removing a method does not require navigation or calculator rewrites.
-5. Keep application, infrastructure, persistence, and calculation logic independent from both front ends.
+5. Keep application, infrastructure, persistence, and calculation logic independent from the desktop presentation layer.
 6. Calculate level-aware XP goals, active hours, and reviewed GP/XP economics from a dated EHP catalogue.
 
 ## 3. Stakeholders and users
@@ -43,7 +43,7 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 
 ### 4.1 MVP scope
 
-- Native WPF executable as the primary front end.
+- Native WPF executable as the only front end.
 - Generic Host-based dependency injection, configuration, and logging.
 - Profile, Dashboard, Favourites, Money Makers, and XP Planner navigation areas.
 - JSON-backed favourite persistence.
@@ -55,7 +55,6 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 - Startup warming and in-memory API caching.
 - Graceful handling of temporary market-data failures.
 - Self-contained, single-file `win-x64` distribution.
-- A parked Razor/Blazor front end that remains buildable but receives no new UI work.
 
 ### 4.2 Out of scope for the MVP
 
@@ -288,7 +287,7 @@ XP Planner addition FR-XP-081: Prayer shall offer Infernal ashes (25778) and Aby
 | FR-MOD-001 | A money-making method shall implement the `IMoneyMakingMethod` contract in the Core project. |
 | FR-MOD-002 | Concrete method implementations shall be discovered and registered automatically at application startup. |
 | FR-MOD-003 | Adding or removing a method class shall automatically update the available method list after rebuild and restart. |
-| FR-MOD-004 | Domain calculations shall not depend on WPF, Razor components, or infrastructure-specific API types. |
+| FR-MOD-004 | Domain calculations shall not depend on WPF or infrastructure-specific API types. |
 
 ### 6.9 Persistence and error handling
 
@@ -362,7 +361,7 @@ Requirements:
 - The default window shall be approximately 1280 × 800 with a 1100 × 720 minimum.
 - Feature behavior shall reside in CommunityToolkit.Mvvm view-models; code-behind shall be limited to initialization and application lifetime.
 - Favourite history shall be rendered with LiveCharts2 WPF, with discrete mouse-wheel windows and tooltip timestamps converted to local time.
-- The Razor application shall remain in the solution as a buildable, parked front end and shall consume the same shared services.
+- The solution shall contain Core, Application, Infrastructure, Wpf, and Tests; WPF shall be the sole application host.
 
 ## 9. Data requirements
 
@@ -395,8 +394,6 @@ Requirements:
 - The EHP catalogue shall identify its source snapshot and verification date; rate changes shall be reviewed code/data changes rather than runtime scraping.
 - The renamed desktop host shall copy an existing legacy favourites file into this location once, without overwriting new state.
 - The WPF assembly shall embed the versioned MVP favourites snapshot as first-run seed data, including the current Scythe favourite.
-- The parked Web host may retain its own `data/favourites.json`; it shall not share mutable state with WPF.
-- ASP.NET data-protection keys are runtime-generated Web state and shall be excluded from Git.
 - Build outputs and IDE-specific state shall be excluded from Git.
 
 ## 10. Caching and request-efficiency requirements
@@ -433,10 +430,10 @@ Requirements:
 | ID | Requirement |
 | --- | --- |
 | NFR-SEC-001 | The application shall not collect RuneScape credentials. |
-| NFR-SEC-002 | Runtime data-protection keys shall not be committed to source control. |
+| NFR-SEC-002 | User-specific runtime data and credentials shall not be committed to source control. |
 | NFR-SEC-003 | No API secrets shall be embedded in source code or documentation. |
-| NFR-SEC-004 | User-controlled values shall be rendered through normal WPF data binding or Razor encoding without being interpreted as markup. |
-| NFR-SEC-005 | The application is intended for trusted local use unless a future deployment adds an explicit authentication and security design. |
+| NFR-SEC-004 | User-controlled values shall be rendered through normal WPF data binding without being interpreted as markup. |
+| NFR-SEC-005 | The application shall run locally without requiring an application account or a hosted backend. |
 
 ### 11.4 Accessibility and usability
 
@@ -454,8 +451,8 @@ Requirements:
 | --- | --- |
 | NFR-MAINT-001 | Domain models and calculations shall remain in the Core project. |
 | NFR-MAINT-002 | Market behavior and use cases shall remain in the Application project; external HTTP and JSON persistence shall remain in Infrastructure. |
-| NFR-MAINT-003 | WPF view-models and Razor components shall consume shared services and domain results rather than reproduce calculation rules. |
-| NFR-MAINT-004 | Shared dependency registration shall configure HTTP, persistence, caches, calculator, and discovered methods for either host. |
+| NFR-MAINT-003 | WPF view-models shall consume shared services and domain results rather than reproduce calculation rules. |
+| NFR-MAINT-004 | Infrastructure dependency registration shall configure HTTP, persistence, caches, calculator, and discovered methods for the desktop host. |
 | NFR-MAINT-005 | Each XP Planner skill shall be maintained in its own Infrastructure folder. A skill catalogue shall compose its method definitions, method-specific data shall remain in separate files as the catalogue expands, and the main catalogue shall only compose skills in canonical order. |
 | NFR-MAINT-006 | A training method shall own its market-item ID and display name together as a local `CatalogueItem`; application-wide training-item registries shall not be used. |
 | NFR-MAINT-007 | Rules genuinely shared by multiple methods of one skill shall be centralized in that skill's `Global.cs`; method files shall consume those rules by composition rather than duplicate them or inherit UI behavior. |
@@ -468,7 +465,7 @@ Requirements:
 
 | ID | Requirement |
 | --- | --- |
-| NFR-COMP-001 | Shared and Web projects shall target .NET 8; WPF and its view-model tests shall target `net8.0-windows10.0.19041.0`. |
+| NFR-COMP-001 | Core, Application, and Infrastructure shall target .NET 8; WPF and its tests shall target `net8.0-windows10.0.19041.0`. |
 | NFR-COMP-002 | The supported desktop platform shall initially be Windows 10 version 2004 or newer on x64. |
 | NFR-COMP-003 | The layout shall avoid page-level horizontal overflow at supported desktop widths. |
 | NFR-COMP-004 | Tables may use contained horizontal scrolling when their readable minimum width exceeds the available viewport. |
@@ -482,8 +479,8 @@ Requirements:
 | `OsrsWikiOptions.UserAgent` | Identifies the application and maintainer to the Wiki API. | Uses the configured application value. |
 | `OsrsWikiOptions.Timeout` | Limits an individual HTTP request. | 20 seconds. |
 | `OsrsWikiOptions.MaxRetryAttempts` | Limits transient 429/server-error attempts. | Three attempts. |
-| `FavouriteStoreOptions.FilePath` | Selects the host-specific JSON file. | WPF uses the LocalAppData path; Web uses its content-root data directory. |
-| `FavouriteStoreOptions.SeedJson` | Supplies optional first-run seed content. | WPF passes the embedded snapshot; Web passes no seed. |
+| `FavouriteStoreOptions.FilePath` | Selects the favourites JSON file. | Uses the desktop LocalAppData path. |
+| `FavouriteStoreOptions.SeedJson` | Supplies optional first-run seed content. | Embedded desktop snapshot, applied only when no favourites file exists. |
 | `MarketDataOptions` | Controls latest, mapping, history, window, and warmup cache behavior. | Shared defaults. |
 | `TrainingPlanOptions.FilePath` | Selects the per-RSN XP Planner JSON file. | WPF uses the LocalAppData data directory. |
 | `MoneyMakingPreferenceOptions.FilePath` | Selects the JSON file for actions/hour overrides keyed by method slug. | WPF uses the LocalAppData data directory. |
@@ -496,7 +493,7 @@ Requirements:
 - The release artifact shall be named `RunescapeTools.exe` and shall include the GE monogram application icon.
 - The supported release command is `dotnet publish src\RunescapeTools.Wpf\RunescapeTools.Wpf.csproj -c Release -r win-x64 -p:PublishProfile=win-x64`.
 
-The maintainer shall replace placeholder contact information before public distribution or hosted deployment.
+The maintainer shall verify the configured contact information before public distribution.
 
 ## 13. MVP acceptance criteria
 
@@ -515,8 +512,8 @@ The MVP is accepted when all of the following are true:
 11. A second desktop instance exits cleanly without opening a competing favourites store.
 12. First launch preserves an existing legacy favourites file when available, otherwise creates the LocalAppData file from the embedded snapshot; later launches do not replace it.
 13. The `win-x64` Release publish produces a self-contained single-file `RunescapeTools.exe` with trimming disabled.
-14. The parked Razor project continues to compile as part of the complete solution.
-15. Runtime data-protection keys and build outputs remain ignored by Git.
+14. The complete solution contains only Core, Application, Infrastructure, Wpf, and Tests, with no dependency on a retired application host.
+15. Build outputs, local executables, logs, and IDE-specific state remain ignored by Git.
 16. XP Planner hours span every applicable level band and reproduce the reviewed Construction 0-to-200m benchmark within rounding tolerance.
 17. Unpriced training segments remain visible through economic-coverage states, and per-RSN goals survive restart.
 18. A money-maker actions/hour override reprices the method and XP Planner contribution, survives restart, remains independent per method, and returns to the active configured default when reset.
@@ -530,7 +527,7 @@ The MVP is accepted when all of the following are true:
 - Migration shall preserve every existing regression assertion and record old-to-new scenario mapping without treating test counts as coverage percentages.
 - Prices and HTTP responses shall use controlled test data. Persistence tests shall own unique temporary directories and never alter the user's application data.
 - WPF smoke checks shall execute serially on an STA thread with explicit application cleanup. CI shall run them in a separate test process with a two-minute hang limit.
-- GitHub Actions shall build the full solution, including the parked Web project, and run tests on Windows for pull requests and pushes to `main`, retaining TRX results for 14 days.
+- GitHub Actions shall build all five solution projects and run tests on Windows for pull requests and pushes to `main`, retaining TRX results for 14 days.
 - The test command, fixture organization, and instructions for adding tests shall be maintained in the repository testing guide.
 
 ## 14. Risks and dependencies
@@ -554,8 +551,8 @@ The MVP is accepted when all of the following are true:
 - Optional historical persistence beyond the Wiki API window.
 - Import/export of favourites and method definitions.
 - Database-backed local storage.
-- Authentication and deployment hardening for hosted use.
-- Broader integration-failure, accessibility, and browser test coverage beyond the NUnit regression and WPF smoke suite.
+- Desktop release automation and update distribution.
+- Broader integration-failure and accessibility coverage beyond the NUnit regression and WPF smoke suite.
 
 ## 16. Requirements governance
 

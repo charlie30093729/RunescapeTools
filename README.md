@@ -1,186 +1,61 @@
 # RunescapeTools
 
-RunescapeTools, presented as **GE Ledger**, is a native Windows desktop workspace for Old School RuneScape profiles, market tracking, GP/hour calculations, and level-aware XP planning.
+RunescapeTools, presented as **GE Ledger**, is a Windows desktop companion for Old School RuneScape. Track your account, follow Grand Exchange prices, compare money makers, and plan the time and GP needed to reach your XP goals.
 
-The WPF executable is the active front end. The original Razor/Blazor application remains buildable in the solution as a parked reference implementation. Both hosts use the same application, infrastructure, persistence, market-data, and calculation services.
+## What it does
 
-## Current features
+- **Profiles and dashboard:** look up an RSN, view skill progress, and check favourite items at a glance.
+- **Favourites:** search items, save and reorder a watch list, and explore price and volume history from one day to one month.
+- **Money Makers:** compare item costs and profits with adjustable account counts, action rates, and method settings.
+- **XP Planner:** choose training methods, equipment, and XP goals; estimate hours, item quantities, and GP/XP using live or 30-day average prices. Allocate money-maker income to selected training hours.
 
-- Dashboard summary with saved favourites, current midpoint prices, registered calculators, and history coverage.
-- Shared Profile Dashboard with normal-account OSRS Hiscores lookup, all 24 current skills (including Sailing), refresh, and last-profile restore.
-- Debounced Grand Exchange item search with add, select, and remove favourite actions. Drag the small handle beside a watch-list item to reorder it, or select it and use Alt+Up/Down. The order persists across refreshes and restarts and is also used by Dashboard quick glance; new items append at the bottom. Reordering preserves the selected chart and cached icons without extra market requests, and a failed save retains the previous order. Saved favourites display their cached OSRS Wiki inventory icons in both the watch list and selected-item header, with the existing monograms retained as a failure-safe fallback.
-- One day to one month of Wiki price history rendered with LiveCharts2. The chart defaults to seven days, uses discrete mouse-wheel zoom, local-time tooltips with rolling 24-hour tracked volume, hourly short-range data, and six-hour monthly data while retaining weekly change and volume summaries.
-- Automatically discovered money-making methods with live repricing, persistent per-method actions/hour overrides and boolean method options, adjustable account quantities, and a complete input/output ledger.
-- XP Planner with 21 planned skills, level-banded Main EHP rates, per-skill method dropdowns, reusable cog-driven skill configuration, current-profile start XP, 99/200m goals, editable personal base rates, active-hour totals, and per-RSN persistence. Selected XP bonuses such as Daeyalt essence and skilling outfits apply on top of a typed personal rate, and the XP/hour field displays the resulting active configured rate. The stored base remains segment-aware when a limited resource runs out. Method and configuration changes immediately reprice the route and are saved with the plan. Each skill has a readable item-recommendation dialog showing route GP/XP, Wiki item icons, the complete route's aggregate required inputs, expected outputs, suggested high-price buys, low-price sales, quote timestamps, and fallback states for the current XP goal. A selected Money Makers method can be allocated to specific skill hours through the clickable icon bar and included in Priced Net GP. Attack, Strength, and Hitpoints remain visible in profiles but are omitted from the planner as zero-time skills.
-- Live GP/XP economics with explicit coverage states and reviewed processing, gathering, combat, Runecraft, Hunter, Construction, and Gwenith Glide routes.
-- Herblore provides selectable Saradomin brew, Super restore, and 1-tick extended super antifire routes. Prescription goggles and the Alchemist's amulet are user-selectable, apply only where eligible, price Amulets of chemistry used for charges, and decant all finished potion output to four-dose items for sale.
-- Practical buyable alternatives include dragon bones, adamant darts, air battlestaves, adamant platebodies, rune 2h swords, oak dungeon doors, and mahogany tables. Each route retains the existing lower-level path until its real unlock, then prices inputs at live high offers and outputs at live low offers.
-- Runecraft provides selectable solo mud, lava, and aether routes; a reviewed 138,000 XP/hour 1+1 dolo Aether route; level-91 Achievement Diary cape double-nature; level-banded Ourania Altar (ZMI); and low-effort Arceuus blood and soul routes. The dolo route intentionally reuses Solo Aether's item quantities and GP/XP while excluding every additional runner resource and cost, so its GP/hour changes only with the increased XP rate. ZMI follows the current Wiki rate and rune-distribution bands, prices efficient teleport/banking supplies and all 14 possible rune outputs, and has a saved Ardougne medium diary output toggle. Full Raiments of the Eye and an Abyssal lantern lit with magic logs are configurable per RSN: they respectively add up to 60% and 10% rune output without increasing XP, and aether bonus output consumes the matching additional catalysts. Eligible pure-essence routes can use configured Daeyalt essence for 50% more Runecraft XP; leaving its stock blank treats it as unlimited, while a finite stock automatically falls back to pure essence after it is consumed. Daeyalt is treated as already-owned untradeable stock, so mining time is excluded; on the dolo route it replaces only the main account's tracked essence and boosts only the main account's share of the combined rate, producing approximately 177,881 XP/hour from the 138,000 base. At 13,034,431 XP, applicable routes automatically stop pricing NPC Contact pouch repairs while retaining unrelated teleport or Magic Imbue runes. Arceuus routes gather their own dark essence and live-price the resulting rune output.
-- Cooking provides a selectable one-tick karambwan route with level-dependent burn rates and a reviewed level-99 rate of 980,000 XP/hour. Raw karambwan are bought at live high prices and successful cooked karambwan are sold at live low prices after tax.
-- Hunter provides Herbiboar, Aerial Fishing, **Red chinchompas** and **Black chinchompas**. The Hunter cog controls 3-ticking for both chin types and a shooting alt for black chins only. Disabling 3-ticking immediately disables/unchecks the alt. Level-99 defaults are red 210k with 3-ticking or 170k without; black 265k with 3-ticking/alt, 225k with 3-ticking solo, or a user-approved 200k planning estimate without either. Settings persist per profile, reset restores the existing enabled defaults, and personal rates scale with the configuration. Catch quantities per goal stay unchanged. [Hunter assumptions](docs/HUNTER_CHINCHOMPAS.md).
-- Thieving provides **Gem knights** and **Ardougne knights**. Ardougne knights unlock at level 55 and use diary-assisted level bands reaching the efficient 252,900 XP/hour ceiling at 95+. Full Rogue equipment yields 100 coins per successful 84.3-XP pickpocket: +1.18624 GP/XP, independent of market pricing and GE tax. Personal rates change hours and hourly coins while preserving coin yield per goal. Food and optional supplies are excluded; the existing pre-55 route is retained. [Thieving assumptions](docs/THIEVING_ARDOUGNE_KNIGHTS.md).
-- Vyrewatch Sentinels, efficient Rune Dragons, and off-task AFK Frost Dragons with live-priced supplies, expected taxed drops, per-account profit, persistent action-rate overrides, and adjustable all-account totals. Rune Dragons default to 45 kills/hour; Frost Dragons default to 120 kills/hour using full Inquisitor, a dragon hunter lance, and complete melee/dragonfire protection.
-- Local JSON persistence, API-friendly caches, bounded history warmup, retry handling, and user-readable failure states.
-- Single-instance desktop lifetime to prevent competing favourite-file writes.
+Prices and Hiscores come from the OSRS Wiki and official OSRS Hiscores APIs. Calculations are estimates; missing prices and unverified economics are shown explicitly.
 
-Sailing also offers level-banded **Salvaging**, with the player operating one hook and a crewmate the other once a sloop is available. Its saved crystal-extractor toggle adds a fixed XP/hour bonus from level 73, including to custom base rates. Rates are planning estimates; salvaging loot remains explicitly unpriced. See [Sailing assumptions and rate bands](docs/SAILING_SALVAGING.md). Existing Gwenith Glide settings and economics are unchanged.
-
-Mining now offers **Calcified rocks - crystal pickaxe**, a low-attention alternative from level 71 with full Prospector enabled by default in its skill cog. The planning preset reaches 50,225 XP/hour at 99 with the outfit. Crystal recharges use enhanced teleport seed prices; the item popup shows expected untradeable bone shards and unopened deposits without granting automatic Prayer XP. Existing granite training is unchanged. [Method assumptions](docs/MINING_CALCIFIED_ROCKS.md).
-
-Agility also offers standalone **Prifddinas Agility Course** (54k/58k/62k/66k XP/hour at levels 75/80/85/90) and **Ardougne Rooftop Course** (70k XP/hour from 90). Prif values shards through divine super combat potion conversion; Ardougne values an estimated 18 marks/hour, without the elite diary, as amylase. Prayer-at-Prif remains a separate calculation: its projected Agility XP reduces the standalone course's remaining work without duplicating hours or rewards. Existing Sepulchre defaults are preserved. See [course assumptions](docs/AGILITY_COURSES.md).
-
-## Project structure
+## Architecture
 
 | Project | Responsibility |
 | --- | --- |
-| `RunescapeTools.Core` | Domain records, API contracts, profile models, calculation rules, and money-making definitions. |
-| `RunescapeTools.Application` | Market behavior, defensive hiscore parsing, current-profile state, and favourite-history warmup. |
-| `RunescapeTools.Infrastructure` | Wiki and Hiscores HTTP clients, JSON persistence, configuration, per-skill training catalogues, and shared DI registration. |
-| `RunescapeTools.Wpf` | Active Windows front end, Generic Host composition, MVVM view-models, and LiveCharts UI. |
-| `RunescapeTools.Web` | Parked Razor front end; retained and kept buildable. |
-| `RunescapeTools.Tests` | Calculator, service, persistence, retry, and view-model regression harness. |
+| `Core` | Domain models, contracts, item flows, and calculation rules. |
+| `Application` | Use cases, profile parsing/state, market caching/search, and pricing coordination. |
+| `Infrastructure` | HTTP clients, JSON stores, per-skill method catalogues, and dependency registration. |
+| `Wpf` | Desktop application, XAML views, MVVM view-models, and application startup. |
+| `Tests` | NUnit tests organized by layer and feature, including WPF smoke checks. |
 
-## Run the desktop app
+XAML views bind to view-model properties and commands. View-models call shared services, which use Core calculations and Infrastructure integrations. Each training skill has its own folder; individual methods own their item definitions, while `Global.cs` holds rules shared within that skill.
 
-Requirements for development: Windows 10 version 2004 or newer and the .NET 8 SDK.
+Settings, favourites, plans, and caches are stored under `%LocalAppData%\RunescapeTools\data`. Replacing the executable preserves this data.
 
-```powershell
-dotnet run --project src\RunescapeTools.Wpf\RunescapeTools.Wpf.csproj
-```
+## Development
 
-Desktop favourites are stored at:
-
-```text
-%LocalAppData%\RunescapeTools\data\favourites.json
-```
-
-The last successfully loaded RSN is stored separately at:
-
-```text
-%LocalAppData%\RunescapeTools\data\profile.json
-```
-
-XP goals, start overrides, selected training methods, skill configurations, personal rates, and money-making skill allocations are stored per RSN at:
-
-```text
-%LocalAppData%\RunescapeTools\data\training-plans.json
-```
-
-Custom money-maker actions/hour values are stored by stable method slug at:
-
-```text
-%LocalAppData%\RunescapeTools\data\money-making-preferences.json
-```
-
-Wiki item icons actually displayed by the desktop application are downloaded lazily and retained across launches at:
-
-```text
-%LocalAppData%\RunescapeTools\data\item-icons
-```
-
-The cache is keyed by item ID and Wiki icon filename, so changed assets are fetched without replacing unrelated cached icons. An unavailable icon never prevents its item data from being displayed.
-
-Each money maker starts at its coded default. The Actions/hour field reprices per-action inputs, outputs, and experience immediately, and its reset control removes the saved override. Vyrewatch defaults to 102 kills/hour with prayer regeneration potions and 88 without them; Rune Dragons default to 45 kills/hour; Frost Dragons default to 120 kills/hour. Frost dragon bones are collected and priced by default, and the saved method checkbox can exclude them from the loot ledger. A custom action-rate override remains active when a method-specific configuration changes until it is reset.
-
-The same training-plan file stores which skill hours are allocated to money making. The selected Money Makers method itself is session state: choose a successfully priced method in Money Makers, use its account arrows to set the currently running quantity, click the XP Planner summary card to change it, or use the card's Reset action to deselect it. Planner income uses the selected method's combined GP/hour across all chosen accounts and applies it exclusively to the active hours of highlighted skills.
-
-In the XP Planner skill-icon bar, left-click continues to toggle whether that skill's hours receive the selected money maker. Right-click jumps the training table directly to the matching skill row without changing the allocation.
-
-The bundled EHP catalogue is a dated snapshot. Its level bands calculate the complete path from the selected start XP to the goal; GP totals clearly report how much of that path has reviewed economic data rather than treating unknown costs as zero.
-
-Skills with configurable assumptions show a cog beside the method dropdown. Prayer supports Superior dragon bones, dragon bones, and Frost dragon bones at the Gilded or Chaos Altar and defaults to Superior dragon bones at Gilded. Frost dragon bones use the verified 350 XP offering value, with the Chaos Altar's 50% save chance applied to effective bone consumption. Firemaking provides selectable rosewood and level-90 redwood routes, defaults to the full Pyromancer outfit, and supports low-effort automatically fed Forester's Campfires as an alternative to normal burning. Fletching can exclude its hours while retaining its resource calculation. Herblore equipment, Raiments of the Eye, the Carpenter's outfit, and the Smiths' uniform are stored independently per RSN; Smiths' uniform changes the applicable adamant-platebody and rune-2h rates without affecting Blast Furnace gold. Farming exposes the same configuration entry point with an empty placeholder ready for its next expansion.
-
-Reviewed economic routes now include the first deterministic processing batch plus Grand-Coffin Hallowed Sepulchre, 1.5t teak Woodcutting, crystal-felling-axe redwood and ironwood Woodcutting, crystal-harpoon Fishing, 3t4g granite Mining, shooting-alt black chinchompas, solo mud/lava/aether, 1+1 dolo Aether, Achievement-cape double-nature, and Ourania Altar Runecraft, Construction, rosewood-hull Gwenith Glide, efficient tree runs, selectable red or black chinchompas with cannon for Defence and zero-time Ranged, residual Ice Barrage, explicit break-even Slayer, and Gem Knights. The calibrated red-chinchompa combat alternatives use 330,000 Defence XP/hour or 940,000 Ranged XP/hour while retaining the reviewed long-fuse/rapid throw counts and cannonball throughput. Fishing also provides selectable 3-tick and five-tick Barbarian routes from level 48 with calibrated level bands; their passive Agility XP reduces the Agility plan only for Fishing XP earned after the real unlock. Dropped fish have no output value, Strength is outside the planner, and bait and tick-manipulation supplies remain visibly unpriced. Redwood and ironwood routes consume one Forester's ration per successful chop, apply the 10% felling-axe XP bonus, bank and value the 80% expected log yield, and price crystal charges only for received logs. Gem Knights value only expected Tokkul converted into live-priced uncut onyx at the Karamja-gloves shop rate; gems and variable trip consumables are excluded. Method notes disclose excluded outputs and calibrated assumptions; Agility values the Grand Coffin's expected tradeable loot and coins while excluding marks and clues, crystal-tool routes budget whole enhanced crystal teleport seeds, and Sailing values the reviewed shard-to-divine-potion conversion at live prices.
-
-Planned methods can contribute secondary XP to another skill. The Slayer route contributes Magic XP and uses an explicit reviewed assumption of `0 gp/xp`; Barbarian Fishing contributes level-banded Agility XP. The calibrated level-99 Aerial Fishing route is owned by the Hunter row at 129,000 Hunter XP/hour and contributes proportional Fishing XP at 99,500 XP/hour, while its active time and hourly potion costs are counted once. Its note retains the activity's lower 35 Hunter and 43 Fishing access requirements, but the default route remains active below 99 because lower-level boosted rates have not been reviewed. Linked credits propagate through remaining routes—for example, Aerial Fishing first reduces Fishing and only the residual Barbarian Fishing plan can generate Agility. Credits reduce the receiving skill's remaining XP and supplies without changing successfully loaded profile XP. Ranged and Magic retain live GP/XP calculations but contribute zero active hours to the planner total.
-
-Farming provides selectable magic + dragonfruit and magic + palm tree-run routes. Economics buy the selected saplings and protection payments at live high prices and include gardener clearing fees. The reviewed schedule assumes one six-tree and six-fruit-tree run per day, four hardwood patches normalized by growth time, daily calquat and celastrus trees once unlocked, and the redwood patch normalized by its growth time. Palm-route rates preserve the same active run-time assumptions and scale with its lower daily XP. Efficient runs do not harvest or value fruit, bark, or logs; early quest XP remains visibly unpriced.
-
-Prayer also supports Sinister Offering at a bank or during Prifddinas Agility for all three bone choices. Bank defaults use 600 casts/hour; Prif assumes 24 bones per lap and an estimated 82 seconds including banking. Frost bones therefore provide 540,000 Prayer XP/hour at the bank or approximately 316,098 at Prif (632.7 hours from 0 to 200m). Both options project Magic XP; Prif also projects Agility XP and values expected crystal shards through divine super combat potion conversion. Projected XP reduces remaining training without modifying the loaded profile. Spell, course, conversion requirements and excluded costs are disclosed in the route information. See [Prayer offering assumptions](docs/PRAYER_OFFERING.md) for all rates, source links, and the difference from the supplied screenshot's shard estimate.
-
-Infernal and Abyssal ashes use Demonic Offering and allow only Bank or Prif agility. Selecting either defaults to Prif; a subsequently saved Bank choice survives restart. Ashes use their correct Prayer XP and 175 Magic XP per cast, but intentionally reuse Sinister Offering's blood/wrath rune costs as a requested pricing approximation. Existing bone defaults are unchanged.
-
-Each skill owns a folder under `src\RunescapeTools.Infrastructure\Training\Skills`. Its catalogue composes independently maintained method definitions, while a skill-local `Global.cs` owns shared rules, stable configuration keys, defaults, and calculation effects. User selections remain outside the catalogue and are persisted as generic per-skill values in the training-plan store. The WPF configurator renders the shared option schema and contains no skill-specific calculation rules. Each method owns its market-item IDs and display names together as local `CatalogueItem` values; genuinely skill-wide items live with that skill's shared logic rather than in an application-wide registry. `MainEhpCatalogue` only composes skill definitions in canonical Hiscores order. Every registered route appears in that skill's dropdown, and all route-specific market items are included when the planner refreshes prices. Configurators declare any additional market items introduced by non-default options through `AdditionalMarketItemIds`; `TrainingSkillDefinition.MarketItemIds` combines these with the default routes so changing configuration never depends on another skill accidentally loading the required quotes.
-
-XP Planner dropdowns retain each route's permanent name at every level. Future methods remain selectable so a long-term plan can use the current fallback route until the unlock; their labels show the required level and the selected row explains which fallback is currently supplying its XP/hour and GP calculation.
-
-The first Profile visit creates this preference with `bottleo` when no saved RSN exists. A new RSN is persisted only after its complete hiscore response has been fetched and parsed successfully.
-
-On first launch after the rename, the app first copies an existing legacy favourites file when available. Otherwise, it seeds this file from the embedded MVP snapshot. Existing desktop data is never replaced. The current seed includes Blood shard, Tanzanite fang, and Scythe of vitur (uncharged).
-
-## Planner pricing modes
-
-The XP Planner's **30-day average pricing** checkbox applies one pricing basis to
-all skill methods and the allocated money maker. Unchecked uses live prices; the
-choice is saved across restarts and profiles. Other dashboards remain live.
-
-Monthly estimates use separate volume-weighted high (input) and low (output)
-averages from the last 120 completed six-hour buckets. Fractions of a GP are retained
-in calculations. These are historical planning estimates, not current offers or a
-forecast. At least 116 distinct buckets are required; missing sides and zero-volume
-sides remain unpriced, never silently replaced with live prices or the other side.
-
-The first monthly request downloads missing histories with at most four requests
-in flight. Six-hour histories and the preference are cached under
-`%LocalAppData%\RunescapeTools\data\price-history`. Fresh cache entries survive
-restarts; they are refreshed on the next pricing request after the UTC six-hour
-boundary. Toggling with a fresh cache makes no additional historical API requests.
-Refresh respects these cache lifetimes; it is not a forced full redownload.
-
-The old snapshot remains visible while a new one loads. Completed snapshots update
-all rows together; cancelled or failed requests cannot overwrite a newer selection.
-An incomplete money-maker quote excludes its contribution rather than adding a
-misleading partial profit. The planner preserves its chosen accounts, actions/hour,
-and configuration and reprices its flows using buy-high/sell-low in either mode.
-The standalone Money Makers tab retains its existing live midpoint estimate, so
-its displayed rate can differ from the planner's more conservative rate.
-
-Implementation is shared: `HistoricalPriceCalculator` in Core computes averages,
-`PlannerPricingService` in Application coordinates price snapshots and caching,
-and `JsonPriceHistoryStore` in Infrastructure persists disposable cache entries
-atomically. Skill methods still only declare their resource flows; no method owns
-networking. See [pricing design and limitations](docs/PLANNER_PRICING.md).
-
-## Verify
+Use Windows 10 version 2004 or newer (x64) with the .NET 8 SDK.
 
 ```powershell
 dotnet build RunescapeTools.sln
 dotnet test RunescapeTools.sln --no-build --blame-hang-timeout 2m
+dotnet run --project src\RunescapeTools.Wpf\RunescapeTools.Wpf.csproj
 ```
 
-Tests use NUnit and appear individually in Visual Studio Test Explorer. The Windows-targeted
-test project is organized by application layer and feature, with skill-specific fixtures under
-`Infrastructure/Training/Skills`. Prices and HTTP responses are supplied by test doubles; persistence
-tests use disposable temporary directories, not your saved application data.
+GitHub Actions builds and tests pull requests and pushes to `main`. See the [testing guide](tests/RunescapeTools.Tests/README.md) for focused test runs and conventions.
 
-The [testing guide](tests/RunescapeTools.Tests/README.md) explains how to run one skill or category
-and add a new test. The [migration map](tests/RunescapeTools.Tests/MIGRATION.md) accounts for all
-69 original console scenarios and their 871 assertion call sites, now organized into 101 NUnit tests.
-
-GitHub Actions builds the complete solution and runs the NUnit suite on Windows for every PR
-and push to `main`. WPF smoke checks run in a separate test process; downloadable TRX results are
-retained for 14 days. The workflow does not publish or replace anyone's local executable.
-
-## Publish the Windows executable
+## Publish
 
 ```powershell
 dotnet publish src\RunescapeTools.Wpf\RunescapeTools.Wpf.csproj -c Release -r win-x64 -p:PublishProfile=win-x64
 ```
 
-The profile produces a self-contained, single-file `RunescapeTools.exe` under the WPF project's `bin\Release` publish directory. The target computer does not need the .NET Desktop Runtime installed. Trimming is intentionally disabled for WPF, LiveCharts2, SkiaSharp, and reflection-based method discovery.
+The self-contained executable is produced at:
 
-## Parked Razor app
-
-The Web front end is not receiving new UI work, but it can still be run for comparison:
-
-```powershell
-dotnet run --project src\RunescapeTools.Web\RunescapeTools.Web.csproj
+```text
+src\RunescapeTools.Wpf\bin\Release\net8.0-windows10.0.19041.0\win-x64\publish\RunescapeTools.exe
 ```
 
-Its data remains under `src\RunescapeTools.Web\data` and is separate from desktop state.
+Users do not need the .NET runtime installed. The repository-root `RunescapeTools.exe` is a local shortcut target and is excluded from Git.
 
-## Add a money-making method
+## Documentation and contact
 
-Create a class under `src\RunescapeTools.Core\MoneyMaking\Methods` that implements `IMoneyMakingMethod`. Describe each consumed or produced item with an `ItemFlow`; shared dependency registration discovers concrete methods automatically and the calculator handles current prices, quantities, tax, per-account totals, and persistent preferences keyed by the method slug.
+- [Application requirements](APPLICATION_REQUIREMENTS.md)
+- [Method assumptions and technical notes](docs/)
+- [Report a bug or suggest a feature](https://github.com/charlie30093729/RunescapeTools/issues)
+- Maintainer: **bottleo** on Discord.
 
-See [APPLICATION_REQUIREMENTS.md](APPLICATION_REQUIREMENTS.md) for the full product and technical requirements.
+This application is not affiliated with, endorsed, or otherwise approved by Jagex Ltd. RuneScape and Old School RuneScape are trademarks of Jagex Ltd.

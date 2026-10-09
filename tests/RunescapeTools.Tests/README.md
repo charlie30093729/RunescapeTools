@@ -111,7 +111,7 @@ NUnit's obsolete `Timeout` attribute cannot safely stop a blocked WPF thread on 
 
 ## CI and migration baseline
 
-`.github/workflows/tests.yml` restores packages, builds all six solution projects in Release,
+`.github/workflows/tests.yml` restores packages, builds all five solution projects in Release,
 runs Unit/Persistence checks, then runs WPF smoke checks in a fresh process. It requires no
 application credentials or live market-price responses. TRX files are uploaded even after test
 failure. Requiring this check before merge is a separate GitHub branch-protection setting.
