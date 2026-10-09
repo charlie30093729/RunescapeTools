@@ -18,5 +18,7 @@
 Thumbs.db
 
 # Local executable and agent instructions
+/07Tools.exe
+# Compatibility copy for existing desktop shortcuts.
 /RunescapeTools.exe
 /AGENTS.md

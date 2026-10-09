@@ -12,7 +12,7 @@ public sealed record ListReorderRequest(object Item, object? BeforeItem);
 /// <summary>Translates list drag handles and Alt+Up/Down into a move-before command.</summary>
 public static class ListReorderCommand
 {
-    private const string DataFormat = "RunescapeTools.ListReorder";
+    private const string DataFormat = "07Tools.ListReorder";
     public static readonly DependencyProperty CommandProperty = DependencyProperty.RegisterAttached(
         "Command", typeof(ICommand), typeof(ListReorderCommand), new PropertyMetadata(null, OnCommandChanged));
 

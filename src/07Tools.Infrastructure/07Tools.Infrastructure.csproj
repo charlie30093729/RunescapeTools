@@ -1,8 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\RunescapeTools.Application\RunescapeTools.Application.csproj" />
-    <ProjectReference Include="..\RunescapeTools.Core\RunescapeTools.Core.csproj" />
+    <ProjectReference Include="..\07Tools.Application\07Tools.Application.csproj" />
+    <ProjectReference Include="..\07Tools.Core\07Tools.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -13,7 +13,7 @@
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-    <AssemblyName>RunescapeTools.Infrastructure</AssemblyName>
+    <AssemblyName>07Tools.Infrastructure</AssemblyName>
     <RootNamespace>RunescapeTools.Infrastructure</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>

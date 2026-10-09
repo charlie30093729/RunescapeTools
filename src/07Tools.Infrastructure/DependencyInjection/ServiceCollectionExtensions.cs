@@ -66,6 +66,7 @@ public static class ServiceCollectionExtensions
         }
 
         services.AddSingleton<IFavouriteStore, JsonFavouriteStore>();
+        services.AddSingleton<DesktopDataMigrator>();
         services.AddSingleton<IMarketDataService, MarketDataService>();
         if (priceHistoryStoreOptions is not null)
         {

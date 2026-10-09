@@ -18,18 +18,27 @@ namespace RunescapeTools.Wpf;
 
 public partial class App : System.Windows.Application
 {
-    private const string LegacyProductDirectoryName = "RuneScapePriceChecker";
     private readonly CancellationTokenSource shutdown = new();
     private IHost? host;
     private Mutex? singleInstanceMutex;
     private bool ownsMutex;
+    private Mutex? legacyInstanceMutex;
+    private bool ownsLegacyMutex;
 
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
-        singleInstanceMutex = new Mutex(true, @"Local\RunescapeTools.Desktop", out ownsMutex);
+        singleInstanceMutex = new Mutex(true, @"Local\07Tools.Desktop", out ownsMutex);
         if (!ownsMutex)
+        {
+            Shutdown();
+            return;
+        }
+
+        // Also exclude an older executable while importing its saved state.
+        legacyInstanceMutex = new Mutex(true, @"Local\RunescapeTools.Desktop", out ownsLegacyMutex);
+        if (!ownsLegacyMutex)
         {
             Shutdown();
             return;
@@ -38,6 +47,8 @@ public partial class App : System.Windows.Application
         try
         {
             host = BuildHost();
+            await host.Services.GetRequiredService<DesktopDataMigrator>().MigrateAsync(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), shutdown.Token);
             await host.StartAsync(shutdown.Token);
 
             var window = host.Services.GetRequiredService<MainWindow>();
@@ -50,8 +61,8 @@ public partial class App : System.Windows.Application
         catch (Exception exception)
         {
             MessageBox.Show(
-                $"GE Ledger could not start.\n\n{exception.Message}",
-                "RunescapeTools",
+                $"07Tools could not start.\n\n{exception.Message}",
+                "07Tools",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
             Shutdown(1);
@@ -77,6 +88,9 @@ public partial class App : System.Windows.Application
             host.Dispose();
         }
 
+        if (ownsLegacyMutex)
+            legacyInstanceMutex?.ReleaseMutex();
+        legacyInstanceMutex?.Dispose();
         if (ownsMutex)
             singleInstanceMutex?.ReleaseMutex();
         singleInstanceMutex?.Dispose();
@@ -92,8 +106,7 @@ public partial class App : System.Windows.Application
         builder.Logging.AddDebug();
 
         var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var localData = Path.Combine(localAppData, "RunescapeTools");
-        MigrateLegacyFavourites(localAppData, localData);
+        var localData = Path.Combine(localAppData, DesktopDataMigrator.ProductDirectoryName);
 
         builder.Services.AddRunescapeToolsServices(
             new OsrsWikiOptions(),
@@ -142,35 +155,6 @@ public partial class App : System.Windows.Application
         builder.Services.AddSingleton<MainWindow>();
 
         return builder.Build();
-    }
-
-    private static void MigrateLegacyFavourites(string localAppData, string localData)
-    {
-        var newFile = Path.Combine(localData, "data", "favourites.json");
-        if (File.Exists(newFile))
-            return;
-
-        var legacyFile = Path.Combine(
-            localAppData,
-            LegacyProductDirectoryName,
-            "data",
-            "favourites.json");
-        if (!File.Exists(legacyFile))
-            return;
-
-        try
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(newFile)!);
-            File.Copy(legacyFile, newFile, overwrite: false);
-        }
-        catch (IOException)
-        {
-            // The normal first-run seed remains available if migration cannot complete.
-        }
-        catch (UnauthorizedAccessException)
-        {
-            // The normal first-run seed remains available if migration cannot complete.
-        }
     }
 
     private static string ReadEmbeddedSeed()

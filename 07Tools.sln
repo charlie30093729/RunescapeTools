@@ -5,15 +5,15 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RunescapeTools.Core", "src\RunescapeTools.Core\RunescapeTools.Core.csproj", "{AAC0FD4E-8988-4A4F-841E-0484ADCDBC53}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "07Tools.Core", "src\07Tools.Core\07Tools.Core.csproj", "{AAC0FD4E-8988-4A4F-841E-0484ADCDBC53}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RunescapeTools.Application", "src\RunescapeTools.Application\RunescapeTools.Application.csproj", "{6F7B3A0D-12E7-4B4D-9A1C-3A5F2E8D91B1}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "07Tools.Application", "src\07Tools.Application\07Tools.Application.csproj", "{6F7B3A0D-12E7-4B4D-9A1C-3A5F2E8D91B1}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RunescapeTools.Infrastructure", "src\RunescapeTools.Infrastructure\RunescapeTools.Infrastructure.csproj", "{8C4D9E2A-5B63-47F1-A2D8-4E6B7C9F10A2}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "07Tools.Infrastructure", "src\07Tools.Infrastructure\07Tools.Infrastructure.csproj", "{8C4D9E2A-5B63-47F1-A2D8-4E6B7C9F10A2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RunescapeTools.Wpf", "src\RunescapeTools.Wpf\RunescapeTools.Wpf.csproj", "{A5E1C7B3-9D42-4F68-B1A7-6C2D8E0F34B5}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "07Tools.Wpf", "src\07Tools.Wpf\07Tools.Wpf.csproj", "{A5E1C7B3-9D42-4F68-B1A7-6C2D8E0F34B5}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RunescapeTools.Tests", "tests\RunescapeTools.Tests\RunescapeTools.Tests.csproj", "{8C90EBB1-15D0-4941-8236-DBA6F83B7EAC}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "07Tools.Tests", "tests\07Tools.Tests\07Tools.Tests.csproj", "{8C90EBB1-15D0-4941-8236-DBA6F83B7EAC}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

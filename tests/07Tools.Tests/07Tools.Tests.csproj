@@ -4,7 +4,7 @@
     <IsTestProject>true</IsTestProject>
     <IsPackable>false</IsPackable>
     <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
-    <AssemblyName>RunescapeTools.Tests</AssemblyName>
+    <AssemblyName>07Tools.Tests</AssemblyName>
     <RootNamespace>RunescapeTools.Tests</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
@@ -18,10 +18,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\RunescapeTools.Application\RunescapeTools.Application.csproj" />
-    <ProjectReference Include="..\..\src\RunescapeTools.Core\RunescapeTools.Core.csproj" />
-    <ProjectReference Include="..\..\src\RunescapeTools.Infrastructure\RunescapeTools.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\src\RunescapeTools.Wpf\RunescapeTools.Wpf.csproj" />
+    <ProjectReference Include="..\..\src\07Tools.Application\07Tools.Application.csproj" />
+    <ProjectReference Include="..\..\src\07Tools.Core\07Tools.Core.csproj" />
+    <ProjectReference Include="..\..\src\07Tools.Infrastructure\07Tools.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\07Tools.Wpf\07Tools.Wpf.csproj" />
   </ItemGroup>
 
 </Project>

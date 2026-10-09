@@ -1,6 +1,8 @@
-# RunescapeTools
+# 07Tools
 
-RunescapeTools, presented as **GE Ledger**, is a Windows desktop companion for Old School RuneScape. Track your account, follow Grand Exchange prices, compare money makers, and plan the time and GP needed to reach your XP goals.
+**An unofficial Old School RuneScape companion, created by bottleo.**
+
+Track your account, follow Grand Exchange prices, compare money makers, and plan the time and GP needed to reach your XP goals with this Windows desktop app.
 
 ## What it does
 
@@ -23,33 +25,37 @@ Prices and Hiscores come from the OSRS Wiki and official OSRS Hiscores APIs. Cal
 
 XAML views bind to view-model properties and commands. View-models call shared services, which use Core calculations and Infrastructure integrations. Each training skill has its own folder; individual methods own their item definitions, while `Global.cs` holds rules shared within that skill.
 
-Settings, favourites, plans, and caches are stored under `%LocalAppData%\RunescapeTools\data`. Replacing the executable preserves this data.
+Projects and assemblies use `07Tools`; C# namespaces retain `RunescapeTools` because identifiers cannot start with a digit.
+
+Settings, favourites, plans, and caches are stored under `%LocalAppData%\07Tools\data`. Replacing the executable preserves this data.
+
+On first launch, existing `RunescapeTools` data is copied into the new location without changing the original. Existing `07Tools` data is never overwritten.
 
 ## Development
 
 Use Windows 10 version 2004 or newer (x64) with the .NET 8 SDK.
 
 ```powershell
-dotnet build RunescapeTools.sln
-dotnet test RunescapeTools.sln --no-build --blame-hang-timeout 2m
-dotnet run --project src\RunescapeTools.Wpf\RunescapeTools.Wpf.csproj
+dotnet build 07Tools.sln
+dotnet test 07Tools.sln --no-build --blame-hang-timeout 2m
+dotnet run --project src\07Tools.Wpf\07Tools.Wpf.csproj
 ```
 
-GitHub Actions builds and tests pull requests and pushes to `main`. See the [testing guide](tests/RunescapeTools.Tests/README.md) for focused test runs and conventions.
+GitHub Actions builds and tests pull requests and pushes to `main`. See the [testing guide](tests/07Tools.Tests/README.md) for focused test runs and conventions.
 
 ## Publish
 
 ```powershell
-dotnet publish src\RunescapeTools.Wpf\RunescapeTools.Wpf.csproj -c Release -r win-x64 -p:PublishProfile=win-x64
+dotnet publish src\07Tools.Wpf\07Tools.Wpf.csproj -c Release -r win-x64 -p:PublishProfile=win-x64
 ```
 
 The self-contained executable is produced at:
 
 ```text
-src\RunescapeTools.Wpf\bin\Release\net8.0-windows10.0.19041.0\win-x64\publish\RunescapeTools.exe
+src\07Tools.Wpf\bin\Release\net8.0-windows10.0.19041.0\win-x64\publish\07Tools.exe
 ```
 
-Users do not need the .NET runtime installed. The repository-root `RunescapeTools.exe` is a local shortcut target and is excluded from Git.
+Users do not need the .NET runtime installed. The repository-root `07Tools.exe` is a local shortcut target and is excluded from Git. A local `RunescapeTools.exe` compatibility copy keeps older desktop shortcuts working.
 
 ## Documentation and contact
 

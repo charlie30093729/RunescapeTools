@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:RunescapeTools.Wpf.ViewModels"
         xmlns:views="clr-namespace:RunescapeTools.Wpf.Views"
-        Title="GE Ledger · RunescapeTools"
+        Title="07Tools"
         Width="1280" Height="800" MinWidth="1100" MinHeight="720"
         WindowStartupLocation="CenterScreen">
     <Window.Resources>
@@ -69,12 +69,12 @@
 
                 <StackPanel Orientation="Horizontal">
                     <Border Width="48" Height="48" CornerRadius="7" Background="#A16F1D">
-                        <TextBlock Text="GE" FontFamily="Georgia" FontWeight="Bold" FontSize="18"
+                        <TextBlock Text="07" FontFamily="Georgia" FontWeight="Bold" FontSize="18"
                                    Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Border>
                     <StackPanel Margin="12,3,0,0">
-                        <TextBlock Text="GE LEDGER" Foreground="White" FontWeight="Bold" FontSize="15" />
-                        <TextBlock Text="MARKET WORKSPACE" Foreground="{StaticResource SidebarMutedBrush}" FontSize="10" Margin="0,3,0,0" />
+                        <TextBlock Text="07Tools" Foreground="White" FontWeight="Bold" FontSize="15" />
+                        <TextBlock Text="OSRS COMPANION" Foreground="{StaticResource SidebarMutedBrush}" FontSize="10" Margin="0,3,0,0" />
                     </StackPanel>
                 </StackPanel>
 

@@ -4,7 +4,7 @@ namespace RunescapeTools.Tests.TestSupport;
 internal sealed class TemporaryDirectory : IDisposable
 {
     private readonly string parent = System.IO.Path.GetFullPath(
-        System.IO.Path.Combine(System.IO.Path.GetTempPath(), "RunescapeTools.Tests"));
+        System.IO.Path.Combine(System.IO.Path.GetTempPath(), "07Tools.Tests"));
 
     public TemporaryDirectory()
     {

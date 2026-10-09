@@ -1,16 +1,16 @@
-# RunescapeTools — Application Requirements
+# 07Tools — Application Requirements
 
 | Field | Value |
 | --- | --- |
 | Document version | 1.7 |
-| Application | RunescapeTools / GE Ledger |
+| Application | 07Tools |
 | Status | WPF MVP baseline |
 | Date | 9 October 2026 |
 | Target platform | Windows 10 2004+ x64; .NET 8 WPF desktop application |
 
 ## 1. Purpose
 
-This document defines the functional, data, integration, quality, and acceptance requirements for RunescapeTools, presented in the user interface as **GE Ledger**.
+This document defines the functional, data, integration, quality, and acceptance requirements for **07Tools**, an unofficial Old School RuneScape companion.
 
 The application provides a focused personal workspace for Old School RuneScape Grand Exchange information. It intentionally limits general market noise by displaying favourite items and items required by registered money-making methods. It also supplies a reusable calculation model for GP per hour and future experience-per-hour or cost-per-hour features.
 
@@ -265,7 +265,7 @@ The OSRS Wiki real-time price API is an external dependency. The application mus
 | FR-XP-075 | Construction shall provide a selectable mahogany table route from level 52 at 940,000 XP/hour, consuming one mahogany plank per 140 XP and applying the 24-plank Demon butler fee cycle. |
 
 | FR-XP-076 | The planner shall offer a saved global Live/30-day-average pricing selection that reprices all skill methods and the allocated money maker without changing XP, hours, quantities or personal rate/configuration settings. Historical buy and sell prices shall be independently volume-weighted over 120 completed UTC six-hour buckets, retaining decimal GP precision and requiring at least 116 distinct valid bucket timestamps. Missing prices or volumes shall not silently become zero, opposite-side averages, or live-price fallbacks. |
-| FR-XP-077 | Historical data and the pricing preference shall persist under `%LocalAppData%\RunescapeTools\data\price-history`, with deduplicated item discovery, at most four simultaneous history requests, atomic cache replacement and refresh-on-request at the next six-hour boundary. Fresh cached history shall survive restart. In-flight requests shall support cancellation; a failed or superseded refresh shall not replace the last valid snapshot. Historical item details shall be clearly labeled as estimates rather than current offers. |
+| FR-XP-077 | Historical data and the pricing preference shall persist under `%LocalAppData%\07Tools\data\price-history`, with deduplicated item discovery, at most four simultaneous history requests, atomic cache replacement and refresh-on-request at the next six-hour boundary. Fresh cached history shall survive restart. In-flight requests shall support cancellation; a failed or superseded refresh shall not replace the last valid snapshot. Historical item details shall be clearly labeled as estimates rather than current offers. |
 | FR-XP-078 | Allocated money-maker income shall be recalculated from its effective item flows, actions/hour, account count, configuration and tax using the same pricing snapshot as the skill methods. The planner shall buy inputs high and sell outputs low in either mode, without changing the standalone Money Makers tab's existing live midpoint calculation. Incompletely priced money makers shall be excluded from planner income with a visible explanation. |
 
 | FR-XP-079 | Sailing shall provide a stable-labelled Salvaging route with ordered wreck/equipment rate bands and a level-15 unlock disclosure. Its persisted, default-on crystal-extractor toggle shall add 250 XP per 63 seconds from level 73, also on personal base rates, without changing Gwenith Glide. The method shall disclose equipment assumptions, uncertain rate estimates, the retained pre-15 legacy fallback, and unpriced loot. Rate calculations and configuration transformations shall remain shared, with no new calculation logic in XAML or view models. |
@@ -300,10 +300,10 @@ XP Planner addition FR-XP-081: Prayer shall offer Infernal ashes (25778) and Aby
 | FR-DATA-005 | On first launch only, the desktop host shall seed favourites from its embedded snapshot when no desktop file exists. |
 | FR-DATA-006 | The first-run seed shall never replace an existing desktop favourites file. |
 | FR-DATA-007 | When the renamed desktop data file does not yet exist, the host shall preserve an existing legacy favourites file by copying it to the new LocalAppData location before applying the seed. |
-| FR-DATA-008 | The selected RSN shall persist atomically in `%LocalAppData%\RunescapeTools\data\profile.json`. |
-| FR-DATA-009 | XP goals, overrides, selected training-route IDs, normalized skill-configuration values, and money-making skill allocations shall persist atomically per normalized RSN in `%LocalAppData%\RunescapeTools\data\training-plans.json`. Existing records without configuration values shall load the current skill defaults. |
-| FR-DATA-010 | Positive money-maker actions/hour overrides and method-specific boolean options shall persist atomically by stable method slug in `%LocalAppData%\RunescapeTools\data\money-making-preferences.json` and shall apply across application restarts. |
-| FR-DATA-011 | Wiki item icons requested by a desktop presentation shall be downloaded lazily and persisted under `%LocalAppData%\RunescapeTools\data\item-icons`; the cache key shall change when the mapped Wiki filename changes. |
+| FR-DATA-008 | The selected RSN shall persist atomically in `%LocalAppData%\07Tools\data\profile.json`. |
+| FR-DATA-009 | XP goals, overrides, selected training-route IDs, normalized skill-configuration values, and money-making skill allocations shall persist atomically per normalized RSN in `%LocalAppData%\07Tools\data\training-plans.json`. Existing records without configuration values shall load the current skill defaults. |
+| FR-DATA-010 | Positive money-maker actions/hour overrides and method-specific boolean options shall persist atomically by stable method slug in `%LocalAppData%\07Tools\data\money-making-preferences.json` and shall apply across application restarts. |
+| FR-DATA-011 | Wiki item icons requested by a desktop presentation shall be downloaded lazily and persisted under `%LocalAppData%\07Tools\data\item-icons`; the cache key shall change when the mapped Wiki filename changes. |
 | FR-ERR-001 | Item search, latest-price, history, and calculator failures shall produce user-readable messages. |
 | FR-ERR-002 | Temporary API failures shall not delete or overwrite stored favourites. |
 | FR-ERR-003 | HTTP 429 and server-error responses shall be retried up to three attempts with a delay. |
@@ -353,7 +353,7 @@ Requirements:
 - Activity rows following the complete skill block shall not be misinterpreted as skills.
 - Missing, empty, incomplete, or malformed skill rows shall fail parsing rather than produce zero-level data.
 - HTTP 404 shall be treated as account not found; other HTTP, timeout, and parsing failures shall remain integration errors.
-- Requests shall use a finite timeout and the existing identifiable `RunescapeTools/0.1 (contact: Discord bottleo)` User-Agent.
+- Requests shall use a finite timeout and the existing identifiable `07Tools/0.1 (contact: Discord bottleo)` User-Agent.
 
 ### 8.3 Desktop interface
 
@@ -388,11 +388,12 @@ Requirements:
 
 ### 9.4 Local and generated data
 
-- Mutable desktop state shall be stored under `%LocalAppData%\RunescapeTools`.
-- Desktop favourites shall be stored at `%LocalAppData%\RunescapeTools\data\favourites.json`.
-- Per-RSN training plans shall be stored at `%LocalAppData%\RunescapeTools\data\training-plans.json`.
+- Mutable desktop state shall be stored under `%LocalAppData%\07Tools`.
+- Desktop favourites shall be stored at `%LocalAppData%\07Tools\data\favourites.json`.
+- Per-RSN training plans shall be stored at `%LocalAppData%\07Tools\data\training-plans.json`.
 - The EHP catalogue shall identify its source snapshot and verification date; rate changes shall be reviewed code/data changes rather than runtime scraping.
-- The renamed desktop host shall copy an existing legacy favourites file into this location once, without overwriting new state.
+- Before loading services, the desktop host shall copy existing `%LocalAppData%\RunescapeTools\data` into the new data directory on first launch, including favourites, profile, training plans, money-maker preferences, and caches. Existing `07Tools` data shall never be merged with or overwritten by old state; source files shall remain unchanged.
+- Migration shall stage the complete copy before installing it. Failure or cancellation shall leave no partial destination and shall not fall back to seeded defaults. The older `RuneScapePriceChecker` favourites file shall remain a fallback when no newer favourites file exists.
 - The WPF assembly shall embed the versioned MVP favourites snapshot as first-run seed data, including the current Scythe favourite.
 - Build outputs and IDE-specific state shall be excluded from Git.
 
@@ -470,6 +471,7 @@ Requirements:
 | NFR-COMP-003 | The layout shall avoid page-level horizontal overflow at supported desktop widths. |
 | NFR-COMP-004 | Tables may use contained horizontal scrolling when their readable minimum width exceeds the available viewport. |
 | NFR-COMP-005 | The release executable shall be self-contained and shall not require the .NET Desktop Runtime on the target machine. |
+| NFR-COMP-006 | Product, project, and assembly names shall use `07Tools`. C# root namespaces shall remain `RunescapeTools` so identifiers remain valid. The desktop host shall recognize the prior single-instance mutex during the transition. |
 
 ## 12. Configuration requirements
 
@@ -484,14 +486,14 @@ Requirements:
 | `MarketDataOptions` | Controls latest, mapping, history, window, and warmup cache behavior. | Shared defaults. |
 | `TrainingPlanOptions.FilePath` | Selects the per-RSN XP Planner JSON file. | WPF uses the LocalAppData data directory. |
 | `MoneyMakingPreferenceOptions.FilePath` | Selects the JSON file for actions/hour overrides keyed by method slug. | WPF uses the LocalAppData data directory. |
-| `ItemIconCacheOptions` | Selects the persistent Wiki item-icon directory and bounds icon response size and download concurrency. | WPF uses `%LocalAppData%\RunescapeTools\data\item-icons`. |
+| `ItemIconCacheOptions` | Selects the persistent Wiki item-icon directory and bounds icon response size and download concurrency. | WPF uses `%LocalAppData%\07Tools\data\item-icons`. |
 
 ### 12.1 Release packaging
 
 - The WPF publish profile shall target `win-x64` with `SelfContained=true` and `PublishSingleFile=true`.
 - Native libraries shall be included for self-extraction, symbols shall be embedded, and trimming shall remain disabled.
-- The release artifact shall be named `RunescapeTools.exe` and shall include the GE monogram application icon.
-- The supported release command is `dotnet publish src\RunescapeTools.Wpf\RunescapeTools.Wpf.csproj -c Release -r win-x64 -p:PublishProfile=win-x64`.
+- The release artifact shall be named `07Tools.exe` and shall include the 07 monogram application icon.
+- The supported release command is `dotnet publish src\07Tools.Wpf\07Tools.Wpf.csproj -c Release -r win-x64 -p:PublishProfile=win-x64`.
 
 The maintainer shall verify the configured contact information before public distribution.
 
@@ -500,7 +502,7 @@ The maintainer shall verify the configured contact information before public dis
 The MVP is accepted when all of the following are true:
 
 1. The solution builds successfully with no compiler errors.
-2. The NUnit regression suite passes all discovered tests through `dotnet test RunescapeTools.sln`.
+2. The NUnit regression suite passes all discovered tests through `dotnet test 07Tools.sln`.
 3. The dashboard loads persisted favourites and live midpoint prices when the Wiki service is available.
 4. The user can search for an item, add it, select it, inspect one-day through one-month history, and remove it.
 5. Favourite changes persist across application restarts.
@@ -510,8 +512,8 @@ The MVP is accepted when all of the following are true:
 9. Market-service failures display understandable fallback messages without deleting favourites.
 10. The WPF views remain usable at 1100 × 720 without uncontrolled page-level overflow.
 11. A second desktop instance exits cleanly without opening a competing favourites store.
-12. First launch preserves an existing legacy favourites file when available, otherwise creates the LocalAppData file from the embedded snapshot; later launches do not replace it.
-13. The `win-x64` Release publish produces a self-contained single-file `RunescapeTools.exe` with trimming disabled.
+12. First launch safely copies previous desktop data when available, otherwise creates favourites from the embedded snapshot; later launches do not import or replace saved state.
+13. The `win-x64` Release publish produces a self-contained single-file `07Tools.exe` with trimming disabled.
 14. The complete solution contains only Core, Application, Infrastructure, Wpf, and Tests, with no dependency on a retired application host.
 15. Build outputs, local executables, logs, and IDE-specific state remain ignored by Git.
 16. XP Planner hours span every applicable level band and reproduce the reviewed Construction 0-to-200m benchmark within rounding tolerance.

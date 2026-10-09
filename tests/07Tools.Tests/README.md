@@ -1,4 +1,4 @@
-# Testing RunescapeTools
+# Testing 07Tools
 
 This is a Windows-targeted NUnit 4 project, not a console program. NUnit's adapter discovers
 `[Test]` and `[TestCase]` methods automatically in Visual Studio Test Explorer and `dotnet test`.
@@ -9,17 +9,17 @@ No manual registration list or production-code change is required to add a test.
 From the repository root, on Windows with the .NET 8 SDK:
 
 ```powershell
-dotnet build RunescapeTools.sln
-dotnet test RunescapeTools.sln --no-build --blame-hang-timeout 2m
+dotnet build 07Tools.sln
+dotnet test 07Tools.sln --no-build --blame-hang-timeout 2m
 ```
 
 Run only a feature, or omit real WPF views:
 
 ```powershell
-dotnet test tests/RunescapeTools.Tests --filter "FullyQualifiedName~Herblore"
-dotnet test tests/RunescapeTools.Tests --filter "TestCategory=Persistence"
-dotnet test tests/RunescapeTools.Tests --filter "TestCategory!=Wpf"
-dotnet test tests/RunescapeTools.Tests --filter "TestCategory=Wpf" --blame-hang-timeout 2m
+dotnet test tests/07Tools.Tests --filter "FullyQualifiedName~Herblore"
+dotnet test tests/07Tools.Tests --filter "TestCategory=Persistence"
+dotnet test tests/07Tools.Tests --filter "TestCategory!=Wpf"
+dotnet test tests/07Tools.Tests --filter "TestCategory=Wpf" --blame-hang-timeout 2m
 ```
 
 The whole suite remains Windows-only because it references the WPF project. Excluding the
@@ -30,10 +30,10 @@ and JSON-store checks that exercise the filesystem.
 To save results:
 
 ```powershell
-dotnet test RunescapeTools.sln --logger trx --results-directory TestResults --blame-hang-timeout 2m
+dotnet test 07Tools.sln --logger trx --results-directory TestResults --blame-hang-timeout 2m
 ```
 
-`TestResults`, `bin`, and `obj` are ignored by Git. The normal `dotnet test RunescapeTools.sln`
+`TestResults`, `bin`, and `obj` are ignored by Git. The normal `dotnet test 07Tools.sln`
 command also works; the longer command above adds protection against a hung test process.
 
 ## Organization
