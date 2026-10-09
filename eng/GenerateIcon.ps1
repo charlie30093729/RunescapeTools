@@ -1,5 +1,5 @@
 param(
-    [string] $OutputPath = (Join-Path $PSScriptRoot '..\src\RunescapeTools.Wpf\Assets\ge-ledger.ico')
+    [string] $OutputPath = (Join-Path $PSScriptRoot '..\src\07Tools.Wpf\Assets\07tools.ico')
 )
 
 Add-Type -AssemblyName System.Drawing
@@ -44,7 +44,7 @@ try {
     $format = [System.Drawing.StringFormat]::new()
     $format.Alignment = [System.Drawing.StringAlignment]::Center
     $format.LineAlignment = [System.Drawing.StringAlignment]::Center
-    $graphics.DrawString('GE', $font, [System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#27241f')), [System.Drawing.RectangleF]::new(39, 49, 178, 126), $format)
+    $graphics.DrawString('07', $font, [System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#27241f')), [System.Drawing.RectangleF]::new(39, 49, 178, 126), $format)
 
     $pen = [System.Drawing.Pen]::new([System.Drawing.ColorTranslator]::FromHtml('#a16f1d'), 7)
     $pen.StartCap = [System.Drawing.Drawing2D.LineCap]::Round

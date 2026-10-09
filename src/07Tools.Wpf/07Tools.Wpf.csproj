@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>07Tools</AssemblyName>
+    <RootNamespace>RunescapeTools.Wpf</RootNamespace>
+    <ApplicationIcon>Assets\07tools.ico</ApplicationIcon>
+    <Product>07Tools</Product>
+    <Description>An unofficial Old School RuneScape companion for XP planning, money makers, and Grand Exchange tracking.</Description>
+    <Version>1.0.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="LiveChartsCore.SkiaSharpView.WPF" Version="2.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="8.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\07Tools.Application\07Tools.Application.csproj" />
+    <ProjectReference Include="..\07Tools.Core\07Tools.Core.csproj" />
+    <ProjectReference Include="..\07Tools.Infrastructure\07Tools.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Assets\seed-favourites.json" LogicalName="SeedFavourites.json" />
+  </ItemGroup>
+</Project>

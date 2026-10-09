@@ -41,7 +41,7 @@ four concurrent requests at most. The existing history service filters to 31 day
 the calculator then selects the completed 30-day window.
 
 Each item is saved in `data/price-history/{id}-6h-v1.json` under LocalAppData's
-RunescapeTools directory; `settings.json` stores the global mode. Unique temporary
+07Tools directory; `settings.json` stores the global mode. Unique temporary
 files and atomic replacement protect prior entries. Invalid JSON/invalid cached
 history is a cache miss. No existing profile or training-plan format changes.
 
