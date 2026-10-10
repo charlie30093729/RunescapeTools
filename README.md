@@ -29,8 +29,6 @@ Projects and assemblies use `07Tools`; C# namespaces retain `RunescapeTools` bec
 
 Settings, favourites, plans, and caches are stored under `%LocalAppData%\07Tools\data`. Replacing the executable preserves this data.
 
-On first launch, existing `RunescapeTools` data is copied into the new location without changing the original. Existing `07Tools` data is never overwritten.
-
 ## Development
 
 Use Windows 10 version 2004 or newer (x64) with the .NET 8 SDK.
