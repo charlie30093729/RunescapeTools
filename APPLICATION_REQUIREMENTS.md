@@ -2,10 +2,10 @@
 
 | Field | Value |
 | --- | --- |
-| Document version | 1.7 |
+| Document version | 1.8 |
 | Application | 07Tools |
 | Status | WPF MVP baseline |
-| Date | 9 October 2026 |
+| Date | 10 October 2026 |
 | Target platform | Windows 10 2004+ x64; .NET 8 WPF desktop application |
 
 ## 1. Purpose
@@ -299,7 +299,7 @@ XP Planner addition FR-XP-081: Prayer shall offer Infernal ashes (25778) and Aby
 | FR-DATA-004 | The desktop host shall allow only one running application instance per Windows user session. |
 | FR-DATA-005 | On first launch only, the desktop host shall seed favourites from its embedded snapshot when no desktop file exists. |
 | FR-DATA-006 | The first-run seed shall never replace an existing desktop favourites file. |
-| FR-DATA-007 | When the renamed desktop data file does not yet exist, the host shall preserve an existing legacy favourites file by copying it to the new LocalAppData location before applying the seed. |
+| FR-DATA-007 | The desktop host shall read the current `07Tools` data directory directly without importing data from previous product directories. |
 | FR-DATA-008 | The selected RSN shall persist atomically in `%LocalAppData%\07Tools\data\profile.json`. |
 | FR-DATA-009 | XP goals, overrides, selected training-route IDs, normalized skill-configuration values, and money-making skill allocations shall persist atomically per normalized RSN in `%LocalAppData%\07Tools\data\training-plans.json`. Existing records without configuration values shall load the current skill defaults. |
 | FR-DATA-010 | Positive money-maker actions/hour overrides and method-specific boolean options shall persist atomically by stable method slug in `%LocalAppData%\07Tools\data\money-making-preferences.json` and shall apply across application restarts. |
@@ -392,8 +392,8 @@ Requirements:
 - Desktop favourites shall be stored at `%LocalAppData%\07Tools\data\favourites.json`.
 - Per-RSN training plans shall be stored at `%LocalAppData%\07Tools\data\training-plans.json`.
 - The EHP catalogue shall identify its source snapshot and verification date; rate changes shall be reviewed code/data changes rather than runtime scraping.
-- Before loading services, the desktop host shall copy existing `%LocalAppData%\RunescapeTools\data` into the new data directory on first launch, including favourites, profile, training plans, money-maker preferences, and caches. Existing `07Tools` data shall never be merged with or overwritten by old state; source files shall remain unchanged.
-- Migration shall stage the complete copy before installing it. Failure or cancellation shall leave no partial destination and shall not fall back to seeded defaults. The older `RuneScapePriceChecker` favourites file shall remain a fallback when no newer favourites file exists.
+- The desktop host shall read existing `%LocalAppData%\07Tools\data` directly. Automatic imports from previous product directories are no longer supported.
+- First-run favourites seeding shall apply only when the current favourites file does not exist; existing saved data shall never be overwritten by seeding.
 - The WPF assembly shall embed the versioned MVP favourites snapshot as first-run seed data, including the current Scythe favourite.
 - Build outputs and IDE-specific state shall be excluded from Git.
 
@@ -471,7 +471,7 @@ Requirements:
 | NFR-COMP-003 | The layout shall avoid page-level horizontal overflow at supported desktop widths. |
 | NFR-COMP-004 | Tables may use contained horizontal scrolling when their readable minimum width exceeds the available viewport. |
 | NFR-COMP-005 | The release executable shall be self-contained and shall not require the .NET Desktop Runtime on the target machine. |
-| NFR-COMP-006 | Product, project, and assembly names shall use `07Tools`. C# root namespaces shall remain `RunescapeTools` so identifiers remain valid. The desktop host shall recognize the prior single-instance mutex during the transition. |
+| NFR-COMP-006 | Product, project, and assembly names shall use `07Tools`. C# root namespaces shall remain `RunescapeTools` so identifiers remain valid. The desktop host shall enforce a single running instance through the `07Tools` mutex. |
 
 ## 12. Configuration requirements
 
@@ -512,7 +512,7 @@ The MVP is accepted when all of the following are true:
 9. Market-service failures display understandable fallback messages without deleting favourites.
 10. The WPF views remain usable at 1100 × 720 without uncontrolled page-level overflow.
 11. A second desktop instance exits cleanly without opening a competing favourites store.
-12. First launch safely copies previous desktop data when available, otherwise creates favourites from the embedded snapshot; later launches do not import or replace saved state.
+12. First launch creates favourites from the embedded snapshot only when no current favourites file exists; existing saved state is read directly without importing or replacing it.
 13. The `win-x64` Release publish produces a self-contained single-file `07Tools.exe` with trimming disabled.
 14. The complete solution contains only Core, Application, Infrastructure, Wpf, and Tests, with no dependency on a retired application host.
 15. Build outputs, local executables, logs, and IDE-specific state remain ignored by Git.

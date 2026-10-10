@@ -18,12 +18,11 @@ namespace RunescapeTools.Wpf;
 
 public partial class App : System.Windows.Application
 {
+    private const string ProductDirectoryName = "07Tools";
     private readonly CancellationTokenSource shutdown = new();
     private IHost? host;
     private Mutex? singleInstanceMutex;
     private bool ownsMutex;
-    private Mutex? legacyInstanceMutex;
-    private bool ownsLegacyMutex;
 
     protected override async void OnStartup(StartupEventArgs e)
     {
@@ -36,19 +35,9 @@ public partial class App : System.Windows.Application
             return;
         }
 
-        // Also exclude an older executable while importing its saved state.
-        legacyInstanceMutex = new Mutex(true, @"Local\RunescapeTools.Desktop", out ownsLegacyMutex);
-        if (!ownsLegacyMutex)
-        {
-            Shutdown();
-            return;
-        }
-
         try
         {
             host = BuildHost();
-            await host.Services.GetRequiredService<DesktopDataMigrator>().MigrateAsync(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), shutdown.Token);
             await host.StartAsync(shutdown.Token);
 
             var window = host.Services.GetRequiredService<MainWindow>();
@@ -88,9 +77,6 @@ public partial class App : System.Windows.Application
             host.Dispose();
         }
 
-        if (ownsLegacyMutex)
-            legacyInstanceMutex?.ReleaseMutex();
-        legacyInstanceMutex?.Dispose();
         if (ownsMutex)
             singleInstanceMutex?.ReleaseMutex();
         singleInstanceMutex?.Dispose();
@@ -106,7 +92,7 @@ public partial class App : System.Windows.Application
         builder.Logging.AddDebug();
 
         var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var localData = Path.Combine(localAppData, DesktopDataMigrator.ProductDirectoryName);
+        var localData = Path.Combine(localAppData, ProductDirectoryName);
 
         builder.Services.AddRunescapeToolsServices(
             new OsrsWikiOptions(),
